@@ -44,6 +44,9 @@ public sealed class VirtualDesktopService : IDisposable
         if (_manager != null) _timer.Start();
     }
 
+    /// <summary>今すぐ現在のデスクトップへ移動する(トレイから表示するとき用)。</summary>
+    public void FollowNow() => Follow();
+
     private void Follow()
     {
         try

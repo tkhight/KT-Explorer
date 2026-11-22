@@ -28,6 +28,9 @@ public sealed class AppState
     /// <summary>外部から開いた Explorer を KT_Explorer のデフォルトグループへ取り込む。</summary>
     public bool CaptureExplorer { get; set; } = true;
 
+    /// <summary>閉じるボタンで終了せず、タスクトレイへ常駐する。</summary>
+    public bool CloseToTray { get; set; } = true;
+
     /// <summary>タブグループ(先頭がデフォルトグループ)。</summary>
     public List<GroupState> Groups { get; set; } = new();
     public int SelectedGroupIndex { get; set; }

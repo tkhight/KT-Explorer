@@ -17,6 +17,8 @@ public partial class MainWindow : Window
     private readonly AppState _state;
     private VirtualDesktopService? _desktop;
     private ExplorerCaptureService? _capture;
+    private TrayService? _tray;
+    private bool _exiting;
 
     private Point _gestureStart;
     private bool _gestureTracking;
@@ -51,28 +53,69 @@ public partial class MainWindow : Window
         _capture = new ExplorerCaptureService();
         _capture.FolderCaptured += OnFolderCaptured;
         _capture.Enabled = _vm.CaptureExplorer;
-        _vm.PropertyChanged += (_, e) =>
+        _vm.PropertyChanged += (_, args) =>
         {
-            if (e.PropertyName == nameof(MainViewModel.CaptureExplorer)) _capture.Enabled = _vm.CaptureExplorer;
+            if (args.PropertyName == nameof(MainViewModel.CaptureExplorer)) _capture.Enabled = _vm.CaptureExplorer;
         };
+
+        // タスクトレイ常駐
+        _tray = new TrayService(
+            show: ShowFromTray,
+            exit: ExitApp,
+            getCapture: () => _vm.CaptureExplorer,
+            setCapture: value => _vm.CaptureExplorer = value);
+
+        // Windows のサインアウト/シャットダウン時は、トレイに隠さず終了させる
+        Application.Current.SessionEnding += (_, _) => _exiting = true;
     }
 
     private void OnFolderCaptured(string path)
     {
         _vm.ImportFolder(path);
-        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+        ShowFromTray();
+    }
+
+    /// <summary>ウィンドウを(隠れていても)現在のデスクトップの前面に表示する。</summary>
+    public void ShowFromTray()
+    {
+        Show();
+        if (WindowState == WindowState.Minimized) WindowState = _state.Maximized ? WindowState.Maximized : WindowState.Normal;
+        _desktop?.FollowNow(); // 別の仮想デスクトップに居たままなら、今のデスクトップへ持ってくる
         Activate();
         Topmost = true;   // 前面化を確実にする(すぐ戻す)
         Topmost = false;
     }
 
-    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    /// <summary>トレイメニューの「終了」: 常駐せずに本当に終了する。</summary>
+    private void ExitApp()
+    {
+        _exiting = true;
+        Close();
+    }
+
+    private void SaveState()
     {
         var s = _vm.ToState();
         var b = WindowState == WindowState.Normal ? new Rect(Left, Top, Width, Height) : RestoreBounds;
         s.Left = b.Left; s.Top = b.Top; s.Width = b.Width; s.Height = b.Height;
         s.Maximized = WindowState == WindowState.Maximized;
         StateService.Save(s);
+    }
+
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        SaveState();
+
+        // 閉じるボタン: 終了せずにトレイへ隠す(設定でオフにすると従来どおり終了)
+        if (!_exiting && _vm.CloseToTray)
+        {
+            e.Cancel = true;
+            Hide();
+            _tray?.ShowHintOnce();
+            return;
+        }
+
+        _tray?.Dispose();
         _desktop?.Dispose();
         _capture?.Dispose();
         base.OnClosing(e);
@@ -153,6 +196,8 @@ public partial class MainWindow : Window
         menu.Items.Add(Check("マウスジェスチャ(右ドラッグ)", nameof(MainViewModel.EnableGestures), "左=戻る / 右=進む / 上=一つ上の階層へ"));
         menu.Items.Add(Check("開いた Explorer を取り込む", nameof(MainViewModel.CaptureExplorer),
             "デスクトップ等から開いた Explorer をデフォルトグループのタブへ取り込みます"));
+        menu.Items.Add(Check("閉じるボタンでトレイに常駐", nameof(MainViewModel.CloseToTray),
+            "オフにすると、閉じるボタンでアプリを終了します(トレイの「終了」でも終了できます)"));
         menu.IsOpen = true;
     }
 

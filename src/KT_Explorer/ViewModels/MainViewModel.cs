@@ -17,6 +17,7 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool _syncTreeWithTab = true;
     [ObservableProperty] private bool _enableGestures = true;
     [ObservableProperty] private bool _captureExplorer = true;
+    [ObservableProperty] private bool _closeToTray = true;
 
     /// <summary>ツールバー/パス欄/ツリー連動の対象。ペインタブでは操作中のペイン。</summary>
     [ObservableProperty] private FolderTabViewModel? _currentFolder;
@@ -30,6 +31,7 @@ public partial class MainViewModel : ObservableObject
         SyncTreeWithTab = state.SyncTreeWithTab;
         EnableGestures = state.EnableGestures;
         CaptureExplorer = state.CaptureExplorer;
+        CloseToTray = state.CloseToTray;
         foreach (var f in state.Favorites.Where(f => !string.IsNullOrWhiteSpace(f.Path)))
             Favorites.Add(new Favorite(string.IsNullOrWhiteSpace(f.Name) ? f.Path : f.Name, f.Path));
         BuildTreeRoots();
@@ -379,6 +381,7 @@ public partial class MainViewModel : ObservableObject
             SyncTreeWithTab = SyncTreeWithTab,
             EnableGestures = EnableGestures,
             CaptureExplorer = CaptureExplorer,
+            CloseToTray = CloseToTray,
             SelectedGroupIndex = Groups.IndexOf(_selectedGroup),
         };
         foreach (var f in Favorites) state.Favorites.Add(new FavoriteState { Name = f.Name, Path = f.Path });

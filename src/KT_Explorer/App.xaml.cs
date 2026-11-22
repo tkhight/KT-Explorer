@@ -1,13 +1,46 @@
-﻿using System.Configuration;
-using System.Data;
+﻿using System.Threading;
 using System.Windows;
 
 namespace KT_Explorer;
 
-/// <summary>
-/// Interaction logic for App.xaml
-/// </summary>
 public partial class App : Application
 {
-}
+    // 単一起動: トレイに常駐する以上、2つ目を起動すると取り込みフックが二重になるため防ぐ
+    private const string MutexName = @"Local\KT_Explorer_SingleInstance";
+    private const string ShowEventName = @"Local\KT_Explorer_Show";
 
+    private Mutex? _mutex;
+    private EventWaitHandle? _showEvent;
+
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        _mutex = new Mutex(initiallyOwned: true, MutexName, out bool isFirst);
+        if (!isFirst)
+        {
+            // 既に起動中: そちらのウィンドウを表示させて、自分は終了する
+            try { EventWaitHandle.OpenExisting(ShowEventName).Set(); } catch { /* 起動直後などで未作成 */ }
+            _mutex.Dispose();
+            _mutex = null;
+            Shutdown();
+            return;
+        }
+
+        _showEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName);
+        var waiter = new Thread(() =>
+        {
+            while (_showEvent.WaitOne())
+                Dispatcher.BeginInvoke(() => (MainWindow as MainWindow)?.ShowFromTray());
+        })
+        { IsBackground = true, Name = "KT_Explorer show-listener" };
+        waiter.Start();
+
+        base.OnStartup(e); // StartupUri のメインウィンドウを作る
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        try { _mutex?.ReleaseMutex(); } catch { /* 所有していなければ無視 */ }
+        _mutex?.Dispose();
+        base.OnExit(e);
+    }
+}
