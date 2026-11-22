@@ -31,8 +31,12 @@
                     Command="{Binding ForwardCommand}" IsEnabled="{Binding CurrentFolder.CanGoForward}"/>
             <Button DockPanel.Dock="Left" Content="↑" Width="30" Margin="2,0,0,0" ToolTip="一つ上の階層へ (Alt+↑)"
                     Command="{Binding UpCommand}" IsEnabled="{Binding CurrentFolder.CanGoUp}"/>
-            <Button DockPanel.Dock="Left" Content="⟳" Width="30" Margin="2,0,6,0" ToolTip="更新 (F5)"
+            <Button DockPanel.Dock="Left" Content="⟳" Width="30" Margin="2,0,0,0" ToolTip="更新 (F5)"
                     Command="{Binding RefreshCommand}"/>
+            <Button DockPanel.Dock="Left" Content="↶" Width="30" Margin="6,0,0,0" ToolTip="{Binding UndoToolTip}"
+                    IsEnabled="{Binding CanUndo}" Click="Undo_Click"/>
+            <Button DockPanel.Dock="Left" Content="↷" Width="30" Margin="2,0,6,0" ToolTip="{Binding RedoToolTip}"
+                    IsEnabled="{Binding CanRedo}" Click="Redo_Click"/>
             <Button DockPanel.Dock="Right" Content="設定 ▾" Margin="6,0,0,0" Padding="6,0"
                     ToolTip="ツリー連動 / マウスジェスチャ / Explorer 取り込み" Click="Settings_Click"/>
             <Button DockPanel.Dock="Right" Content="指定ペイン ▾" Margin="2,0,0,0" Padding="6,0"

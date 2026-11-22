@@ -142,6 +142,30 @@ public partial class MainWindow : Window
         }
         else if (e.Key == Key.F) { FilterBox.Focus(); FilterBox.SelectAll(); e.Handled = true; }
         else if (e.Key == Key.L) { PathBox.Focus(); PathBox.SelectAll(); e.Handled = true; }
+        else if (e.Key == Key.Z && (Keyboard.Modifiers & ModifierKeys.Shift) == 0 && !IsTextEditing()) { Undo(); e.Handled = true; }
+        else if ((e.Key == Key.Y || (e.Key == Key.Z && (Keyboard.Modifiers & ModifierKeys.Shift) != 0)) && !IsTextEditing())
+        {
+            Redo();
+            e.Handled = true;
+        }
+    }
+
+    // ───────── 元に戻す / やり直し ─────────
+
+    /// <summary>文字を入力中(パス欄・絞込欄・名前の編集など)は、文字の入力側の「元に戻す」に任せる。</summary>
+    private static bool IsTextEditing() => Keyboard.FocusedElement is System.Windows.Controls.Primitives.TextBoxBase;
+
+    private void Undo() => ShowUndoResult(_vm.Undo(WindowHandle), "元に戻す");
+
+    private void Redo() => ShowUndoResult(_vm.Redo(WindowHandle), "やり直し");
+
+    private void Undo_Click(object sender, RoutedEventArgs e) => Undo();
+
+    private void Redo_Click(object sender, RoutedEventArgs e) => Redo();
+
+    private void ShowUndoResult(string? error, string title)
+    {
+        if (error != null) MessageBox.Show(error, title, MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
     // ───────── マウスジェスチャ(右ボタンドラッグ: 左=戻る / 右=進む / 上=一つ上) ─────────

@@ -26,8 +26,31 @@ public partial class MainViewModel : ObservableObject
     public ObservableCollection<TreeNodeViewModel> TreeRoots { get; } = new();
     public ObservableCollection<Favorite> Favorites { get; } = new();
 
+    // ───────── 元に戻す / やり直し(ファイル操作の履歴) ─────────
+
+    public bool CanUndo => UndoManager.Instance.CanUndo;
+    public bool CanRedo => UndoManager.Instance.CanRedo;
+    public string UndoToolTip => UndoManager.Instance.UndoText is { } t ? $"元に戻す (Ctrl+Z): {t}" : "元に戻す (Ctrl+Z)";
+    public string RedoToolTip => UndoManager.Instance.RedoText is { } t ? $"やり直し (Ctrl+Y): {t}" : "やり直し (Ctrl+Y)";
+
+    /// <summary>直前のファイル操作を元に戻す。できなければ理由を返す。</summary>
+    public string? Undo(IntPtr owner) => UndoManager.Instance.Undo(owner);
+
+    /// <summary>元に戻した操作をやり直す。できなければ理由を返す。</summary>
+    public string? Redo(IntPtr owner) => UndoManager.Instance.Redo(owner);
+
+    private void OnUndoChanged()
+    {
+        OnPropertyChanged(nameof(CanUndo));
+        OnPropertyChanged(nameof(CanRedo));
+        OnPropertyChanged(nameof(UndoToolTip));
+        OnPropertyChanged(nameof(RedoToolTip));
+    }
+
     public MainViewModel(AppState state)
     {
+        UndoManager.Instance.Changed += OnUndoChanged;
+
         SyncTreeWithTab = state.SyncTreeWithTab;
         EnableGestures = state.EnableGestures;
         CaptureExplorer = state.CaptureExplorer;

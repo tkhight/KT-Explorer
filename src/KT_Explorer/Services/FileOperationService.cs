@@ -38,8 +38,28 @@ public static class FileOperationService
 
     // ───────── コピー / 移動 / 削除 ─────────
 
+    private static bool PathExists(string path) => File.Exists(path) || Directory.Exists(path);
+
+    /// <summary>フォルダ内の項目名の一覧(コピー/移動で、何が増えたかを調べるため)。</summary>
+    private static HashSet<string> Snapshot(string dir)
+    {
+        try
+        {
+            return new HashSet<string>(
+                Directory.EnumerateFileSystemEntries(dir).Select(p => Path.GetFileName(p)),
+                StringComparer.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
     /// <summary>sources を destDir へコピー(move=false)または移動(move=true)する。</summary>
-    public static Result Transfer(IReadOnlyCollection<string> sources, string destDir, bool move, IntPtr owner)
+    /// <param name="record">元に戻す履歴に記録するか(元に戻す/やり直しの実行中は false)</param>
+    /// <param name="createdOut">コピー/移動の結果、destDir に新しくできた項目のパスを受け取る</param>
+    public static Result Transfer(IReadOnlyCollection<string> sources, string destDir, bool move, IntPtr owner,
+                                  bool record = true, List<string>? createdOut = null)
     {
         if (sources.Count == 0) return Result.Done;
 
@@ -49,15 +69,51 @@ public static class FileOperationService
         ushort flags = FOF_ALLOWUNDO;
         if (!move && sameFolder) flags |= FOF_RENAMEONCOLLISION;
 
-        return Run(move ? FO_MOVE : FO_COPY, sources, destDir, flags, owner);
+        var before = Snapshot(destDir);
+        var result = Run(move ? FO_MOVE : FO_COPY, sources, destDir, flags, owner);
+
+        // 実際に何ができたかを調べる(途中で中止したときも、できた分だけを元に戻せるようにする)
+        var created = Snapshot(destDir).Where(name => !before.Contains(name)).Select(name => Path.Combine(destDir, name)).ToList();
+        createdOut?.AddRange(created);
+
+        if (record)
+        {
+            if (!move)
+            {
+                if (created.Count > 0) UndoManager.Instance.Push(new CopyAction(sources.ToList(), destDir, created));
+            }
+            else
+            {
+                // 同じ名前で移動先に新しく現れ、元から無くなったものだけ記録する。
+                // 同名があって上書き/別名になったものは、元に戻すと元の内容を失う恐れがあるので記録しない。
+                var pairs = new List<(string From, string To)>();
+                foreach (var source in sources)
+                {
+                    string leaf = Path.GetFileName(source.TrimEnd('\\'));
+                    string target = Path.Combine(destDir, leaf);
+                    if (!before.Contains(leaf) && PathExists(target) && !PathExists(source)) pairs.Add((source, target));
+                }
+                if (pairs.Count > 0) UndoManager.Instance.Push(new MoveAction(pairs));
+            }
+        }
+        return result;
     }
 
-    /// <summary>paths を削除する。toRecycleBin=true ならごみ箱へ(元に戻せる)、false なら完全に削除する。</summary>
-    public static Result Delete(IReadOnlyCollection<string> paths, bool toRecycleBin, IntPtr owner)
+    /// <summary>paths を削除する。toRecycleBin=true ならごみ箱へ(元に戻せる)、false なら完全に削除する(元に戻せない)。</summary>
+    public static Result Delete(IReadOnlyCollection<string> paths, bool toRecycleBin, IntPtr owner, bool record = true)
     {
         if (paths.Count == 0) return Result.Done;
         ushort flags = toRecycleBin ? (ushort)(FOF_ALLOWUNDO | FOF_WANTNUKEWARNING) : (ushort)0;
-        return Run(FO_DELETE, paths, null, flags, owner);
+
+        var existed = paths.Where(PathExists).ToList();
+        var result = Run(FO_DELETE, paths, null, flags, owner);
+
+        if (record && toRecycleBin)
+        {
+            var gone = existed.Where(p => !PathExists(p)).ToList();
+            if (gone.Count > 0) UndoManager.Instance.Push(new DeleteAction(gone));
+        }
+        return result;
     }
 
     private static Result Run(uint func, IEnumerable<string> sources, string? dest, ushort flags, IntPtr owner)
@@ -78,18 +134,20 @@ public static class FileOperationService
     // ───────── 新規作成 / 名前の変更 ─────────
 
     /// <summary>dir の中に、重複しない名前でフォルダを作って、そのパスを返す。</summary>
-    public static string CreateFolder(string dir, string baseName)
+    public static string CreateFolder(string dir, string baseName, bool record = true)
     {
         string path = UniquePath(dir, baseName, "");
         Directory.CreateDirectory(path);
+        if (record) UndoManager.Instance.Push(new CreateAction(path, isDirectory: true));
         return path;
     }
 
     /// <summary>dir の中に、重複しない名前で空のファイルを作って、そのパスを返す。</summary>
-    public static string CreateFile(string dir, string baseName, string extension)
+    public static string CreateFile(string dir, string baseName, string extension, bool record = true)
     {
         string path = UniquePath(dir, baseName, extension);
         using (File.Create(path)) { }
+        if (record) UndoManager.Instance.Push(new CreateAction(path, isDirectory: false));
         return path;
     }
 
@@ -102,7 +160,7 @@ public static class FileOperationService
     }
 
     /// <summary>名前を変更して、新しいパスを返す。不正な名前や重複は例外にする。</summary>
-    public static string Rename(string path, string newName)
+    public static string Rename(string path, string newName, bool record = true)
     {
         newName = newName.Trim();
         if (newName.Length == 0) throw new InvalidOperationException("名前を入力してください。");
@@ -122,12 +180,14 @@ public static class FileOperationService
             string temp = Path.Combine(dir, Guid.NewGuid().ToString("N"));
             Move(path, temp, isDir);
             Move(temp, target, isDir);
+            if (record) UndoManager.Instance.Push(new RenameAction(path, target));
             return target;
         }
 
         if (File.Exists(target) || Directory.Exists(target))
             throw new IOException($"「{newName}」はすでに存在します。");
         Move(path, target, isDir);
+        if (record) UndoManager.Instance.Push(new RenameAction(path, target));
         return target;
     }
 
