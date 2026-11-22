@@ -4,8 +4,21 @@ using System.Text.Json;
 namespace KT_Explorer.Services;
 
 /// <summary>永続化する状態(タブ一覧・ウィンドウ位置・オプション)。</summary>
+public sealed class GroupState
+{
+    public string Name { get; set; } = "";
+    public bool IsDefault { get; set; }
+    public List<string> TabPaths { get; set; } = new();
+    public int SelectedIndex { get; set; }
+}
+
 public sealed class AppState
 {
+    /// <summary>タブグループ(先頭がデフォルトグループ)。</summary>
+    public List<GroupState> Groups { get; set; } = new();
+    public int SelectedGroupIndex { get; set; }
+
+    // Phase 1 の旧形式。読み込み時の移行用にだけ残す。
     public List<string> TabPaths { get; set; } = new();
     public int SelectedIndex { get; set; }
     public bool SyncTreeWithTab { get; set; } = true;

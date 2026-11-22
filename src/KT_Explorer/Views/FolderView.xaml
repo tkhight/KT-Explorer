@@ -1,0 +1,40 @@
+<UserControl x:Class="KT_Explorer.Views.FolderView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             PreviewMouseDown="OnActivate" GotKeyboardFocus="OnActivate">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <ListView x:Name="FileList" ItemsSource="{Binding Items}"
+                  MouseDoubleClick="FileList_MouseDoubleClick" KeyDown="FileList_KeyDown">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Header="名前" Width="280">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <Image Source="{Binding Icon}" Width="16" Height="16" Margin="0,0,6,0"/>
+                                    <TextBlock Text="{Binding Name}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                    <GridViewColumn Header="更新日時" Width="130" DisplayMemberBinding="{Binding ModifiedText}"/>
+                    <GridViewColumn Header="種類" Width="120" DisplayMemberBinding="{Binding TypeText}"/>
+                    <GridViewColumn Header="サイズ" Width="80">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding SizeText}" TextAlignment="Right"/>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                </GridView>
+            </ListView.View>
+        </ListView>
+
+        <TextBlock Grid.Row="1" Margin="6,2" Foreground="Firebrick" Text="{Binding Error}"/>
+    </Grid>
+</UserControl>

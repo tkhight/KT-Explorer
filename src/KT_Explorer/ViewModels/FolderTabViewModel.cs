@@ -6,23 +6,50 @@ using KT_Explorer.Models;
 namespace KT_Explorer.ViewModels;
 
 /// <summary>1つのタブ(1つのフォルダ表示と、その戻る/進む履歴)。</summary>
-public partial class FolderTabViewModel : ObservableObject
+public partial class FolderTabViewModel : TabBase
 {
     private readonly List<string> _back = new();
     private readonly List<string> _forward = new();
     private int _loadVersion;
 
-    [ObservableProperty] private string _path = "";
-    [ObservableProperty] private string _title = "";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ToolTipText))]
+    private string _path = "";
     [ObservableProperty] private bool _canGoBack;
     [ObservableProperty] private bool _canGoForward;
     [ObservableProperty] private bool _canGoUp;
     [ObservableProperty] private string? _error;
+    [ObservableProperty] private bool _isActivePane;
 
     public ObservableCollection<FileEntry> Items { get; } = new();
 
+    public override string ToolTipText => Path;
+
     /// <summary>表示フォルダが変わったとき(ツリー連動用)。</summary>
     public event Action<FolderTabViewModel>? PathChanged;
+
+    /// <summary>ペイン内でユーザーが操作を始めた(ペインタブの操作対象切替用)。</summary>
+    public event Action<FolderTabViewModel>? Activated;
+
+    public void RequestActivate() => Activated?.Invoke(this);
+
+    /// <summary>項目を開く。フォルダなら移動、ファイルなら関連付けで起動。</summary>
+    public void Open(FileEntry entry)
+    {
+        if (entry.IsDirectory)
+        {
+            NavigateTo(entry.FullPath);
+            return;
+        }
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(entry.FullPath) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(ex.Message, "KT_Explorer");
+        }
+    }
 
     public FolderTabViewModel(string path) => NavigateTo(path, recordHistory: false);
 
