@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using KT_Explorer.Models;
 using KT_Explorer.Services;
 
 namespace KT_Explorer.ViewModels;
@@ -14,16 +15,23 @@ public partial class MainViewModel : ObservableObject
     private TabGroupViewModel _selectedGroup = null!;
 
     [ObservableProperty] private bool _syncTreeWithTab = true;
+    [ObservableProperty] private bool _enableGestures = true;
+    [ObservableProperty] private bool _captureExplorer = true;
 
     /// <summary>ツールバー/パス欄/ツリー連動の対象。ペインタブでは操作中のペイン。</summary>
     [ObservableProperty] private FolderTabViewModel? _currentFolder;
 
     public ObservableCollection<TabGroupViewModel> Groups { get; } = new();
     public ObservableCollection<TreeNodeViewModel> TreeRoots { get; } = new();
+    public ObservableCollection<Favorite> Favorites { get; } = new();
 
     public MainViewModel(AppState state)
     {
         SyncTreeWithTab = state.SyncTreeWithTab;
+        EnableGestures = state.EnableGestures;
+        CaptureExplorer = state.CaptureExplorer;
+        foreach (var f in state.Favorites.Where(f => !string.IsNullOrWhiteSpace(f.Path)))
+            Favorites.Add(new Favorite(string.IsNullOrWhiteSpace(f.Name) ? f.Path : f.Name, f.Path));
         BuildTreeRoots();
         string profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
@@ -291,6 +299,53 @@ public partial class MainViewModel : ObservableObject
             Select(group.Tabs.Count > 0 ? group.Tabs[Math.Max(index - 1, 0)] : null);
     }
 
+    // ───────── お気に入り ─────────
+
+    /// <summary>フォルダをお気に入りに追加する。すでにあれば何もしない。</summary>
+    public void AddFavorite(string path)
+    {
+        if (!Directory.Exists(path)) return;
+        string p = FolderTabViewModel.Normalize(path);
+        if (Favorites.Any(f => string.Equals(f.Path, p, StringComparison.OrdinalIgnoreCase))) return;
+        string leaf = Path.GetFileName(p.TrimEnd('\\', '/'));
+        Favorites.Add(new Favorite(string.IsNullOrEmpty(leaf) ? p : leaf, p));
+    }
+
+    [RelayCommand]
+    private void AddCurrentToFavorites()
+    {
+        if (CurrentFolder != null) AddFavorite(CurrentFolder.Path);
+    }
+
+    public void RemoveFavorite(Favorite fav) => Favorites.Remove(fav);
+
+    /// <summary>お気に入りを現在のフォルダ(操作中のペイン)で開く。存在しなければ false。</summary>
+    public bool OpenFavorite(Favorite fav, bool inNewTab)
+    {
+        if (!Directory.Exists(fav.Path)) return false;
+        if (inNewTab || CurrentFolder == null) AddTab(fav.Path, select: true);
+        else CurrentFolder.NavigateTo(fav.Path);
+        return true;
+    }
+
+    // ───────── Explorer 取り込み ─────────
+
+    /// <summary>外部で開かれたフォルダをデフォルトグループのタブとして取り込み、そのタブを表示する。</summary>
+    public void ImportFolder(string path)
+    {
+        string p = FolderTabViewModel.Normalize(path);
+        var def = Groups[0];
+        var tab = def.Tabs.OfType<FolderTabViewModel>()
+                      .FirstOrDefault(t => string.Equals(t.Path, p, StringComparison.OrdinalIgnoreCase));
+        if (tab == null)
+        {
+            tab = new FolderTabViewModel(p);
+            def.Tabs.Add(tab);
+        }
+        if (_selectedGroup != def) SelectGroup(def);
+        Select(tab);
+    }
+
     // ───────── ナビゲーション ─────────
 
     [RelayCommand] private void Back() => CurrentFolder?.GoBack();
@@ -322,8 +377,11 @@ public partial class MainViewModel : ObservableObject
         var state = new AppState
         {
             SyncTreeWithTab = SyncTreeWithTab,
+            EnableGestures = EnableGestures,
+            CaptureExplorer = CaptureExplorer,
             SelectedGroupIndex = Groups.IndexOf(_selectedGroup),
         };
+        foreach (var f in Favorites) state.Favorites.Add(new FavoriteState { Name = f.Name, Path = f.Path });
         foreach (var g in Groups)
         {
             var selected = ReferenceEquals(g, _selectedGroup) ? _selectedTab : g.LastSelected;

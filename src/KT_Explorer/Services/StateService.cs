@@ -12,8 +12,22 @@ public sealed class GroupState
     public int SelectedIndex { get; set; }
 }
 
+public sealed class FavoriteState
+{
+    public string Name { get; set; } = "";
+    public string Path { get; set; } = "";
+}
+
 public sealed class AppState
 {
+    public List<FavoriteState> Favorites { get; set; } = new();
+
+    /// <summary>右ボタンドラッグのマウスジェスチャ(左=戻る / 右=進む / 上=一つ上)。</summary>
+    public bool EnableGestures { get; set; } = true;
+
+    /// <summary>外部から開いた Explorer を KT_Explorer のデフォルトグループへ取り込む。</summary>
+    public bool CaptureExplorer { get; set; } = true;
+
     /// <summary>タブグループ(先頭がデフォルトグループ)。</summary>
     public List<GroupState> Groups { get; set; } = new();
     public int SelectedGroupIndex { get; set; }

@@ -7,9 +7,10 @@ namespace KT_Explorer.Models;
 /// <summary>ファイル一覧の1行分。</summary>
 public sealed class FileEntry
 {
-    public FileEntry(FileSystemInfo info)
+    /// <param name="displayName">検索結果で「検索起点からの相対パス」を出すときに指定する。</param>
+    public FileEntry(FileSystemInfo info, string? displayName = null)
     {
-        Name = info.Name;
+        Name = displayName ?? info.Name;
         FullPath = info.FullName;
         IsDirectory = info is DirectoryInfo;
         Modified = info.LastWriteTime;

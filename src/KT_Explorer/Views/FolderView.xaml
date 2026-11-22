@@ -35,6 +35,9 @@
             </ListView.View>
         </ListView>
 
-        <TextBlock Grid.Row="1" Margin="6,2" Foreground="Firebrick" Text="{Binding Error}"/>
+        <StackPanel Grid.Row="1" Orientation="Horizontal">
+            <TextBlock Margin="6,2" Foreground="DimGray" Text="{Binding Status}"/>
+            <TextBlock Margin="6,2" Foreground="Firebrick" Text="{Binding Error}"/>
+        </StackPanel>
     </Grid>
 </UserControl>

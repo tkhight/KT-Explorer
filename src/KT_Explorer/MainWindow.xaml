@@ -4,7 +4,9 @@
         xmlns:vm="clr-namespace:KT_Explorer.ViewModels"
         xmlns:views="clr-namespace:KT_Explorer.Views"
         Title="KT_Explorer" Height="700" Width="1100"
-        PreviewMouseDown="Window_PreviewMouseDown" PreviewKeyDown="Window_PreviewKeyDown">
+        PreviewMouseDown="Window_PreviewMouseDown" PreviewKeyDown="Window_PreviewKeyDown"
+        PreviewMouseRightButtonDown="Window_PreviewMouseRightButtonDown"
+        PreviewMouseRightButtonUp="Window_PreviewMouseRightButtonUp">
 
     <Window.InputBindings>
         <KeyBinding Key="Left" Modifiers="Alt" Command="{Binding BackCommand}"/>
@@ -31,14 +33,24 @@
                     Command="{Binding UpCommand}" IsEnabled="{Binding CurrentFolder.CanGoUp}"/>
             <Button DockPanel.Dock="Left" Content="⟳" Width="30" Margin="2,0,6,0" ToolTip="更新 (F5)"
                     Command="{Binding RefreshCommand}"/>
-            <CheckBox DockPanel.Dock="Right" Content="ツリーをタブに連動" Margin="8,0,0,0" VerticalAlignment="Center"
-                      IsChecked="{Binding SyncTreeWithTab}"/>
+            <Button DockPanel.Dock="Right" Content="設定 ▾" Margin="6,0,0,0" Padding="6,0"
+                    ToolTip="ツリー連動 / マウスジェスチャ / Explorer 取り込み" Click="Settings_Click"/>
             <Button DockPanel.Dock="Right" Content="指定ペイン ▾" Margin="2,0,0,0" Padding="6,0"
                     ToolTip="既存タブ / フォルダを指定して右にペインを追加" Click="SpecifyPane_Click"/>
             <Button DockPanel.Dock="Right" Content="▥3" Width="34" Margin="2,0,0,0"
                     ToolTip="3ペイン(現在のフォルダを右に追加)" Command="{Binding OpenPanesCommand}" CommandParameter="3"/>
             <Button DockPanel.Dock="Right" Content="▥2" Width="34" Margin="6,0,0,0"
                     ToolTip="2ペイン(現在のフォルダを右に追加)" Command="{Binding OpenPanesCommand}" CommandParameter="2"/>
+            <TextBox DockPanel.Dock="Right" x:Name="SearchBox" Width="150" Margin="6,0,0,0" VerticalContentAlignment="Center"
+                     ToolTip="このフォルダ以下を検索(Enter で実行 / Esc で解除。* と ? が使えます)"
+                     Text="{Binding CurrentFolder.SearchText, UpdateSourceTrigger=PropertyChanged}" KeyDown="SearchBox_KeyDown"/>
+            <TextBlock DockPanel.Dock="Right" Text="検索:" Margin="10,0,2,0" VerticalAlignment="Center"/>
+            <TextBox DockPanel.Dock="Right" x:Name="FilterBox" Width="120" Margin="6,0,0,0" VerticalContentAlignment="Center"
+                     ToolTip="表示中の一覧を名前で絞り込み (Ctrl+F)"
+                     Text="{Binding CurrentFolder.FilterText, UpdateSourceTrigger=PropertyChanged}" KeyDown="FilterBox_KeyDown"/>
+            <TextBlock DockPanel.Dock="Right" Text="絞込:" Margin="10,0,2,0" VerticalAlignment="Center"/>
+            <Button DockPanel.Dock="Right" Content="★" Width="30" Margin="6,0,0,0" ToolTip="現在のフォルダをお気に入りに追加"
+                    Command="{Binding AddCurrentToFavoritesCommand}"/>
             <TextBox x:Name="PathBox" VerticalContentAlignment="Center"
                      Text="{Binding CurrentFolder.Path, Mode=OneWay}" KeyDown="PathBox_KeyDown"/>
         </DockPanel>
@@ -50,8 +62,33 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- ツリー(左端) -->
-            <TreeView Grid.Column="0" x:Name="FolderTree" ItemsSource="{Binding TreeRoots}"
+            <!-- 左端: お気に入り + ツリー -->
+            <Grid Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Expander Grid.Row="0" Header="★ お気に入り" IsExpanded="True" Margin="0,0,0,2">
+                <ListBox x:Name="FavoriteList" ItemsSource="{Binding Favorites}" MaxHeight="160"
+                         PreviewMouseLeftButtonUp="FavoriteList_PreviewMouseLeftButtonUp"
+                         PreviewMouseRightButtonDown="FavoriteList_PreviewMouseRightButtonDown">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Name}" ToolTip="{Binding Path}"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                    <ListBox.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="新しいタブで開く" Click="FavoriteNewTab_Click"/>
+                            <MenuItem Header="編集…" Click="FavoriteEdit_Click"/>
+                            <MenuItem Header="削除" Click="FavoriteRemove_Click"/>
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
+                </ListBox>
+            </Expander>
+
+            <TreeView Grid.Row="1" x:Name="FolderTree" ItemsSource="{Binding TreeRoots}"
                       PreviewMouseRightButtonDown="FolderTree_PreviewMouseRightButtonDown">
                 <TreeView.ItemContainerStyle>
                     <Style TargetType="TreeViewItem">
@@ -67,9 +104,11 @@
                 <TreeView.ContextMenu>
                     <ContextMenu>
                         <MenuItem Header="新しいタブで開く" Click="TreeAddTab_Click"/>
+                        <MenuItem Header="お気に入りに追加" Click="TreeAddFavorite_Click"/>
                     </ContextMenu>
                 </TreeView.ContextMenu>
             </TreeView>
+            </Grid>
 
             <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"/>
 
