@@ -1,0 +1,131 @@
+﻿<Window x:Class="KT_Explorer.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:KT_Explorer.ViewModels"
+        Title="KT_Explorer" Height="700" Width="1100"
+        PreviewMouseDown="Window_PreviewMouseDown">
+
+    <Window.InputBindings>
+        <KeyBinding Key="Left" Modifiers="Alt" Command="{Binding BackCommand}"/>
+        <KeyBinding Key="Right" Modifiers="Alt" Command="{Binding ForwardCommand}"/>
+        <KeyBinding Key="Up" Modifiers="Alt" Command="{Binding UpCommand}"/>
+        <KeyBinding Key="F5" Command="{Binding RefreshCommand}"/>
+        <KeyBinding Key="T" Modifiers="Ctrl" Command="{Binding NewTabCommand}"/>
+        <KeyBinding Key="W" Modifiers="Ctrl" Command="{Binding CloseTabCommand}"/>
+    </Window.InputBindings>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ツールバー -->
+        <DockPanel Grid.Row="0" Margin="4" LastChildFill="True">
+            <Button DockPanel.Dock="Left" Content="←" Width="30" ToolTip="戻る (Alt+←)"
+                    Command="{Binding BackCommand}" IsEnabled="{Binding SelectedTab.CanGoBack}"/>
+            <Button DockPanel.Dock="Left" Content="→" Width="30" Margin="2,0,0,0" ToolTip="進む (Alt+→)"
+                    Command="{Binding ForwardCommand}" IsEnabled="{Binding SelectedTab.CanGoForward}"/>
+            <Button DockPanel.Dock="Left" Content="↑" Width="30" Margin="2,0,0,0" ToolTip="一つ上の階層へ (Alt+↑)"
+                    Command="{Binding UpCommand}" IsEnabled="{Binding SelectedTab.CanGoUp}"/>
+            <Button DockPanel.Dock="Left" Content="⟳" Width="30" Margin="2,0,6,0" ToolTip="更新 (F5)"
+                    Command="{Binding RefreshCommand}"/>
+            <CheckBox DockPanel.Dock="Right" Content="ツリーをタブに連動" Margin="8,0,0,0" VerticalAlignment="Center"
+                      IsChecked="{Binding SyncTreeWithTab}"/>
+            <TextBox x:Name="PathBox" VerticalContentAlignment="Center"
+                     Text="{Binding SelectedTab.Path, Mode=OneWay}" KeyDown="PathBox_KeyDown"/>
+        </DockPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="240" MinWidth="120"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- ツリー(左端) -->
+            <TreeView Grid.Column="0" x:Name="FolderTree" ItemsSource="{Binding TreeRoots}"
+                      PreviewMouseRightButtonDown="FolderTree_PreviewMouseRightButtonDown">
+                <TreeView.ItemContainerStyle>
+                    <Style TargetType="TreeViewItem">
+                        <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                        <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
+                    </Style>
+                </TreeView.ItemContainerStyle>
+                <TreeView.ItemTemplate>
+                    <HierarchicalDataTemplate DataType="{x:Type vm:TreeNodeViewModel}" ItemsSource="{Binding Children}">
+                        <TextBlock Text="{Binding Name}"/>
+                    </HierarchicalDataTemplate>
+                </TreeView.ItemTemplate>
+                <TreeView.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="新しいタブで開く" Click="TreeAddTab_Click"/>
+                    </ContextMenu>
+                </TreeView.ContextMenu>
+            </TreeView>
+
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"/>
+
+            <!-- 右側: タブバー + ファイル一覧 -->
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <DockPanel Grid.Row="0">
+                    <Button DockPanel.Dock="Right" Content="＋" Width="28" ToolTip="新しいタブ (Ctrl+T)"
+                            Command="{Binding NewTabCommand}"/>
+                    <ListBox x:Name="TabBar" ItemsSource="{Binding Tabs}" SelectedItem="{Binding SelectedTab}"
+                             BorderThickness="0" PreviewMouseDown="TabBar_PreviewMouseDown">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" ToolTip="{Binding Path}">
+                                    <TextBlock Text="{Binding Title}" MaxWidth="160" TextTrimming="CharacterEllipsis"
+                                               VerticalAlignment="Center"/>
+                                    <Button Content="✕" Margin="6,0,0,0" Padding="3,0" BorderThickness="0" Background="Transparent"
+                                            Command="{Binding DataContext.CloseTabCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+
+                <ListView Grid.Row="1" x:Name="FileList" ItemsSource="{Binding SelectedTab.Items}"
+                          MouseDoubleClick="FileList_MouseDoubleClick" KeyDown="FileList_KeyDown">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="名前" Width="320">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Image Source="{Binding Icon}" Width="16" Height="16" Margin="0,0,6,0"/>
+                                            <TextBlock Text="{Binding Name}"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn Header="更新日時" Width="140" DisplayMemberBinding="{Binding ModifiedText}"/>
+                            <GridViewColumn Header="種類" Width="140" DisplayMemberBinding="{Binding TypeText}"/>
+                            <GridViewColumn Header="サイズ" Width="90">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding SizeText}" TextAlignment="Right"/>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+
+                <TextBlock Grid.Row="2" Margin="6,2" Foreground="Firebrick"
+                           Text="{Binding SelectedTab.Error}"/>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
