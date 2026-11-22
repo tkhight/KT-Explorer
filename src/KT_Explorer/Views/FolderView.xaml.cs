@@ -431,7 +431,25 @@ public partial class FolderView : UserControl
                 Dispatcher.BeginInvoke(DispatcherPriority.Background, () => ShowShellMenu(onItem, sel, extended: false)),
             "Shift+右クリック", CanShowShellMenu(onItem, sel));
 
-        FileList.ContextMenu = menu;
+        // メニューは自分で開く。ContextMenu プロパティに設定して WPF に開かせると、WPF のメニュー表示処理は
+        // こちらのハンドラーより先に走るため、1回目は何も出ず、2回目には前回の古いメニューが出てしまう。
+        // (プロパティには設定しないので、次回以降も WPF 側の処理が二重に開くことはない)
+        e.Handled = true;
+        OpenMenu(menu, e);
+    }
+
+    private ContextMenu? _openMenu;
+
+    private void OpenMenu(ContextMenu menu, ContextMenuEventArgs e)
+    {
+        if (_openMenu != null) _openMenu.IsOpen = false;
+        menu.PlacementTarget = FileList;
+        // キーボード(メニューキー / Shift+F10)で開いたときはマウスの位置が当てにならないので、中央に出す
+        menu.Placement = e.CursorLeft < 0
+            ? System.Windows.Controls.Primitives.PlacementMode.Center
+            : System.Windows.Controls.Primitives.PlacementMode.MousePoint;
+        _openMenu = menu;
+        menu.IsOpen = true;
     }
 
     // ───────── Windows 標準(シェル)のコンテキストメニュー ─────────

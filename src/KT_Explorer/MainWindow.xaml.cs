@@ -400,7 +400,14 @@ public partial class MainWindow : Window
         var close = new MenuItem { Header = "タブを閉じる" };
         close.Click += (_, _) => _vm.CloseTabCommand.Execute(tab);
         menu.Items.Add(close);
-        fe.ContextMenu = menu;
+        // メニューは自分で開く。ContextMenu プロパティに設定して WPF に開かせると、WPF のメニュー表示処理は
+        // このハンドラーより先に走るため、1回目は何も出ず、2回目には前回の古いメニューが出てしまう。
+        e.Handled = true;
+        menu.PlacementTarget = fe;
+        menu.Placement = e.CursorLeft < 0
+            ? System.Windows.Controls.Primitives.PlacementMode.Bottom
+            : System.Windows.Controls.Primitives.PlacementMode.MousePoint;
+        menu.IsOpen = true;
     }
 
     // ───────── ファイルのドロップ先(ツリー / タブ) ─────────
