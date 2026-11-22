@@ -36,6 +36,13 @@ public partial class FolderTabViewModel : TabBase
     private CancellationTokenSource? _searchCts;
     private const int MaxSearchResults = 3000;
 
+    // フォルダの変更を監視して、一覧を自動で更新する(ファイル操作後や外部での変更)
+    private FileSystemWatcher? _watcher;
+    private readonly System.Windows.Threading.DispatcherTimer _refreshTimer;
+    private bool _showingSearch;     // 一覧が検索結果のときは自動更新しない
+    private bool _disposed;
+    private string? _itemsPath;      // Items が表している(通常一覧の)フォルダ
+
     public ObservableCollection<FileEntry> Items { get; } = new();
 
     /// <summary>Items にフィルタを掛けた表示用ビュー(ListView の既定ビューと同一)。</summary>
@@ -79,7 +86,77 @@ public partial class FolderTabViewModel : TabBase
     {
         _view = CollectionViewSource.GetDefaultView(Items);
         _view.Filter = MatchesFilter;
+
+        // 変更通知が連続しても1回にまとめて更新する
+        _refreshTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+        _refreshTimer.Tick += (_, _) =>
+        {
+            _refreshTimer.Stop();
+            if (!_disposed && !_showingSearch) _ = LoadAsync(Path);
+        };
+
         NavigateTo(path, recordHistory: false);
+    }
+
+    /// <summary>一覧を今すぐ読み直す。selectPath があれば、読み直し後にその項目を返す(選択用)。</summary>
+    public async Task<FileEntry?> RefreshAsync(string? selectPath = null)
+    {
+        await LoadAsync(Path);
+        return selectPath == null
+            ? null
+            : Items.FirstOrDefault(e => string.Equals(e.FullPath, selectPath, StringComparison.OrdinalIgnoreCase));
+    }
+
+    // 監視の通知は別スレッドから来るので、このタブを作った(UI)スレッドへ戻して処理する
+    private readonly System.Windows.Threading.Dispatcher _dispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher;
+
+    private void ScheduleRefresh() =>
+        _dispatcher.BeginInvoke(() =>
+        {
+            if (_disposed) return;
+            _refreshTimer.Stop();
+            _refreshTimer.Start();
+        });
+
+    private void ResetWatcher(string path)
+    {
+        DisposeWatcher();
+        try
+        {
+            var w = new FileSystemWatcher(path)
+            {
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite
+                               | NotifyFilters.Size | NotifyFilters.Attributes,
+                IncludeSubdirectories = false,
+            };
+            w.Created += (_, _) => ScheduleRefresh();
+            w.Deleted += (_, _) => ScheduleRefresh();
+            w.Changed += (_, _) => ScheduleRefresh();
+            w.Renamed += (_, _) => ScheduleRefresh();
+            w.Error += (_, _) => ScheduleRefresh();   // バッファあふれなど: 取りこぼしても読み直せば整う
+            w.EnableRaisingEvents = true;
+            _watcher = w;
+        }
+        catch
+        {
+            _watcher = null; // 監視できないフォルダ(存在しない・権限なし)は手動更新(F5)のみ
+        }
+    }
+
+    private void DisposeWatcher()
+    {
+        if (_watcher == null) return;
+        _watcher.EnableRaisingEvents = false;
+        _watcher.Dispose();
+        _watcher = null;
+    }
+
+    public override void Dispose()
+    {
+        _disposed = true;
+        _refreshTimer.Stop();
+        DisposeWatcher();
+        CancelSearch();
     }
 
     public void NavigateTo(string path, bool recordHistory = true)
@@ -138,9 +215,11 @@ public partial class FolderTabViewModel : TabBase
         CancelSearch();
         var cts = new CancellationTokenSource();
         _searchCts = cts;
+        _showingSearch = true;
         _loadVersion++; // 読み込み中の通常一覧が後から結果を上書きしないようにする
         Error = null;
         Items.Clear();
+        _itemsPath = null;
         Status = "検索中… 0 件";
 
         string root = Path;
@@ -168,6 +247,7 @@ public partial class FolderTabViewModel : TabBase
     {
         _searchCts?.Cancel();
         _searchCts = null;
+        _showingSearch = false;
         Status = null;
     }
 
@@ -240,6 +320,7 @@ public partial class FolderTabViewModel : TabBase
         CanGoForward = _forward.Count > 0;
         CanGoUp = Directory.GetParent(path) != null;
         PathChanged?.Invoke(this);
+        ResetWatcher(path);
         _ = LoadAsync(path);
     }
 
@@ -257,11 +338,42 @@ public partial class FolderTabViewModel : TabBase
             entries = new List<FileEntry>();
             error = ex.Message;
         }
-        if (version != _loadVersion) return; // 古い読み込み結果は捨てる
+        if (version != _loadVersion || _disposed) return; // 古い読み込み結果は捨てる
 
-        Items.Clear();
-        foreach (var e in entries) Items.Add(e);
+        if (_itemsPath != null && string.Equals(_itemsPath, path, StringComparison.OrdinalIgnoreCase))
+        {
+            SyncItems(entries); // 同じフォルダの再読み込みは差分だけ反映(選択状態を保つ)
+        }
+        else
+        {
+            Items.Clear();
+            foreach (var e in entries) Items.Add(e);
+        }
+        _itemsPath = path;
         Error = error;
+    }
+
+    /// <summary>Items を fresh と同じ並びにする。変化の無い項目はそのまま残し、選択が消えないようにする。</summary>
+    private void SyncItems(List<FileEntry> fresh)
+    {
+        var freshByPath = fresh.ToDictionary(e => e.FullPath, StringComparer.OrdinalIgnoreCase);
+
+        // 消えた項目・更新された項目(日時/サイズ/種類が違う)を外す
+        for (int i = Items.Count - 1; i >= 0; i--)
+        {
+            var old = Items[i];
+            if (!freshByPath.TryGetValue(old.FullPath, out var f) ||
+                f.Modified != old.Modified || f.Size != old.Size || f.IsDirectory != old.IsDirectory)
+                Items.RemoveAt(i);
+        }
+
+        // 残りは fresh の部分列(同じ並び順)なので、足りない項目を位置に挿入していけばよい
+        for (int i = 0; i < fresh.Count; i++)
+        {
+            if (i < Items.Count && string.Equals(Items[i].FullPath, fresh[i].FullPath, StringComparison.OrdinalIgnoreCase))
+                continue;
+            Items.Insert(i, fresh[i]);
+        }
     }
 
     private static List<FileEntry> Read(string path)

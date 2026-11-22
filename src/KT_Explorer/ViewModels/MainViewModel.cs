@@ -187,6 +187,7 @@ public partial class MainViewModel : ObservableObject
 
         int index = group.Tabs.IndexOf(tab);
         group.Tabs.Remove(tab);
+        tab.Dispose();
         if (ReferenceEquals(tab, _selectedTab) && group == _selectedGroup)
             Select(group.Tabs.Count > 0 ? group.Tabs[Math.Min(index, group.Tabs.Count - 1)] : null);
     }
@@ -220,6 +221,7 @@ public partial class MainViewModel : ObservableObject
         if (group.IsDefault || !Groups.Contains(group)) return false;
         bool wasSelected = group == _selectedGroup;
         Groups.Remove(group);
+        foreach (var tab in group.Tabs) tab.Dispose();
         if (wasSelected) SelectGroup(Groups[0]);
         return true;
     }
@@ -293,6 +295,7 @@ public partial class MainViewModel : ObservableObject
         if (group == null) return;
         int index = group.Tabs.IndexOf(pane);
         group.Tabs.Remove(pane);
+        pane.Dispose();
 
         if (Groups.Sum(g => g.Tabs.Count) == 0)
             group.Tabs.Add(new FolderTabViewModel(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));

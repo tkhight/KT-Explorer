@@ -94,6 +94,10 @@
                     <Style TargetType="TreeViewItem">
                         <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
                         <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
+                        <!-- ファイルをフォルダへドロップして移動/コピー -->
+                        <Setter Property="AllowDrop" Value="True"/>
+                        <EventSetter Event="DragOver" Handler="TreeItem_DragOver"/>
+                        <EventSetter Event="Drop" Handler="TreeItem_Drop"/>
                     </Style>
                 </TreeView.ItemContainerStyle>
                 <TreeView.ItemTemplate>
@@ -166,8 +170,9 @@
                         </ListBox.ItemsPanel>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Orientation="Horizontal" ToolTip="{Binding ToolTipText}"
-                                            ContextMenuOpening="TabItem_ContextMenuOpening">
+                                <StackPanel Orientation="Horizontal" ToolTip="{Binding ToolTipText}" AllowDrop="True"
+                                            ContextMenuOpening="TabItem_ContextMenuOpening"
+                                            DragOver="TabItem_DragOver" Drop="TabItem_Drop">
                                     <TextBlock Text="{Binding Title}" MaxWidth="200" TextTrimming="CharacterEllipsis"
                                                VerticalAlignment="Center"/>
                                     <Button Content="✕" Margin="6,0,0,0" Padding="3,0" BorderThickness="0" Background="Transparent"

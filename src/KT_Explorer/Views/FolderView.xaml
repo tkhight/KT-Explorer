@@ -8,8 +8,14 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <ListView x:Name="FileList" ItemsSource="{Binding Items}"
-                  MouseDoubleClick="FileList_MouseDoubleClick" KeyDown="FileList_KeyDown">
+        <ListView x:Name="FileList" ItemsSource="{Binding Items}" SelectionMode="Extended" AllowDrop="True"
+                  MouseDoubleClick="FileList_MouseDoubleClick" KeyDown="FileList_KeyDown"
+                  PreviewMouseLeftButtonDown="FileList_PreviewMouseLeftButtonDown"
+                  PreviewMouseLeftButtonUp="FileList_PreviewMouseLeftButtonUp"
+                  PreviewMouseMove="FileList_PreviewMouseMove"
+                  PreviewMouseRightButtonDown="FileList_PreviewMouseRightButtonDown"
+                  ContextMenuOpening="FileList_ContextMenuOpening"
+                  DragOver="FileList_DragOver" Drop="FileList_Drop">
             <ListView.View>
                 <GridView>
                     <GridViewColumn Header="名前" Width="280">
@@ -17,7 +23,33 @@
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal">
                                     <Image Source="{Binding Icon}" Width="16" Height="16" Margin="0,0,6,0"/>
-                                    <TextBlock Text="{Binding Name}"/>
+                                    <!-- 通常表示(ゆっくり2回クリックで名前の変更を始める対象なので Tag で見分ける) -->
+                                    <TextBlock Text="{Binding Name}" Tag="NameText">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsEditing}" Value="True">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <!-- 名前の直接編集(エクスプローラーと同じ: 拡張子を除いて選択、Enter で確定、Esc で取り消し) -->
+                                    <TextBox Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}" MinWidth="180" Padding="1,0"
+                                             IsVisibleChanged="EditBox_IsVisibleChanged" KeyDown="EditBox_KeyDown"
+                                             PreviewTextInput="EditBox_PreviewTextInput" LostKeyboardFocus="EditBox_LostKeyboardFocus">
+                                        <TextBox.Style>
+                                            <Style TargetType="TextBox">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsEditing}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBox.Style>
+                                    </TextBox>
                                 </StackPanel>
                             </DataTemplate>
                         </GridViewColumn.CellTemplate>

@@ -379,6 +379,38 @@ public partial class MainWindow : Window
         fe.ContextMenu = menu;
     }
 
+    // ───────── ファイルのドロップ先(ツリー / タブ) ─────────
+
+    private IntPtr WindowHandle => new System.Windows.Interop.WindowInteropHelper(this).Handle;
+
+    private static string? TreeDropTarget(object sender) =>
+        sender is FrameworkElement { DataContext: TreeNodeViewModel { IsPlaceholder: false } node } ? node.FullPath : null;
+
+    private void TreeItem_DragOver(object sender, DragEventArgs e)
+    {
+        // 入れ子の TreeViewItem では内側から順に届くので、最初(最も内側)の1回だけ処理する
+        if (e.Handled) return;
+        DropHelper.HandleDragOver(e, TreeDropTarget(sender));
+    }
+
+    private void TreeItem_Drop(object sender, DragEventArgs e)
+    {
+        if (e.Handled) return;
+        DropHelper.HandleDrop(e, TreeDropTarget(sender), WindowHandle);
+    }
+
+    /// <summary>タブへのドロップ先: 通常タブはそのフォルダ、ペインタブは操作中のペイン。</summary>
+    private static string? TabDropTarget(object sender) => (sender as FrameworkElement)?.DataContext switch
+    {
+        FolderTabViewModel f => f.Path,
+        PaneTabViewModel p => p.ActivePane?.Path,
+        _ => null,
+    };
+
+    private void TabItem_DragOver(object sender, DragEventArgs e) => DropHelper.HandleDragOver(e, TabDropTarget(sender));
+
+    private void TabItem_Drop(object sender, DragEventArgs e) => DropHelper.HandleDrop(e, TabDropTarget(sender), WindowHandle);
+
     // ───────── タブグループ ─────────
 
     private void AddGroup_Click(object sender, RoutedEventArgs e)

@@ -1,12 +1,19 @@
 using System.IO;
 using System.Windows.Media;
+using CommunityToolkit.Mvvm.ComponentModel;
 using KT_Explorer.Services;
 
 namespace KT_Explorer.Models;
 
 /// <summary>ファイル一覧の1行分。</summary>
-public sealed class FileEntry
+public sealed partial class FileEntry : ObservableObject
 {
+    /// <summary>名前の直接編集中か(一覧の名前セルが入力欄に切り替わる)。</summary>
+    [ObservableProperty] private bool _isEditing;
+
+    /// <summary>直接編集中の入力内容。</summary>
+    [ObservableProperty] private string _editName = "";
+
     /// <param name="displayName">検索結果で「検索起点からの相対パス」を出すときに指定する。</param>
     public FileEntry(FileSystemInfo info, string? displayName = null)
     {

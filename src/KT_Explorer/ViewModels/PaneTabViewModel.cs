@@ -40,9 +40,15 @@ public partial class PaneTabViewModel : TabBase
         return true;
     }
 
+    public override void Dispose()
+    {
+        foreach (var pane in Panes) pane.Dispose();
+    }
+
     public void RemovePane(FolderTabViewModel pane)
     {
         if (!Panes.Remove(pane)) return;
+        pane.Dispose();
         if (ActivePane == pane) ActivePane = Panes.LastOrDefault();
         UpdateTitle();
         if (Panes.Count < 2) RequestClose?.Invoke(this);
