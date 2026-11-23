@@ -9,6 +9,8 @@
       "Bash(git branch -d *)",
       "PowerShell(Get-Process*)",
       "Bash(git ls-remote *)",
+      "Bash(git checkout *)",
+      "Bash(git push origin main)",
       "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\logic_tabs.ps1')",
       "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_tree_rename.ps1')",
       "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_list_rename.ps1')",
