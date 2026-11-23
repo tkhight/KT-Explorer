@@ -16,7 +16,7 @@ $AS = $asm.GetType('KT_Explorer.Services.AppState')
 $SS = $asm.GetType('KT_Explorer.Services.SortSettings')
 
 function Get-Thumb([string]$path, [int]$size = 96) {
-    $task = $TS.GetMethod('GetAsync').Invoke($null, [object[]]@($path, $size))
+    $task = $TS.GetMethod('GetAsync', [Type[]]@([string], [int])).Invoke($null, [object[]]@($path, $size))
     if (-not $task.Wait(10000)) { return 'timeout' }
     $task.Result
 }
@@ -41,7 +41,7 @@ try {
     Check 'thumbnail: a path that does not exist gives null (no exception)' ($null -eq $t)
 
     # 同時にたくさん頼んでも、全部返る(専用の STA スレッドで順に処理する)
-    $tasks = 1..12 | ForEach-Object { $TS.GetMethod('GetAsync').Invoke($null, [object[]]@("$d\picture.png", 96)) }
+    $tasks = 1..12 | ForEach-Object { $TS.GetMethod('GetAsync', [Type[]]@([string], [int])).Invoke($null, [object[]]@("$d\picture.png", 96)) }
     $all = [System.Threading.Tasks.Task]::WaitAll([System.Threading.Tasks.Task[]]@($tasks), 15000)
     Check 'thumbnail: 12 requests at once all complete' ($all -and @($tasks | Where-Object { $_.Result }).Count -eq 12)
 

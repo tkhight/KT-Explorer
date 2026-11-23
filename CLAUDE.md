@@ -36,6 +36,11 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 | ショートカットを Enter・ダブルクリック・右クリックで開いたとき、エクスプローラーを開かず、KT_Explorer の中でリンク先を表示することの画面テスト | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_shortcut.ps1'` |
 | 表示の切り替え(詳細・アイコン・一覧)のロジック: サムネイルの取得、タブごとの表示、新しいタブの初期の表示、状態の保存と復元。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_viewmode.ps1'` |
 | 表示の切り替えの画面テスト: メニュー・`Ctrl+Shift+1/2/3`、列見出しの有無、矢印キーの移動、名前の変更、メニューからの並べ替え | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_viewmode.ps1'` |
+| フォルダのサイズの記憶(5分・ファイル操作で無効化)、サムネイルの記憶、アイコンの大きさ(小・中・大)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_cache.ps1'` |
+| 開いたフォルダの履歴(最近開いた・よく開く・上限・状態への保存と復元・タブの移動の記録)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_history.ps1'` |
+| パス欄の補助(入力補完の候補・パンくずの階層の分割・中のフォルダの一覧)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_pathbar.ps1'` |
+| 検索(絞込と同じ条件 `type:` `ext:` `size:` など、ファイルの中身 `content:` / `中身:`)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_search.ps1'` |
+| 詳細表示の追加の列(作成日時・属性・画像のサイズ・再生時間)と列の選択のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_columns.ps1'` |
 | 中断したテストの後片付け(`%TEMP%\kt_test_*` を消す) | `& 'E:\KT_Applications\KT_Explorer\tools\test\cleanup.ps1'` |
 
 - 実行前に、上のビルドを行う。結果は `OK` / `NG` の行と、最後の `RESULT: ok=… ng=…`。

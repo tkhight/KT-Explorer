@@ -51,6 +51,55 @@ public partial class MainWindow : Window
         };
     }
 
+    // ───────── 履歴(最近開いたフォルダ・よく開くフォルダ) ─────────
+
+    /// <summary>「履歴 ▾」ボタン: 最近開いたフォルダと、よく開くフォルダ。クリックで開き、Ctrl+クリックで新しいタブで開く。</summary>
+    private void History_Click(object sender, RoutedEventArgs e)
+    {
+        var menu = new ContextMenu { PlacementTarget = (UIElement)sender, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+
+        // 存在するフォルダだけを出す(消えた・つながらない場所は、出さない)
+        static IEnumerable<FolderVisit> Existing(IEnumerable<FolderVisit> visits, int count) =>
+            visits.Where(v => System.IO.Directory.Exists(v.Path)).Take(count);
+
+        void AddSection(string title, IEnumerable<FolderVisit> items, bool showCount)
+        {
+            var list = items.ToList();
+            if (list.Count == 0) return;
+            if (menu.Items.Count > 0) menu.Items.Add(new Separator());
+            menu.Items.Add(new MenuItem { Header = title, IsEnabled = false, FontWeight = FontWeights.SemiBold });
+            foreach (var visit in list)
+            {
+                var v = visit;
+                string leaf = System.IO.Path.GetFileName(v.Path.TrimEnd('\\'));
+                string name = string.IsNullOrEmpty(leaf) ? v.Path : leaf;
+                var item = new MenuItem
+                {
+                    Header = new TextBlock { Text = showCount ? $"{name}    {v.Path}  ({v.Count} 回)" : $"{name}    {v.Path}" },
+                    ToolTip = v.Path,
+                };
+                item.Click += (_, _) =>
+                {
+                    if ((Keyboard.Modifiers & ModifierKeys.Control) != 0) _vm.OpenInNewTab(v.Path);
+                    else if (!_vm.NavigateToText(v.Path)) MessageBox.Show($"フォルダが見つかりません。\n{v.Path}", "KT_Explorer");
+                };
+                menu.Items.Add(item);
+            }
+        }
+
+        AddSection("最近開いたフォルダ", Existing(FolderHistory.Recent(60), 15), showCount: false);
+        AddSection("よく開くフォルダ", Existing(FolderHistory.Frequent(40), 10), showCount: true);
+        if (menu.Items.Count == 0) menu.Items.Add(new MenuItem { Header = "(履歴はまだありません)", IsEnabled = false });
+        else
+        {
+            menu.Items.Add(new Separator());
+            var clear = new MenuItem { Header = "履歴を消去" };
+            clear.Click += (_, _) => FolderHistory.Clear();
+            menu.Items.Add(clear);
+        }
+        menu.IsOpen = true;
+    }
+
     // ───────── 表示の切り替え・並べ替え ─────────
 
     /// <summary>「表示 ▾」ボタン: 一覧の表示(詳細・アイコン・一覧)と、並べ替え(アイコン・一覧には列見出しが無いため、ここからも選べる)。</summary>
@@ -69,6 +118,17 @@ public partial class MainWindow : Window
         Mode("詳細", ViewMode.Details, "Ctrl+Shift+1");
         Mode("アイコン", ViewMode.Icons, "Ctrl+Shift+2");
         Mode("一覧", ViewMode.List, "Ctrl+Shift+3");
+
+        // アイコンの大きさ(アイコン表示のとき。全タブ共通。アイコン表示で Ctrl+ホイールでも変えられる)
+        var size = new MenuItem { Header = "アイコンの大きさ" };
+        foreach (var (value, label) in new[] { (IconSize.Small, "小"), (IconSize.Medium, "中"), (IconSize.Large, "大") })
+        {
+            var v = value;
+            var item = new MenuItem { Header = label, IsChecked = ViewSettings.IconSize == v };
+            item.Click += (_, _) => ViewSettings.IconSize = v;
+            size.Items.Add(item);
+        }
+        menu.Items.Add(size);
         menu.Items.Add(new Separator());
 
         var sort = new MenuItem { Header = "並べ替え" };
@@ -459,8 +519,145 @@ public partial class MainWindow : Window
     private void PathBox_KeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key != Key.Enter) return;
-        if (!_vm.NavigateToText(PathBox.Text))
+        string text = PathSuggestPopup.IsOpen && PathSuggestList.SelectedItem is string chosen ? chosen : PathBox.Text; // 候補を矢印キーで選んでいれば、その候補へ
+        ClosePathSuggest();
+        if (!_vm.NavigateToText(text))
             MessageBox.Show("フォルダが見つかりません。", "KT_Explorer");
+        e.Handled = true;
+    }
+
+    // ───────── パス欄: 入力補完・パンくず ─────────
+
+    private bool _suppressSuggest;
+
+    private void ClosePathSuggest() { _suggestTimer?.Stop(); PathSuggestPopup.IsOpen = false; PathSuggestList.ItemsSource = null; }
+
+    /// <summary>入力補完の候補を、パス欄の入力に合わせて出す(入力していない、変更でない更新では出さない)。</summary>
+    private void PathBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!PathBox.IsKeyboardFocusWithin) { UpdateBreadcrumb(); return; } // 入力中でなければ、フォルダの移動に合わせてパンくずを更新
+        if (_suppressSuggest) return;
+        // 打っている間は計算しない(速く打っても、入力を邪魔しない)。少し止まってから、候補を出す
+        _suggestTimer ??= CreateSuggestTimer();
+        _suggestTimer.Stop();
+        _suggestTimer.Start();
+    }
+
+    private System.Windows.Threading.DispatcherTimer? _suggestTimer;
+
+    private System.Windows.Threading.DispatcherTimer CreateSuggestTimer()
+    {
+        var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            if (!PathBox.IsKeyboardFocusWithin) return;
+            var items = PathBarService.Suggest(PathBox.Text, 12);
+            if (items.Count == 0) { ClosePathSuggest(); return; }
+            PathSuggestList.ItemsSource = items;
+            PathSuggestList.SelectedIndex = -1;
+            PathSuggestList.Width = Math.Max(320, PathBox.ActualWidth);
+            PathSuggestPopup.IsOpen = true;
+        };
+        return timer;
+    }
+
+    /// <summary>↓↑ で候補を選ぶ。Esc で候補を閉じる。Tab で、先頭(または選んでいる)候補を入力欄に入れる。</summary>
+    private void PathBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (!PathSuggestPopup.IsOpen) return;
+        int count = PathSuggestList.Items.Count;
+        if (e.Key == Key.Down) { PathSuggestList.SelectedIndex = Math.Min(count - 1, PathSuggestList.SelectedIndex + 1); PathSuggestList.ScrollIntoView(PathSuggestList.SelectedItem); e.Handled = true; }
+        else if (e.Key == Key.Up) { PathSuggestList.SelectedIndex = Math.Max(0, PathSuggestList.SelectedIndex - 1); PathSuggestList.ScrollIntoView(PathSuggestList.SelectedItem); e.Handled = true; }
+        else if (e.Key == Key.Escape) { ClosePathSuggest(); e.Handled = true; }
+        else if (e.Key == Key.Tab && count > 0)
+        {
+            string pick = (PathSuggestList.SelectedItem as string) ?? (string)PathSuggestList.Items[0]!;
+            _suppressSuggest = true;
+            PathBox.Text = pick.EndsWith('\\') ? pick : pick + "\\"; // 次の階層の補完へ続けられるよう、区切りを付ける
+            PathBox.CaretIndex = PathBox.Text.Length;
+            _suppressSuggest = false;
+            var next = PathBarService.Suggest(PathBox.Text, 12);
+            PathSuggestList.ItemsSource = next; PathSuggestList.SelectedIndex = -1;
+            PathSuggestPopup.IsOpen = next.Count > 0;
+            e.Handled = true;
+        }
+    }
+
+    private void PathSuggestList_Click(object sender, MouseButtonEventArgs e)
+    {
+        if ((e.OriginalSource as DependencyObject) is not DependencyObject src) return;
+        var item = ItemsControl.ContainerFromElement(PathSuggestList, src) as ListBoxItem;
+        if (item?.Content is not string path) return;
+        ClosePathSuggest();
+        if (!_vm.NavigateToText(path)) MessageBox.Show("フォルダが見つかりません。", "KT_Explorer");
+    }
+
+    private void PathBox_FocusChanged(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        if (!PathBox.IsKeyboardFocusWithin) ClosePathSuggest();
+        UpdateBreadcrumb();
+    }
+
+    /// <summary>パンくずを、いまのフォルダに合わせて作り直す(入力中は隠す)。</summary>
+    internal void UpdateBreadcrumb()
+    {
+        bool editing = PathBox.IsKeyboardFocusWithin;
+        Breadcrumb.Visibility = editing ? Visibility.Collapsed : Visibility.Visible;
+        BreadcrumbPanel.Children.Clear();
+        string? path = _vm.CurrentFolder?.Path;
+        if (editing || string.IsNullOrEmpty(path)) return;
+
+        var segments = PathBarService.Split(path);
+        for (int i = 0; i < segments.Count; i++)
+        {
+            var seg = segments[i];
+            var crumb = new Button
+            {
+                Content = seg.Name, Padding = new Thickness(5, 1, 5, 1), Margin = new Thickness(0),
+                Background = Brushes.Transparent, BorderThickness = new Thickness(0), Focusable = false, ToolTip = seg.FullPath,
+            };
+            crumb.Click += (_, _) =>
+            {
+                if ((Keyboard.Modifiers & ModifierKeys.Control) != 0) _vm.OpenInNewTab(seg.FullPath);
+                else _vm.NavigateToText(seg.FullPath);
+            };
+            BreadcrumbPanel.Children.Add(crumb);
+
+            // ▸: その階層の中のフォルダを一覧にして、選んだものへ移動
+            var arrow = new Button
+            {
+                Content = "▸", Padding = new Thickness(3, 1, 3, 1), Background = Brushes.Transparent, BorderThickness = new Thickness(0),
+                Focusable = false, Foreground = Brushes.Gray, ToolTip = "この中のフォルダ",
+            };
+            arrow.Click += (_, _) => ShowCrumbChildren(arrow, seg.FullPath);
+            BreadcrumbPanel.Children.Add(arrow);
+        }
+    }
+
+    private void ShowCrumbChildren(Button anchor, string path)
+    {
+        var menu = new ContextMenu { PlacementTarget = anchor, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom, MaxHeight = 400 };
+        foreach (var child in PathBarService.Children(path))
+        {
+            var c = child;
+            var item = new MenuItem { Header = c.Name };
+            item.Click += (_, _) =>
+            {
+                if ((Keyboard.Modifiers & ModifierKeys.Control) != 0) _vm.OpenInNewTab(c.FullPath);
+                else _vm.NavigateToText(c.FullPath);
+            };
+            menu.Items.Add(item);
+        }
+        if (menu.Items.Count == 0) menu.Items.Add(new MenuItem { Header = "(フォルダはありません)", IsEnabled = false });
+        menu.IsOpen = true;
+    }
+
+    /// <summary>パンくずの空いているところをクリックすると、パスの入力に切り替える。</summary>
+    private void Breadcrumb_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.OriginalSource is Button || (e.OriginalSource as DependencyObject)?.GetType() == typeof(System.Windows.Controls.Primitives.ButtonBase)) return;
+        PathBox.Focus(); PathBox.SelectAll();
         e.Handled = true;
     }
 

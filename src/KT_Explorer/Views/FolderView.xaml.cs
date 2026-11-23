@@ -29,15 +29,22 @@ public partial class FolderView : UserControl
         _renameTimer.Tick += RenameTimer_Tick;
         _hintTimer.Tick += (_, _) => CloseHint();
         _detailsView = FileList.View as GridView;
+        ApplyIconSize(reapply: false);
         DataContextChanged += (_, e) => HookSortTab(e.NewValue as FolderTabViewModel);
         Loaded += (_, _) =>
         {
+            ViewSettings.Changed += OnIconSizeChanged;
+            ViewSettings.ColumnsChanged += ApplyExtraColumns;
+            ApplyIconSize(reapply: false);
+            ApplyExtraColumns();
             HookSortTab(Vm);
             _hostWindow = Window.GetWindow(this);
             if (_hostWindow != null) _hostWindow.PreviewMouseDown += HostWindow_PreviewMouseDown;
         };
         Unloaded += (_, _) =>
         {
+            ViewSettings.Changed -= OnIconSizeChanged;
+            ViewSettings.ColumnsChanged -= ApplyExtraColumns;
             HookSortTab(null);
             if (_hostWindow != null) _hostWindow.PreviewMouseDown -= HostWindow_PreviewMouseDown;
             _hostWindow = null;
@@ -67,6 +74,51 @@ public partial class FolderView : UserControl
 
     private static readonly string[] ColumnNames = { "名前", "更新日時", "種類", "サイズ" };
 
+    // ───────── 追加の列(作成日時・属性・画像のサイズ・再生時間) ─────────
+
+    /// <summary>追加の列の、表示する値(FileEntry のプロパティ名)と幅。</summary>
+    private static readonly Dictionary<string, (string Property, double Width)> ExtraColumnInfo = new()
+    {
+        ["created"] = (nameof(FileEntry.CreatedText), 130),
+        ["attributes"] = (nameof(FileEntry.AttributesText), 60),
+        ["dimensions"] = (nameof(FileEntry.ImageSizeText), 100),
+        ["duration"] = (nameof(FileEntry.DurationText), 70),
+    };
+
+    /// <summary>詳細表示の列を、設定に合わせる(基本の 4 列のあとに、選んだ追加の列を並べる)。</summary>
+    private void ApplyExtraColumns()
+    {
+        if (_detailsView == null) return;
+        while (_detailsView.Columns.Count > ColumnNames.Length) _detailsView.Columns.RemoveAt(_detailsView.Columns.Count - 1);
+        foreach (var key in ViewSettings.ExtraColumns)
+        {
+            string header = ViewSettings.ExtraColumnCatalog.First(c => c.Key == key).Header;
+            var (property, width) = ExtraColumnInfo[key];
+            _detailsView.Columns.Add(new GridViewColumn { Header = header, Width = width, DisplayMemberBinding = new System.Windows.Data.Binding(property) });
+        }
+    }
+
+    /// <summary>列見出しを右クリックすると、追加する列を選ぶメニューを出す。</summary>
+    private void FileList_PreviewMouseRightButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (FileList.View is not GridView) return;
+        for (var d = e.OriginalSource as DependencyObject; d != null && d != FileList; d = System.Windows.Media.VisualTreeHelper.GetParent(d))
+        {
+            if (d is not GridViewColumnHeader) continue;
+            var menu = new ContextMenu();
+            foreach (var (key, header) in ViewSettings.ExtraColumnCatalog)
+            {
+                var k = key;
+                var item = new MenuItem { Header = header, IsCheckable = true, IsChecked = ViewSettings.IsColumnVisible(k), StaysOpenOnClick = false };
+                item.Click += (_, _) => ViewSettings.SetColumnVisible(k, !ViewSettings.IsColumnVisible(k));
+                menu.Items.Add(item);
+            }
+            menu.PlacementTarget = (UIElement)d; menu.IsOpen = true;
+            e.Handled = true;
+            return;
+        }
+    }
+
     private FolderTabViewModel? _sortTab;
 
     /// <summary>列見出しの ▲▼ と、一覧の表示(詳細・アイコン・一覧)を、表示しているタブに合わせる(どちらもタブごとに持つ)。</summary>
@@ -90,6 +142,35 @@ public partial class FolderView : UserControl
     // ───────── 表示の切り替え(詳細・アイコン・一覧) ─────────
 
     private GridView? _detailsView;
+
+    // ───────── アイコンの大きさ(小・中・大) ─────────
+
+    private void OnIconSizeChanged() => ApplyIconSize(reapply: true);
+
+    /// <summary>
+    /// アイコン表示の項目の大きさ(画像・幅)を、設定に合わせる(テンプレートは DynamicResource で参照している)。
+    /// アイコン表示中は、サムネイルを新しい大きさで読み直すため、テンプレートを入れ直す。
+    /// </summary>
+    private void ApplyIconSize(bool reapply)
+    {
+        Resources["IconImageSize"] = ViewSettings.IconImageSize;
+        Resources["IconItemWidth"] = ViewSettings.IconItemWidth;
+        if (reapply && Vm?.ViewMode == ViewMode.Icons)
+        {
+            FileList.ClearValue(ItemsControl.ItemTemplateProperty);
+            ApplyViewMode();
+        }
+    }
+
+    /// <summary>アイコン表示では、Ctrl を押しながらホイールで、アイコンの大きさ(小・中・大)を変える。</summary>
+    private void FileList_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (Vm?.ViewMode != ViewMode.Icons || (Keyboard.Modifiers & ModifierKeys.Control) == 0) return;
+        int step = e.Delta > 0 ? 1 : -1;
+        int next = Math.Clamp((int)ViewSettings.IconSize + step, (int)IconSize.Small, (int)IconSize.Large);
+        ViewSettings.IconSize = (IconSize)next;
+        e.Handled = true;
+    }
 
     /// <summary>
     /// タブの表示(詳細・アイコン・一覧)に合わせて、一覧の見た目を切り替える。

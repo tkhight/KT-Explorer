@@ -133,7 +133,10 @@ internal sealed class DeleteAction : UndoAction
 
         var failed = new List<string>();
         foreach (var path in _paths)
+        {
             if (!RecycleBinService.Restore(path)) failed.Add(path);
+            FolderSizeCache.InvalidateUp(path); // 復元したフォルダの分、上位のフォルダのサイズが変わる
+        }
         return failed.Count == 0 ? null : $"ごみ箱から元に戻せませんでした(空にされた可能性があります): {Names(failed)}";
     }
 

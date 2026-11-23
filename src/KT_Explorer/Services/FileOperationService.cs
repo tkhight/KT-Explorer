@@ -126,7 +126,13 @@ public static class FileOperationService
             pTo = dest == null ? null : dest + "\0\0",
             fFlags = flags,
         };
+        var sourceList = sources.ToList();
         int code = SHFileOperation(ref op);
+
+        // フォルダのサイズの記憶を捨てる(元の項目は、削除・移動で無くなる。移動先・コピー先のフォルダは、中身が増える)
+        foreach (var source in sourceList) FolderSizeCache.InvalidateTree(source);
+        if (dest != null) FolderSizeCache.InvalidateUp(dest);
+
         if (op.fAnyOperationsAborted) return Result.Cancelled;
         return code == 0 ? Result.Done : Result.Failed;
     }
@@ -138,6 +144,7 @@ public static class FileOperationService
     {
         string path = UniquePath(dir, baseName, "");
         Directory.CreateDirectory(path);
+        FolderSizeCache.InvalidateUp(dir);
         if (record) UndoManager.Instance.Push(new CreateAction(path, isDirectory: true));
         return path;
     }
@@ -147,6 +154,7 @@ public static class FileOperationService
     {
         string path = UniquePath(dir, baseName, extension);
         using (File.Create(path)) { }
+        FolderSizeCache.InvalidateUp(dir);
         if (record) UndoManager.Instance.Push(new CreateAction(path, isDirectory: false));
         return path;
     }
@@ -171,6 +179,7 @@ public static class FileOperationService
         string dir = Path.GetDirectoryName(path.TrimEnd('\\'))!;
         string target = Path.Combine(dir, newName);
         bool isDir = Directory.Exists(path);
+        FolderSizeCache.InvalidateTree(path); // 名前が変わると、その中のフォルダのパスも変わる
 
         if (string.Equals(path, target, StringComparison.Ordinal)) return path; // 変更なし
 
