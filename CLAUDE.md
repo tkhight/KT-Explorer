@@ -34,6 +34,8 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 | お気に入りの整理ウィンドウ(並べ替え・グループの追加と移動)とメニューへの反映の画面テスト | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_favorites.ps1'` |
 | ショートカット(.lnk)のリンク先の解決と、タブの「開く」(リンク先がフォルダなら、その一覧のまま移動)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_shortcut.ps1'` |
 | ショートカットを Enter・ダブルクリック・右クリックで開いたとき、エクスプローラーを開かず、KT_Explorer の中でリンク先を表示することの画面テスト | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_shortcut.ps1'` |
+| 表示の切り替え(詳細・アイコン・一覧)のロジック: サムネイルの取得、タブごとの表示、新しいタブの初期の表示、状態の保存と復元。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_viewmode.ps1'` |
+| 表示の切り替えの画面テスト: メニュー・`Ctrl+Shift+1/2/3`、列見出しの有無、矢印キーの移動、名前の変更、メニューからの並べ替え | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_viewmode.ps1'` |
 | 中断したテストの後片付け(`%TEMP%\kt_test_*` を消す) | `& 'E:\KT_Applications\KT_Explorer\tools\test\cleanup.ps1'` |
 
 - 実行前に、上のビルドを行う。結果は `OK` / `NG` の行と、最後の `RESULT: ok=… ng=…`。
@@ -43,10 +45,13 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
   - 操作するフォルダは `%TEMP%\kt_test_*` の中だけ。
   - 止めてよいプロセスは、名前が `KT_Explorer` のものだけ(それ以外のプロセスは止めない)。
   - キーを送る前に、入力欄の中身などが想定どおりか確認し、違えば中止する。
+  - キーを送る・クリックする前に、前面にあるのがテスト用の KT_Explorer であることを確かめ、違えば、何も送らずに中止する(`Assert-AppForeground`)。ユーザーが別のアプリ(ブラウザなど)を使っているとき、そのアプリへキーを送ってしまわないため。**画面テストの実行中は、ユーザーにキーボードとマウスに触らないでもらう**(触ると、入力が乱れて失敗する)。
   - 引数でコマンドを受け取らない。
 - **許可済みスクリプトの中身を変えると、確認なしで実行される。** 変更したら、コミット前に必ず内容を見直す。新しいスクリプトを許可に加えるときは、`.claude/settings.json` に、スクリプトごとに1行ずつ(フォルダ全体のワイルドカードにしない)足す。
 
 ## 既知の事情
+
+- アイコン・一覧の表示では、項目の中身(名前の入力欄など)が、画面要素(UI Automation)の一覧に出ない。また、見えている範囲の項目だけが出る(全部で数十件を超えても、件数は数十)。そのため、画面テストでは、入力欄の中身やフォーカスを確かめられない。名前の変更を試すときは、Enter ではなく、フォーカスを受け取れない場所(ラベル「絞込:」)のクリックで確定する。
 
 - `Ctrl+W` は、自動操作(SendKeys など)では、キーがアプリへ届かない環境がある。タブは `✕` ボタンで閉じる。実機(ユーザーの操作)では、`Ctrl+W` でタブが閉じることを確認済みなので、アプリの不具合ではない。
 - ユーザーの実機の `C:\OneDrive(link)`(ジャンクション)など、**`%TEMP%\kt_test_*` の外のフォルダを、テストで操作しない**。過去に、画面テストが誤って実機のフォルダの名前を変えた(復旧済み)。

@@ -51,6 +51,45 @@ public partial class MainWindow : Window
         };
     }
 
+    // ───────── 表示の切り替え・並べ替え ─────────
+
+    /// <summary>「表示 ▾」ボタン: 一覧の表示(詳細・アイコン・一覧)と、並べ替え(アイコン・一覧には列見出しが無いため、ここからも選べる)。</summary>
+    private void View_Click(object sender, RoutedEventArgs e)
+    {
+        var tab = _vm.CurrentFolder;
+        if (tab == null) return;
+        var menu = new ContextMenu { PlacementTarget = (UIElement)sender, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+
+        void Mode(string header, ViewMode mode, string gesture)
+        {
+            var item = new MenuItem { Header = header, InputGestureText = gesture, IsChecked = tab.ViewMode == mode };
+            item.Click += (_, _) => tab.SetViewMode(mode);
+            menu.Items.Add(item);
+        }
+        Mode("詳細", ViewMode.Details, "Ctrl+Shift+1");
+        Mode("アイコン", ViewMode.Icons, "Ctrl+Shift+2");
+        Mode("一覧", ViewMode.List, "Ctrl+Shift+3");
+        menu.Items.Add(new Separator());
+
+        var sort = new MenuItem { Header = "並べ替え" };
+        foreach (var (column, label) in new[] { (SortColumn.Name, "名前"), (SortColumn.Modified, "更新日時"), (SortColumn.Type, "種類"), (SortColumn.Size, "サイズ") })
+        {
+            var c = column;
+            var item = new MenuItem { Header = label, IsChecked = tab.SortColumn == c };
+            item.Click += (_, _) => tab.ChooseSort(c, tab.SortDescending);
+            sort.Items.Add(item);
+        }
+        sort.Items.Add(new Separator());
+        var asc = new MenuItem { Header = "昇順", IsChecked = !tab.SortDescending };
+        asc.Click += (_, _) => tab.ChooseSort(tab.SortColumn, false);
+        var desc = new MenuItem { Header = "降順", IsChecked = tab.SortDescending };
+        desc.Click += (_, _) => tab.ChooseSort(tab.SortColumn, true);
+        sort.Items.Add(asc);
+        sort.Items.Add(desc);
+        menu.Items.Add(sort);
+        menu.IsOpen = true;
+    }
+
     // ───────── プレビューウィンドウ ─────────
 
     private double _previewWidth = 320;

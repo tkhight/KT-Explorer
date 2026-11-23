@@ -6,6 +6,7 @@
 #   - このスクリプトが起動したテスト用のアプリは、終了時に Stop-Process -Id で止める(状態は保存しない)。
 #   - 作る・変える・消すフォルダは、%TEMP%\kt_test_* の中だけ。
 #   - キーを送る前に、入力欄の中身などが想定どおりか確認し、違えば中止する。
+#   - キーを送る前に、前面にあるのがテスト用の KT_Explorer であることを確かめ、違えば、何も送らずに中止する(ユーザーが別のアプリを使っているとき、そのアプリへ送らないため)。
 #   - 引数でコマンドを受け取らない(許可ルールを、スクリプトごとに固定の呼び出しにするため)。
 
 $ErrorActionPreference = 'Stop'
@@ -69,6 +70,9 @@ public static class KtWin {
   [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
   [DllImport("user32.dll")] public static extern void mouse_event(uint f, int x, int y, uint d, UIntPtr e);
   [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte sc, uint flags, UIntPtr extra);
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+  public static uint ForegroundPid() { uint pid; GetWindowThreadProcessId(GetForegroundWindow(), out pid); return pid; }
 }
 "@
     }
@@ -124,6 +128,17 @@ function Set-Foreground {
     Start-Sleep -Milliseconds 400
 }
 
+# キーを送る前に、いま前面にあるのが、テスト用の KT_Explorer であることを確かめる。
+# ユーザーが別のアプリ(ブラウザなど)を使っていて、前面を奪えないときに、そのアプリへキーを送ってしまわないため。
+# 前面に出せなければ、何も送らずに中止する。
+function Assert-AppForeground {
+    for ($i = 0; $i -lt 3; $i++) {
+        if ([KtWin]::ForegroundPid() -eq $global:Kt.Proc.Id) { return }
+        Set-Foreground
+    }
+    Stop-Test 'the test app is not in the foreground (another app is being used). No keys were sent. Leave the keyboard and mouse alone while the UI tests run, and run it again.'
+}
+
 # ───────── 画面要素の取得・操作 ─────────
 
 function Find-ById([string]$id) {
@@ -143,11 +158,13 @@ function Get-Text($el) {
 
 # SendKeys の特殊文字をエスケープして、そのまま入力する
 function Send-Text([string]$t) {
+    Assert-AppForeground
     $esc = [regex]::Replace($t, '[+^%~(){}\[\]]', { param($m) '{' + $m.Value + '}' })
     [System.Windows.Forms.SendKeys]::SendWait($esc)
 }
 
 function Send-Keys([string]$keys, [int]$wait = 600) {
+    Assert-AppForeground
     [System.Windows.Forms.SendKeys]::SendWait($keys)
     Start-Sleep -Milliseconds $wait
 }
@@ -160,6 +177,7 @@ function Move-To([string]$path) {
     $pb = Find-ById 'PathBox'
     Set-Foreground
     $pb.SetFocus(); Start-Sleep -Milliseconds 200
+    Assert-AppForeground
     [System.Windows.Forms.SendKeys]::SendWait('^a')
     Send-Text $path
     Send-Keys '{ENTER}' 1500
@@ -191,6 +209,7 @@ function Click-Element($el) {
 }
 
 function Click-Point([int]$x, [int]$y) {
+    Assert-AppForeground   # 別のウィンドウが前面にあるとき、その上をクリックしてしまわないため
     [void][KtWin]::SetCursorPos($x, $y); Start-Sleep -Milliseconds 400
     [KtWin]::mouse_event(2, 0, 0, 0, [UIntPtr]::Zero); [KtWin]::mouse_event(4, 0, 0, 0, [UIntPtr]::Zero)
     Start-Sleep -Milliseconds 1500
@@ -198,6 +217,7 @@ function Click-Point([int]$x, [int]$y) {
 
 # メニューキー(Apps)を押して、キーボードから右クリックメニューを開く
 function Open-ContextMenuByKey {
+    Assert-AppForeground
     [KtWin]::keybd_event(0x5D, 0, 0, [UIntPtr]::Zero); [KtWin]::keybd_event(0x5D, 0, 2, [UIntPtr]::Zero)
     Start-Sleep -Milliseconds 1000
 }

@@ -28,6 +28,7 @@ public partial class FolderView : UserControl
         InitializeComponent();
         _renameTimer.Tick += RenameTimer_Tick;
         _hintTimer.Tick += (_, _) => CloseHint();
+        _detailsView = FileList.View as GridView;
         DataContextChanged += (_, e) => HookSortTab(e.NewValue as FolderTabViewModel);
         Loaded += (_, _) =>
         {
@@ -68,13 +69,109 @@ public partial class FolderView : UserControl
 
     private FolderTabViewModel? _sortTab;
 
-    /// <summary>列見出しの ▲▼ を、表示しているタブの並び順に合わせる(並び順はタブごとに持つ)。</summary>
+    /// <summary>列見出しの ▲▼ と、一覧の表示(詳細・アイコン・一覧)を、表示しているタブに合わせる(どちらもタブごとに持つ)。</summary>
     private void HookSortTab(FolderTabViewModel? tab)
     {
-        if (_sortTab != null) _sortTab.SortChanged -= UpdateSortHeaders;
+        if (_sortTab != null)
+        {
+            _sortTab.SortChanged -= UpdateSortHeaders;
+            _sortTab.ViewModeChanged -= ApplyViewMode;
+        }
         _sortTab = tab;
-        if (_sortTab != null) _sortTab.SortChanged += UpdateSortHeaders;
+        if (_sortTab != null)
+        {
+            _sortTab.SortChanged += UpdateSortHeaders;
+            _sortTab.ViewModeChanged += ApplyViewMode;
+        }
         UpdateSortHeaders();
+        ApplyViewMode();
+    }
+
+    // ───────── 表示の切り替え(詳細・アイコン・一覧) ─────────
+
+    private GridView? _detailsView;
+
+    /// <summary>
+    /// タブの表示(詳細・アイコン・一覧)に合わせて、一覧の見た目を切り替える。
+    /// 詳細は、列のある表(GridView)。アイコン・一覧は、列を持たず、名前つきの項目を折り返して並べる。
+    /// </summary>
+    private void ApplyViewMode()
+    {
+        var mode = Vm?.ViewMode ?? ViewMode.Details;
+        switch (mode)
+        {
+            case ViewMode.Icons:
+                FileList.View = null;
+                FileList.ItemTemplate = (DataTemplate)Resources["IconItemTemplate"];
+                FileList.ItemsPanel = (ItemsPanelTemplate)Resources["IconsPanel"];
+                ScrollViewer.SetHorizontalScrollBarVisibility(FileList, ScrollBarVisibility.Disabled);
+                ScrollViewer.SetVerticalScrollBarVisibility(FileList, ScrollBarVisibility.Auto);
+                break;
+            case ViewMode.List:
+                FileList.View = null;
+                FileList.ItemTemplate = (DataTemplate)Resources["ListItemTemplate"];
+                FileList.ItemsPanel = (ItemsPanelTemplate)Resources["ListPanel"];
+                ScrollViewer.SetHorizontalScrollBarVisibility(FileList, ScrollBarVisibility.Auto);
+                ScrollViewer.SetVerticalScrollBarVisibility(FileList, ScrollBarVisibility.Disabled);
+                break;
+            default:
+                FileList.ClearValue(ItemsControl.ItemTemplateProperty);
+                FileList.ClearValue(ItemsControl.ItemsPanelProperty);
+                FileList.View = _detailsView;
+                ScrollViewer.SetHorizontalScrollBarVisibility(FileList, ScrollBarVisibility.Auto);
+                ScrollViewer.SetVerticalScrollBarVisibility(FileList, ScrollBarVisibility.Auto);
+                UpdateSortHeaders();
+                break;
+        }
+    }
+
+    /// <summary>
+    /// アイコン・一覧では、矢印キーで、見た目どおりの方向へ動かす(上下左右)。
+    /// 標準のままだと、1つずつ前後に動くだけで、折り返した行・列の上下へは動けないため。
+    /// </summary>
+    private void FileList_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        var mode = Vm?.ViewMode ?? ViewMode.Details;
+        if (mode == ViewMode.Details || IsInEditBox(e.OriginalSource)) return;
+        if ((Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Alt | ModifierKeys.Shift)) != 0) return;
+        if (e.Key is not (Key.Left or Key.Right or Key.Up or Key.Down)) return;
+
+        int count = FileList.Items.Count;
+        if (count == 0) return;
+        e.Handled = true;
+
+        var first = FileList.ItemContainerGenerator.ContainerFromIndex(0) as FrameworkElement;
+        var panel = FindDescendant<WrapPanel>(FileList);
+        if (first == null || panel == null || first.ActualWidth <= 0 || first.ActualHeight <= 0) return;
+
+        // 1行(アイコン)・1列(一覧)に並ぶ項目の数
+        int perLine = mode == ViewMode.Icons
+            ? Math.Max(1, (int)(panel.ActualWidth / first.ActualWidth))
+            : Math.Max(1, (int)(panel.ActualHeight / first.ActualHeight));
+
+        int delta = mode == ViewMode.Icons
+            ? e.Key switch { Key.Left => -1, Key.Right => 1, Key.Up => -perLine, _ => perLine }
+            : e.Key switch { Key.Up => -1, Key.Down => 1, Key.Left => -perLine, _ => perLine };
+
+        int current = FileList.SelectedIndex;
+        int target = current < 0 ? 0 : current + delta;
+        if (target < 0 || target >= count || target == current) return; // 端では動かない
+
+        FileList.SelectedIndex = target;
+        FileList.ScrollIntoView(FileList.Items[target]);
+        (FileList.ItemContainerGenerator.ContainerFromIndex(target) as ListViewItem)?.Focus();
+    }
+
+    private static T? FindDescendant<T>(DependencyObject root) where T : DependencyObject
+    {
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is T t) return t;
+            var found = FindDescendant<T>(child);
+            if (found != null) return found;
+        }
+        return null;
     }
 
     private void ColumnHeader_Click(object sender, RoutedEventArgs e)
@@ -270,6 +367,7 @@ public partial class FolderView : UserControl
 
     private void EditBox_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
+
         if (e.NewValue is not true || sender is not TextBox box) return;
 
         // 表示直後はまだフォーカスを受けられないことがあるため、レイアウト後に行う

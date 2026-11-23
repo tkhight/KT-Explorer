@@ -75,6 +75,31 @@ public partial class FolderTabViewModel : TabBase
         SortChanged?.Invoke();
     }
 
+    /// <summary>このタブの表示(詳細・アイコン・一覧)。タブごとに持ち、状態ファイルに保存する。</summary>
+    public ViewMode ViewMode { get; private set; } = SortSettings.Instance.DefaultViewMode;
+
+    /// <summary>表示が変わった(一覧の見た目の切り替え用)。</summary>
+    public event Action? ViewModeChanged;
+
+    /// <summary>表示を切り替える。remember が true なら、新しく開くタブの初期の表示としても覚える(保存の復元では false)。</summary>
+    public void SetViewMode(ViewMode mode, bool remember = true)
+    {
+        if (remember) SortSettings.Instance.DefaultViewMode = mode;
+        if (ViewMode == mode) return;
+        ViewMode = mode;
+        ViewModeChanged?.Invoke();
+    }
+
+    /// <summary>並べ替えの列と向きを、メニューから直接選ぶ(アイコン・一覧には列見出しが無いため)。新しいタブの初期の並び順としても覚える。</summary>
+    public void ChooseSort(SortColumn column, bool descending)
+    {
+        SortColumn = column;
+        SortDescending = descending;
+        SortSettings.Instance.SetDefault(column, descending);
+        ApplySort();
+        SortChanged?.Invoke();
+    }
+
     /// <summary>保存された並び順を復元する(新しいタブの初期の並び順は変えない)。</summary>
     public void SetSort(SortColumn column, bool descending)
     {

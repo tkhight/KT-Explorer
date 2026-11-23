@@ -9,6 +9,9 @@ public sealed class TabSortState
 {
     public SortColumn Column { get; set; } = SortColumn.Name;
     public bool Descending { get; set; }
+
+    /// <summary>タブごとの表示(詳細・アイコン・一覧)。古い状態ファイルには無い(その場合は詳細)。</summary>
+    public KT_Explorer.Models.ViewMode ViewMode { get; set; } = KT_Explorer.Models.ViewMode.Details;
 }
 
 public sealed class GroupState
@@ -56,6 +59,9 @@ public sealed class AppState
 
     /// <summary>一覧を開いたとき、フォルダの合計サイズを自動で計算する(重いので既定はオフ)。</summary>
     public bool AutoFolderSize { get; set; }
+
+    /// <summary>新しく開くタブの初期の表示(最後に切り替えた表示)。</summary>
+    public KT_Explorer.Models.ViewMode ViewMode { get; set; } = KT_Explorer.Models.ViewMode.Details;
 
     /// <summary>プレビューウィンドウを表示する。</summary>
     public bool ShowPreview { get; set; }

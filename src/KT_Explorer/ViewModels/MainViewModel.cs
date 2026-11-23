@@ -33,6 +33,13 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void TogglePreview() => ShowPreview = !ShowPreview;
 
+    /// <summary>操作中の一覧の表示を切り替える(Ctrl+Shift+1 詳細 / 2 アイコン / 3 一覧)。</summary>
+    [RelayCommand]
+    private void SetViewMode(string? mode)
+    {
+        if (Enum.TryParse<ViewMode>(mode, out var m)) CurrentFolder?.SetViewMode(m);
+    }
+
     private void RefreshPreview()
     {
         if (ShowPreview) Preview.Show(CurrentFolder?.Selection ?? Array.Empty<FileEntry>());
@@ -195,6 +202,7 @@ public partial class MainViewModel : ObservableObject
         CaptureExplorer = state.CaptureExplorer;
         CloseToTray = state.CloseToTray;
         SortSettings.Instance.Load(state.SortColumn, state.SortDescending, state.FoldersFirst);
+        SortSettings.Instance.DefaultViewMode = state.ViewMode;
         AutoFolderSize = state.AutoFolderSize;
         ShowPreview = state.ShowPreview;
         foreach (var fs in state.Favorites)
@@ -218,7 +226,11 @@ public partial class MainViewModel : ObservableObject
             {
                 if (!Directory.Exists(gs.TabPaths[k])) continue;
                 var tab = new FolderTabViewModel(gs.TabPaths[k]);
-                if (k < gs.TabSorts.Count) tab.SetSort(gs.TabSorts[k].Column, gs.TabSorts[k].Descending); // タブごとの並び順を復元
+                if (k < gs.TabSorts.Count)
+                {
+                    tab.SetSort(gs.TabSorts[k].Column, gs.TabSorts[k].Descending); // タブごとの並び順を復元
+                    tab.SetViewMode(gs.TabSorts[k].ViewMode, remember: false);      // タブごとの表示(詳細・アイコン・一覧)を復元
+                }
                 group.Tabs.Add(tab);
             }
             if (group.Tabs.Count > 0)
@@ -664,6 +676,7 @@ public partial class MainViewModel : ObservableObject
             SortColumn = SortSettings.Instance.Column,
             SortDescending = SortSettings.Instance.Descending,
             FoldersFirst = SortSettings.Instance.FoldersFirst,
+            ViewMode = SortSettings.Instance.DefaultViewMode,
             AutoFolderSize = AutoFolderSize,
             ShowPreview = ShowPreview,
             SelectedGroupIndex = Groups.IndexOf(_selectedGroup),
@@ -680,7 +693,7 @@ public partial class MainViewModel : ObservableObject
                 if (t is FolderTabViewModel f)
                 {
                     folderTabs.Add(f.Path);
-                    tabSorts.Add(new TabSortState { Column = f.SortColumn, Descending = f.SortDescending });
+                    tabSorts.Add(new TabSortState { Column = f.SortColumn, Descending = f.SortDescending, ViewMode = f.ViewMode });
                 }
                 if (ReferenceEquals(t, selected)) selectedIndex = Math.Max(folderTabs.Count - 1, 0);
             }

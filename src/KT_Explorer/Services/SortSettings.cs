@@ -21,6 +21,9 @@ public sealed class SortSettings
     /// <summary>フォルダを、並び順にかかわらず先頭にまとめる。</summary>
     public bool FoldersFirst { get; private set; } = true;
 
+    /// <summary>新しく開くタブの初期の表示(最後に切り替えた表示)。</summary>
+    public KT_Explorer.Models.ViewMode DefaultViewMode { get; set; } = KT_Explorer.Models.ViewMode.Details;
+
     public event Action? Changed;
 
     public void Load(SortColumn column, bool descending, bool foldersFirst)
