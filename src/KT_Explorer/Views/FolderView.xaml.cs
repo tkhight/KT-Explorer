@@ -28,13 +28,35 @@ public partial class FolderView : UserControl
         InitializeComponent();
         _renameTimer.Tick += RenameTimer_Tick;
         _hintTimer.Tick += (_, _) => CloseHint();
-        Loaded += (_, _) => { SortSettings.Instance.Changed += UpdateSortHeaders; UpdateSortHeaders(); };
+        Loaded += (_, _) =>
+        {
+            SortSettings.Instance.Changed += UpdateSortHeaders;
+            UpdateSortHeaders();
+            _hostWindow = Window.GetWindow(this);
+            if (_hostWindow != null) _hostWindow.PreviewMouseDown += HostWindow_PreviewMouseDown;
+        };
         Unloaded += (_, _) =>
         {
             SortSettings.Instance.Changed -= UpdateSortHeaders;
+            if (_hostWindow != null) _hostWindow.PreviewMouseDown -= HostWindow_PreviewMouseDown;
+            _hostWindow = null;
             _renameTimer.Stop();
             CloseHint();
         };
+    }
+
+    private Window? _hostWindow;
+
+    /// <summary>
+    /// 名前を入力中に、入力欄の外をクリックしたら確定する。一覧の空白部分や文字だけのラベルなど、
+    /// キーボードフォーカスを受け取れない場所をクリックしても、入力欄のフォーカスは外れず、
+    /// 「フォーカスを失った」イベントが起きないため、クリックそのものを検知する。
+    /// </summary>
+    private void HostWindow_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (_editing is not { IsEditing: true } entry) return;
+        if (IsInEditBox(e.OriginalSource)) return; // 入力欄の中のクリックは、文字の選択などに使う
+        CommitRename(entry, entry.EditName);
     }
 
     // ───────── 列見出しクリックでの並べ替え ─────────

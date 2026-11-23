@@ -126,6 +126,13 @@ public partial class MainWindow : Window
     // マウスのサイドボタン: 戻る / 進む
     private void Window_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
+        // ツリーで名前を入力中に、入力欄の外をクリックしたら確定する。
+        // 入力欄がキーボードフォーカスを得られていない(起動直後など)場合は、フォーカスを失ったイベントが
+        // 起きないため、クリックそのものを検知して確定する。
+        if (_editingTreeNode is { IsEditing: true } editing
+            && !(e.OriginalSource is DependencyObject src && FindAncestor<TextBox>(src) is { } tb && ReferenceEquals(tb.DataContext, editing)))
+            CommitTreeRename(editing);
+
         if (e.ChangedButton == MouseButton.XButton1) { _vm.BackCommand.Execute(null); e.Handled = true; }
         else if (e.ChangedButton == MouseButton.XButton2) { _vm.ForwardCommand.Execute(null); e.Handled = true; }
     }
@@ -446,10 +453,16 @@ public partial class MainWindow : Window
             move.Items.Add(item);
         }
         menu.Items.Add(move);
+        var duplicate = new MenuItem { Header = "タブを複製" };
+        duplicate.Click += (_, _) => _vm.DuplicateTab(tab);
+        menu.Items.Add(duplicate);
         menu.Items.Add(new Separator());
-        var close = new MenuItem { Header = "タブを閉じる" };
+        var close = new MenuItem { Header = "タブを閉じる", InputGestureText = "Ctrl+W" };
         close.Click += (_, _) => _vm.CloseTabCommand.Execute(tab);
         menu.Items.Add(close);
+        var reopen = new MenuItem { Header = "閉じたタブを開き直す", InputGestureText = "Ctrl+Shift+T", IsEnabled = _vm.CanReopenClosedTab };
+        reopen.Click += (_, _) => _vm.ReopenClosedTabCommand.Execute(null);
+        menu.Items.Add(reopen);
         // メニューは自分で開く。ContextMenu プロパティに設定して WPF に開かせると、WPF のメニュー表示処理は
         // このハンドラーより先に走るため、1回目は何も出ず、2回目には前回の古いメニューが出てしまう。
         e.Handled = true;
@@ -579,19 +592,176 @@ public partial class MainWindow : Window
         if (_contextNode == null || _contextNode.IsPlaceholder) e.Handled = true; // メニューを出さない
     }
 
+
+    // ───────── ツリーでの名前の変更・削除・新規作成 ─────────
+
+    /// <summary>
+    /// メニューの項目から始める操作は、メニューが閉じて、フォーカスが元の項目へ戻る処理が済んでから行う
+    /// (先に入力欄へフォーカスを移しても、メニューが閉じるときに奪い返されてしまうため)。
+    /// </summary>
+    private void AfterMenuClosed(Action action) =>
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle, action);
+
+    private TreeNodeViewModel? _editingTreeNode; // 名前を入力中のノード(入力欄の外のクリックで確定するため)
+
+    /// <summary>ツリーの項目を、その場で名前を入力できる状態にする(Windows 標準のエクスプローラーと同じ)。</summary>
+    private void TreeRename(TreeNodeViewModel node)
+    {
+        if (node.IsPlaceholder || node.IsEditing) return;
+        _editingTreeNode = node;
+        node.EditName = node.Name;
+        node.IsEditing = true; // 入力欄が表示され、IsVisibleChanged でフォーカス・全選択される
+    }
+
+    // 新しく作ったノードは、最初から編集状態で作られるため、表示の変化ではなく読み込み完了でも開始する
+    private void TreeEditBox_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is TextBox { IsVisible: true } box) FocusTreeEditBox(box, attempts: 40);
+    }
+
+    private void TreeEditBox_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.NewValue is true && sender is TextBox box) FocusTreeEditBox(box, attempts: 40);
+    }
+
+    /// <summary>
+    /// 入力欄へフォーカスを移して全選択する。表示した直後や、新しく作ったノードの入力欄は、レイアウトが済むまで
+    /// フォーカスを受けられないことがあるため、移せるまで少しずつ間を置いて繰り返す。
+    /// </summary>
+    private void FocusTreeEditBox(TextBox box, int attempts)
+    {
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle, () =>
+        {
+            if (!box.IsVisible || box.DataContext is not TreeNodeViewModel { IsEditing: true }) return;
+            box.BringIntoView();
+            box.Focus();
+            Keyboard.Focus(box);
+            if (box.IsKeyboardFocusWithin) { box.SelectAll(); return; }
+            if (attempts <= 1) return;
+
+            var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
+            timer.Tick += (_, _) => { timer.Stop(); FocusTreeEditBox(box, attempts - 1); };
+            timer.Start();
+        });
+    }
+
+    private void TreeEditBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (sender is not TextBox { DataContext: TreeNodeViewModel node }) return;
+        if (e.Key == Key.Enter)
+        {
+            CommitTreeRename(node);
+            FolderTree.Focus();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            CancelTreeRename(node);
+            FolderTree.Focus();
+            e.Handled = true;
+        }
+    }
+
+    private void TreeEditBox_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        if (sender is TextBox { DataContext: TreeNodeViewModel { IsEditing: true } node }) CommitTreeRename(node);
+    }
+
+    // ファイル名に使えない文字は入力させない
+    private void TreeEditBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
+    {
+        if (e.Text.IndexOfAny(System.IO.Path.GetInvalidFileNameChars()) >= 0) e.Handled = true;
+    }
+
+    /// <summary>Esc: 名前の変更を取り消す(新しく作ったフォルダは、既定の名前のまま残る)。</summary>
+    private static void CancelTreeRename(TreeNodeViewModel node) => node.IsEditing = false;
+
+    /// <summary>Enter / フォーカスを失った: 入力した名前に変更する。</summary>
+    private void CommitTreeRename(TreeNodeViewModel node)
+    {
+        if (!node.IsEditing) return; // 二重に呼ばれても(Enter のあとのフォーカス喪失など)1回だけ処理する
+        node.IsEditing = false;
+
+        string newName = node.EditName.Trim();
+        if (newName.Length == 0 || newName == node.Name) return;
+
+        string path = node.FullPath.TrimEnd('\\');
+        _vm.PauseWatching(path); // 開いているタブの監視を止める(監視中のフォルダは名前を変えられない)
+        try
+        {
+            string newPath = FileOperationService.Rename(path, newName);
+            _vm.OnFolderRenamed(path, newPath); // 開いているタブ・ペイン、お気に入り、ツリーを追従させる
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "名前の変更", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            _vm.ResumeAllWatching();
+        }
+    }
+
+    /// <summary>ツリー上の F2: 選択中のフォルダの名前を、その場で変更する。</summary>
+    private void FolderTree_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.F2 || e.OriginalSource is TextBox) return;
+        if (FolderTree.SelectedItem is TreeNodeViewModel { IsPlaceholder: false } node && CanModifyFolder(node.FullPath))
+        {
+            TreeRename(node);
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>ドライブのルートなど、親を持たないものは、名前の変更・削除の対象にしない。</summary>
+    private static bool CanModifyFolder(string path) => System.IO.Directory.GetParent(path.TrimEnd('\\')) != null;
+
+    private void TreeDelete(TreeNodeViewModel node)
+    {
+        string path = node.FullPath.TrimEnd('\\');
+        _vm.PauseWatching(path); // 開いているタブの監視を止める(監視中のフォルダは削除できない)
+        var result = FileOperationService.Delete(new List<string> { path }, toRecycleBin: true, WindowHandle);
+        if (result == FileOperationService.Result.Failed)
+            MessageBox.Show("削除できませんでした。", "KT_Explorer", MessageBoxButton.OK, MessageBoxImage.Warning);
+        _vm.AfterFileChange(); // 無くなったフォルダを開いているタブ・ペインは、親フォルダへ移る
+    }
+
+    private void TreeNewFolder(TreeNodeViewModel node)
+    {
+        string created;
+        try
+        {
+            created = FileOperationService.CreateFolder(node.FullPath, "新しいフォルダー");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "新しいフォルダー", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        node.EnsureChildren();
+        _vm.RefreshTree();
+        node.IsExpanded = true;
+
+        // 作ったフォルダの名前を、その場で入力する(Esc で、既定の名前のまま)
+        var child = node.Children.FirstOrDefault(c => string.Equals(c.FullPath, created, StringComparison.Ordinal));
+        if (child == null) return;
+        TreeRename(child);
+    }
+
     private ContextMenu? _treeMenu;
 
     /// <summary>ツリーの右クリックメニュー。一覧と同じ作り(独自メニュー + 「その他のオプション」)。Shift+右クリックは標準メニューを直接出す。</summary>
     private void FolderTree_ContextMenuOpening(object sender, ContextMenuEventArgs e)
     {
-        var node = _contextNode;
+        // キーボード(メニューキー / Shift+F10)で開いたときは、マウスの右クリックを経ていないので、選択中のノードを対象にする
+        var node = e.CursorLeft < 0 ? FolderTree.SelectedItem as TreeNodeViewModel : _contextNode;
         if (node == null || node.IsPlaceholder || !System.IO.Directory.Exists(node.FullPath)) { e.Handled = true; return; }
         string path = node.FullPath;
 
         if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
         {
             e.Handled = true;
-            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, () => ShowTreeShellMenu(path, extended: true));
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, () => ShowTreeShellMenu(node, extended: true));
             return;
         }
 
@@ -613,12 +783,22 @@ public partial class MainWindow : Window
         Add("コピー", () => ClipboardService.SetFiles(new[] { path }, cut: false));
         Add("貼り付け", () => FolderActions.PasteInto(path, WindowHandle), enabled: ClipboardService.HasFiles());
         menu.Items.Add(new Separator());
+        var create = new MenuItem { Header = "新規作成" };
+        var newFolder = new MenuItem { Header = "フォルダー" };
+        newFolder.Click += (_, _) => AfterMenuClosed(() => TreeNewFolder(node));
+        create.Items.Add(newFolder);
+        menu.Items.Add(create);
+        // ドライブのルートなど、親を持たないものは、名前の変更・削除の対象にしない
+        bool canModify = CanModifyFolder(path);
+        Add("名前の変更", () => AfterMenuClosed(() => TreeRename(node)), enabled: canModify);
+        Add("削除", () => TreeDelete(node), enabled: canModify);
+        menu.Items.Add(new Separator());
         Add("パスをコピー", () => FolderActions.CopyPathText(new[] { path }));
         Add("ここでターミナルを開く", () => FolderActions.OpenTerminal(path));
         Add("プロパティ", () => FolderActions.ShowProperties(path));
         menu.Items.Add(new Separator());
         Add("その他のオプション", () =>
-            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, () => ShowTreeShellMenu(path, extended: false)),
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, () => ShowTreeShellMenu(node, extended: false)),
             "Shift+右クリック");
 
         // メニューは自分で開く(ContextMenu プロパティに設定すると、1回目に出ない・古いメニューが出る。一覧と同じ理由)
@@ -632,16 +812,29 @@ public partial class MainWindow : Window
         menu.IsOpen = true;
     }
 
-    private void ShowTreeShellMenu(string path, bool extended)
+    private void ShowTreeShellMenu(TreeNodeViewModel node, bool extended)
     {
+        string path = node.FullPath;
+        bool canModify = System.IO.Directory.GetParent(path.TrimEnd('\\')) != null;
         try
         {
             ShellContextMenu.Show(WindowHandle, new[] { path }, null, extended, verb =>
             {
-                // 「開く」は別のエクスプローラーを開かず、KT_Explorer のこのタブで開く
-                if (!verb.Equals("open", StringComparison.OrdinalIgnoreCase)) return false;
-                _vm.NavigateToText(path);
-                return true;
+                // 標準の画面を前提とする動詞は、KT_Explorer 自身の処理に置き換える(開く=このタブで開く、名前の変更・削除=開いているタブへの追従つき)
+                switch (verb.ToLowerInvariant())
+                {
+                    case "open":
+                        _vm.NavigateToText(path);
+                        return true;
+                    case "rename" when canModify:
+                        TreeRename(node);
+                        return true;
+                    case "delete" when canModify:
+                        TreeDelete(node);
+                        return true;
+                    default:
+                        return false;
+                }
             });
         }
         catch (Exception ex)
