@@ -1,7 +1,7 @@
 # 一覧(フォルダビュー)の名前の変更(その場で入力)の画面テスト。
 # 事前に: dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 # 使い方: & 'E:\KT_Applications\KT_Explorer\tools\test\ui_list_rename.ps1'
-# 操作するのは %TEMP%\kt_test_list の中だけ。KT_Explorer が起動中なら中止する。
+# 操作するのは %TEMP%\kt_test_list の中だけ。KT_Explorer が起動中なら、閉じてからテストする(ユーザーの指示)。
 . (Join-Path $PSScriptRoot 'common.ps1')
 
 $d = New-TestDir 'kt_test_list'

@@ -73,10 +73,91 @@
                       PreviewMouseRightButtonDown="FolderTree_PreviewMouseRightButtonDown"
                       ContextMenuOpening="FolderTree_ContextMenuOpening"
                       KeyDown="FolderTree_KeyDown">
+                <TreeView.Resources>
+                    <!-- 展開/折りたたみの矢印(閉じているときは白抜きの▷、開いているときは黒塗りの◢) -->
+                    <Style x:Key="KtTreeExpanderToggle" TargetType="ToggleButton">
+                        <Setter Property="Focusable" Value="False"/>
+                        <Setter Property="Width" Value="16"/>
+                        <Setter Property="Height" Value="16"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ToggleButton">
+                                    <Border Background="Transparent" Width="16" Height="16">
+                                        <Path x:Name="Arrow" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Fill="White" Stroke="#FF989898" Data="M 0,0 L 0,8 L 5,4 Z"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsChecked" Value="True">
+                                            <Setter TargetName="Arrow" Property="Data" Value="M 6,0 L 6,6 L 0,6 Z"/>
+                                            <Setter TargetName="Arrow" Property="Fill" Value="#FF262626"/>
+                                            <Setter TargetName="Arrow" Property="Stroke" Value="#FF262626"/>
+                                        </Trigger>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Arrow" Property="Stroke" Value="#FF1BBBFA"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </TreeView.Resources>
                 <TreeView.ItemContainerStyle>
                     <Style TargetType="TreeViewItem">
                         <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
                         <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
+                        <!-- 強調表示とクリックの範囲を、名前の文字の幅だけでなく、行の右端まで広げる(Background が無いとクリックを受けない) -->
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="Padding" Value="2,1"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="TreeViewItem">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition MinWidth="19" Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition/>
+                                        </Grid.RowDefinitions>
+                                        <ToggleButton x:Name="Expander" Style="{StaticResource KtTreeExpanderToggle}" ClickMode="Press"
+                                                      IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"/>
+                                        <!-- 行の右端まで広がる(列が * なので) -->
+                                        <Border x:Name="Bd" Grid.Column="1" Background="{TemplateBinding Background}"
+                                                BorderBrush="Transparent" BorderThickness="1" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                                            <ContentPresenter x:Name="PART_Header" ContentSource="Header" HorizontalAlignment="Left"/>
+                                        </Border>
+                                        <ItemsPresenter x:Name="ItemsHost" Grid.Row="1" Grid.Column="1"/>
+                                    </Grid>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsExpanded" Value="False">
+                                            <Setter TargetName="ItemsHost" Property="Visibility" Value="Collapsed"/>
+                                        </Trigger>
+                                        <Trigger Property="HasItems" Value="False">
+                                            <Setter TargetName="Expander" Property="Visibility" Value="Hidden"/>
+                                        </Trigger>
+                                        <Trigger SourceName="Bd" Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Bd" Property="Background" Value="#FFE5F3FF"/>
+                                        </Trigger>
+                                        <!-- 選択中: 操作中(フォーカスあり)は水色、フォーカスが無いときは灰色 -->
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="Bd" Property="Background" Value="#FFDADADA"/>
+                                        </Trigger>
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="IsSelected" Value="True"/>
+                                                <Condition Property="Selector.IsSelectionActive" Value="True"/>
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="Bd" Property="Background" Value="#FFCCE8FF"/>
+                                            <Setter TargetName="Bd" Property="BorderBrush" Value="#FF99D1FF"/>
+                                        </MultiTrigger>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
                         <!-- ファイルをフォルダへドロップして移動/コピー -->
                         <Setter Property="AllowDrop" Value="True"/>
                         <EventSetter Event="DragOver" Handler="TreeItem_DragOver"/>

@@ -55,7 +55,23 @@ try {
     # ── 元に戻す(名前の変更の取り消し)のあと、無くなったフォルダのタブは親へ移る
     $err = $vm.Undo([IntPtr]::Zero)
     Check 'undo rename succeeds with an open tab inside' (($null -eq $err) -and (Test-Path -LiteralPath "$d\x\y") -and -not (Test-Path -LiteralPath "$d\x2"))
-    Check 'after undo the tab moves to the nearest existing parent' (-not ((Tabs) -contains "$d\x2\y"))
+    Check 'after undo the tab follows back to the original name' ((Tabs) -contains "$d\x\y")
+    Check 'after undo no tab is left at the new name' (-not ((Tabs) -contains "$d\x2\y"))
+    $err = $vm.Redo([IntPtr]::Zero)
+    Check 'redo rename succeeds' (($null -eq $err) -and (Test-Path -LiteralPath "$d\x2\y"))
+    Check 'after redo the tab follows to the new name again' (((Tabs) -contains "$d\x2\y") -and -not ((Tabs) -contains "$d\x\y"))
+    $err = $vm.Undo([IntPtr]::Zero)
+    Check 'undo again (back to the original name) leaves the tab at the original name' (($null -eq $err) -and ((Tabs) -contains "$d\x\y"))
+
+    # ── 移動の取り消しでも、移動した先を表示していたタブが、元の場所へ追従する
+    New-Item -ItemType Directory "$d\mv_src\item\deep" | Out-Null; New-Item -ItemType Directory "$d\mv_dst" | Out-Null
+    $vm.OpenInNewTab("$d\mv_src\item\deep")
+    $vm.PauseWatching("$d\mv_src")
+    $res = $FOS.GetMethod('Transfer').Invoke($null, [object[]]@([System.Collections.Generic.List[string]]@("$d\mv_src\item"), "$d\mv_dst", $true, [IntPtr]::Zero, $true, $null))
+    $vm.OnFolderRenamed("$d\mv_src\item", "$d\mv_dst\item"); $vm.ResumeAllWatching()
+    Check 'move: the tab inside the moved folder follows to the new location' ((Tabs) -contains "$d\mv_dst\item\deep")
+    $err = $vm.Undo([IntPtr]::Zero)
+    Check 'undo move: the tab follows back to the original location' (($null -eq $err) -and ((Tabs) -contains "$d\mv_src\item\deep"))
 
     # ── 削除への追従(ごみ箱を使わず完全削除)
     $vm.OpenInNewTab("$d\del\inner")
@@ -80,6 +96,54 @@ try {
     Check 'tree reflects a case-only rename' (@($node.Children | Where-Object { $_.Name -ceq 'RENAMED' }).Count -eq 1)
     Remove-Item -LiteralPath "$d\RENAMED" -Recurse -Force -Confirm:$false; $vm.RefreshTree()
     Check 'tree removes a deleted folder' (@($node.Children | Where-Object { $_.Name -like 'renamed' }).Count -eq 0)
+
+    # ── フォルダのサイズ計算(100 + 200 + 300 = 600 バイト。空のフォルダは 0)
+    $FSS = $asm.GetType('KT_Explorer.Services.FolderSizeService')
+    New-Item -ItemType Directory "$d\sz\inner\deeper", "$d\sz_empty" | Out-Null
+    [System.IO.File]::WriteAllBytes("$d\sz\a.bin", (New-Object byte[] 100))
+    [System.IO.File]::WriteAllBytes("$d\sz\inner\b.bin", (New-Object byte[] 200))
+    [System.IO.File]::WriteAllBytes("$d\sz\inner\deeper\c.bin", (New-Object byte[] 300))
+    $none = [System.Threading.CancellationToken]::None
+    Check 'folder size: sum of all files below' ($FSS.GetMethod('Calculate').Invoke($null, [object[]]@("$d\sz", $none)) -eq 600)
+    Check 'folder size: empty folder is 0' ($FSS.GetMethod('Calculate').Invoke($null, [object[]]@("$d\sz_empty", $none)) -eq 0)
+    $cts = New-Object System.Threading.CancellationTokenSource; $cts.Cancel()
+    $cancelled = $false
+    try { [void]$FSS.GetMethod('Calculate').Invoke($null, [object[]]@("$d\sz", $cts.Token)) } catch { $cancelled = $_.Exception.InnerException -is [System.OperationCanceledException] }
+    Check 'folder size: a cancelled calculation stops' $cancelled
+
+    # タブからの計算(一覧の項目 1 つ分)。一覧そのもの(画面のスレッドが要る)は、画面テストで確認する
+    $FE = $asm.GetType('KT_Explorer.Models.FileEntry')
+    $FT = $asm.GetType('KT_Explorer.ViewModels.FolderTabViewModel')
+    $tab = [Activator]::CreateInstance($FT, [object[]]@([string]$d))
+    $szEntry = [System.Activator]::CreateInstance($FE, [object[]]@([System.IO.DirectoryInfo]::new("$d\sz"), $null))
+    Check 'folder size: not calculated until requested' ($szEntry.IsDirectory -and $null -eq $szEntry.Size -and $szEntry.SizeText -eq '')
+    $arr = [Array]::CreateInstance($FE, 1); $arr.SetValue($szEntry, 0)
+    $tab.CalculateFolderSizes($arr)
+    for ($i = 0; $i -lt 100 -and $null -eq $szEntry.Size; $i++) { Start-Sleep -Milliseconds 100 }
+    Check 'folder size: calculated through the tab (600 B)' ($szEntry.Size -eq 600 -and $szEntry.SizeText -eq '600 B')
+    Check 'folder size: not calculating any more' (-not $szEntry.IsCalculating)
+    $tab.Dispose()
+
+    # ── 並べ替えはタブごと。状態への保存と、復元
+    $SC = $asm.GetType('KT_Explorer.Services.SortColumn')
+    New-Item -ItemType Directory "$d\s1", "$d\s2" | Out-Null
+    $vm.OpenInNewTab("$d\s1"); $vm.OpenInNewTab("$d\s2")
+    $tS1 = $vm.SelectedGroup.Tabs | Where-Object { $_.Path -eq "$d\s1" } | Select-Object -First 1
+    $tS2 = $vm.SelectedGroup.Tabs | Where-Object { $_.Path -eq "$d\s2" } | Select-Object -First 1
+    $tS1.ToggleSort([Enum]::Parse($SC, 'Size'))
+    Check 'per-tab sort: clicking a header changes only that tab' (("$($tS1.SortColumn)" -eq 'Size') -and ("$($tS2.SortColumn)" -eq 'Name'))
+    $tS1.ToggleSort([Enum]::Parse($SC, 'Size'))
+    Check 'per-tab sort: clicking the same header again reverses it' ($tS1.SortDescending -and -not $tS2.SortDescending)
+    $tS3 = $vm.OpenInNewTab("$d\sub"); $tNew = $vm.SelectedTab
+    Check 'per-tab sort: a new tab starts with the last used sort (size, descending)' (("$($tNew.SortColumn)" -eq 'Size') -and $tNew.SortDescending)
+    $st = $vm.ToState()
+    $g0 = $st.Groups[0]
+    $idx = [array]::IndexOf(@($g0.TabPaths), "$d\s1"); $idx2 = [array]::IndexOf(@($g0.TabPaths), "$d\s2")
+    Check 'state: each tab saves its own sort (same order as the paths)' (($idx -ge 0) -and ("$($g0.TabSorts[$idx].Column)" -eq 'Size') -and $g0.TabSorts[$idx].Descending -and ("$($g0.TabSorts[$idx2].Column)" -eq 'Name'))
+    $vm2 = [Activator]::CreateInstance($MVM, [object[]]@($st))
+    $r1 = $vm2.Groups[0].Tabs | Where-Object { $_.Path -eq "$d\s1" } | Select-Object -First 1
+    $r2 = $vm2.Groups[0].Tabs | Where-Object { $_.Path -eq "$d\s2" } | Select-Object -First 1
+    Check 'state: sorts are restored per tab' (($null -ne $r1) -and ("$($r1.SortColumn)" -eq 'Size') -and $r1.SortDescending -and ("$($r2.SortColumn)" -eq 'Name') -and -not $r2.SortDescending)
 }
 finally {
     Remove-TestDir $d

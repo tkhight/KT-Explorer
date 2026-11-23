@@ -9,6 +9,15 @@ public abstract class UndoAction
     public abstract string? Undo(IntPtr owner);
     public abstract string? Redo(IntPtr owner);
 
+    /// <summary>
+    /// 元に戻したとき、パスが変わる項目(古い→新しい)。開いているタブを、元の名前・場所へ追従させるために使う。
+    /// 名前の変更と移動だけが該当する。
+    /// </summary>
+    public virtual IReadOnlyList<(string From, string To)> UndoPathChanges => Array.Empty<(string From, string To)>();
+
+    /// <summary>やり直したとき、パスが変わる項目(古い→新しい)。</summary>
+    public virtual IReadOnlyList<(string From, string To)> RedoPathChanges => Array.Empty<(string From, string To)>();
+
     protected static bool Exists(string path) => File.Exists(path) || Directory.Exists(path);
 
     protected static string Names(IEnumerable<string> paths)
@@ -67,6 +76,10 @@ internal sealed class MoveAction : UndoAction
     public MoveAction(List<(string From, string To)> pairs) => _pairs = pairs;
 
     public override string Description => $"移動({_pairs.Count} 件)";
+
+    public override IReadOnlyList<(string From, string To)> UndoPathChanges => _pairs.Select(p => (p.To, p.From)).ToList();
+
+    public override IReadOnlyList<(string From, string To)> RedoPathChanges => _pairs;
 
     public override string? Undo(IntPtr owner)
     {
@@ -146,6 +159,10 @@ internal sealed class RenameAction : UndoAction
 
     public override string Description =>
         $"名前の変更({Path.GetFileName(_oldPath.TrimEnd('\\'))} → {Path.GetFileName(_newPath.TrimEnd('\\'))})";
+
+    public override IReadOnlyList<(string From, string To)> UndoPathChanges => new[] { (_newPath, _oldPath) };
+
+    public override IReadOnlyList<(string From, string To)> RedoPathChanges => new[] { (_oldPath, _newPath) };
 
     public override string? Undo(IntPtr owner) => Apply(_newPath, _oldPath);
 

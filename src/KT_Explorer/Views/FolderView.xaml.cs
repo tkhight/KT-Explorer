@@ -28,16 +28,16 @@ public partial class FolderView : UserControl
         InitializeComponent();
         _renameTimer.Tick += RenameTimer_Tick;
         _hintTimer.Tick += (_, _) => CloseHint();
+        DataContextChanged += (_, e) => HookSortTab(e.NewValue as FolderTabViewModel);
         Loaded += (_, _) =>
         {
-            SortSettings.Instance.Changed += UpdateSortHeaders;
-            UpdateSortHeaders();
+            HookSortTab(Vm);
             _hostWindow = Window.GetWindow(this);
             if (_hostWindow != null) _hostWindow.PreviewMouseDown += HostWindow_PreviewMouseDown;
         };
         Unloaded += (_, _) =>
         {
-            SortSettings.Instance.Changed -= UpdateSortHeaders;
+            HookSortTab(null);
             if (_hostWindow != null) _hostWindow.PreviewMouseDown -= HostWindow_PreviewMouseDown;
             _hostWindow = null;
             _renameTimer.Stop();
@@ -63,21 +63,32 @@ public partial class FolderView : UserControl
 
     private static readonly string[] ColumnNames = { "名前", "更新日時", "種類", "サイズ" };
 
+    private FolderTabViewModel? _sortTab;
+
+    /// <summary>列見出しの ▲▼ を、表示しているタブの並び順に合わせる(並び順はタブごとに持つ)。</summary>
+    private void HookSortTab(FolderTabViewModel? tab)
+    {
+        if (_sortTab != null) _sortTab.SortChanged -= UpdateSortHeaders;
+        _sortTab = tab;
+        if (_sortTab != null) _sortTab.SortChanged += UpdateSortHeaders;
+        UpdateSortHeaders();
+    }
+
     private void ColumnHeader_Click(object sender, RoutedEventArgs e)
     {
         if (e.OriginalSource is not GridViewColumnHeader { Column: { } column } || FileList.View is not GridView grid) return; // 余白部分のヘッダーは対象外
         int index = grid.Columns.IndexOf(column);
         if (index < 0 || index >= ColumnNames.Length) return;
-        SortSettings.Instance.Toggle((SortColumn)index);
+        Vm?.ToggleSort((SortColumn)index);
     }
 
     /// <summary>並べ替えに使っている列の見出しに ▲(昇順)/ ▼(降順)を付ける。</summary>
     private void UpdateSortHeaders()
     {
         if (FileList.View is not GridView grid) return;
-        var sort = SortSettings.Instance;
+        var tab = Vm;
         for (int i = 0; i < grid.Columns.Count && i < ColumnNames.Length; i++)
-            grid.Columns[i].Header = (int)sort.Column == i ? ColumnNames[i] + (sort.Descending ? " ▼" : " ▲") : ColumnNames[i];
+            grid.Columns[i].Header = tab != null && (int)tab.SortColumn == i ? ColumnNames[i] + (tab.SortDescending ? " ▼" : " ▲") : ColumnNames[i];
     }
 
     private FolderTabViewModel? Vm => DataContext as FolderTabViewModel;
@@ -487,6 +498,7 @@ public partial class FolderView : UserControl
             Add("名前の変更", RenameSelected, "F2", single != null);
             Add("削除", () => DeleteSelection(permanent: false), "Del");
             menu.Items.Add(new Separator());
+            if (sel.Any(s => s.IsDirectory)) Add("フォルダーのサイズを計算", () => vm.CalculateFolderSizes(sel, recalculate: true));
             Add("パスをコピー", () => CopyPathText(sel.Select(s => s.FullPath)));
             if (single is { IsDirectory: true }) Add("ここでターミナルを開く", () => FolderActions.OpenTerminal(single.FullPath));
             Add("プロパティ", () => ShowProperties(sel[0].FullPath));
@@ -505,6 +517,7 @@ public partial class FolderView : UserControl
             Add("貼り付け", () => Paste(null), "Ctrl+V", canPaste);
             Add("更新", vm.Reload, "F5");
             menu.Items.Add(new Separator());
+            Add("フォルダーのサイズをすべて計算", () => vm.CalculateFolderSizes(vm.Items.Where(e => e.IsDirectory).ToList(), recalculate: true));
             Add("パスをコピー", () => CopyPathText(new[] { vm.Path }));
             Add("ここでターミナルを開く", () => FolderActions.OpenTerminal(vm.Path));
             Add("プロパティ", () => ShowProperties(vm.Path));

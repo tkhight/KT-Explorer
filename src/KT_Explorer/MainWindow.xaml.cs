@@ -229,6 +229,8 @@ public partial class MainWindow : Window
             "デスクトップ等から開いた Explorer をデフォルトグループのタブへ取り込みます"));
         menu.Items.Add(Check("閉じるボタンでトレイに常駐", nameof(MainViewModel.CloseToTray),
             "オフにすると、閉じるボタンでアプリを終了します(トレイの「終了」でも終了できます)"));
+        menu.Items.Add(Check("フォルダーのサイズを自動計算", nameof(MainViewModel.AutoFolderSize),
+            "一覧を開くと、フォルダーの合計サイズをバックグラウンドで計算して「サイズ」列に表示します(フォルダーが多い場所や、ネットワークドライブでは重くなります)。右クリックの「フォルダーのサイズを計算」でも、必要なときだけ計算できます"));
         var foldersFirst = new MenuItem
         {
             Header = "フォルダーを先頭にまとめる", IsCheckable = true, StaysOpenOnClick = true,

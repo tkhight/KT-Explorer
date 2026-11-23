@@ -19,6 +19,15 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool _captureExplorer = true;
     [ObservableProperty] private bool _closeToTray = true;
 
+    /// <summary>一覧を開いたとき、フォルダの合計サイズを自動で計算する。</summary>
+    [ObservableProperty] private bool _autoFolderSize;
+
+    partial void OnAutoFolderSizeChanged(bool value)
+    {
+        FolderSizeSettings.Auto = value;
+        if (value) CurrentFolder?.CalculateAllFolderSizes(); // オンにした時点で、表示中の一覧も計算する
+    }
+
     /// <summary>ツールバー/パス欄/ツリー連動の対象。ペインタブでは操作中のペイン。</summary>
     [ObservableProperty] private FolderTabViewModel? _currentFolder;
 
@@ -37,8 +46,9 @@ public partial class MainViewModel : ObservableObject
     public string? Undo(IntPtr owner)
     {
         PauseWatching(null); // 元に戻す操作が、開いているフォルダの名前の変更・削除を含むことがあるため
+        var changes = UndoManager.Instance.NextUndoPathChanges;
         var error = UndoManager.Instance.Undo(owner);
-        AfterFileChange();
+        FollowPathChanges(error, changes);
         return error;
     }
 
@@ -46,12 +56,27 @@ public partial class MainViewModel : ObservableObject
     public string? Redo(IntPtr owner)
     {
         PauseWatching(null);
+        var changes = UndoManager.Instance.NextRedoPathChanges;
         var error = UndoManager.Instance.Redo(owner);
-        AfterFileChange();
+        FollowPathChanges(error, changes);
         return error;
     }
 
     // ───────── フォルダの名前の変更・削除に伴うタブ・ツリーの追従 ─────────
+
+    /// <summary>
+    /// 元に戻す・やり直しのあと、名前や場所が変わったフォルダを表示しているタブ・ペインを、新しい名前・場所へ追従させる
+    /// (元の名前へ戻す、など)。それ以外で無くなったフォルダは、近い親フォルダへ移す。
+    /// </summary>
+    private void FollowPathChanges(string? error, IReadOnlyList<(string From, string To)> changes)
+    {
+        if (error == null)
+        {
+            foreach (var (from, to) in changes)
+                if (Directory.Exists(to)) OnFolderRenamed(from, to);
+        }
+        AfterFileChange();
+    }
 
     private IEnumerable<FolderTabViewModel> AllFolders() =>
         Groups.SelectMany(g => g.Tabs).SelectMany(t => t switch
@@ -149,6 +174,7 @@ public partial class MainViewModel : ObservableObject
         CaptureExplorer = state.CaptureExplorer;
         CloseToTray = state.CloseToTray;
         SortSettings.Instance.Load(state.SortColumn, state.SortDescending, state.FoldersFirst);
+        AutoFolderSize = state.AutoFolderSize;
         foreach (var f in state.Favorites.Where(f => !string.IsNullOrWhiteSpace(f.Path)))
             Favorites.Add(new Favorite(string.IsNullOrWhiteSpace(f.Name) ? f.Path : f.Name, f.Path));
         BuildTreeRoots();
@@ -163,7 +189,13 @@ public partial class MainViewModel : ObservableObject
         {
             var gs = saved[i];
             var group = new TabGroupViewModel(string.IsNullOrWhiteSpace(gs.Name) ? "グループ" : gs.Name, isDefault: i == 0);
-            foreach (var p in gs.TabPaths.Where(Directory.Exists)) group.Tabs.Add(new FolderTabViewModel(p));
+            for (int k = 0; k < gs.TabPaths.Count; k++)
+            {
+                if (!Directory.Exists(gs.TabPaths[k])) continue;
+                var tab = new FolderTabViewModel(gs.TabPaths[k]);
+                if (k < gs.TabSorts.Count) tab.SetSort(gs.TabSorts[k].Column, gs.TabSorts[k].Descending); // タブごとの並び順を復元
+                group.Tabs.Add(tab);
+            }
             if (group.Tabs.Count > 0)
                 group.LastSelected = group.Tabs[Math.Clamp(gs.SelectedIndex, 0, group.Tabs.Count - 1)];
             Groups.Add(group);
@@ -565,6 +597,7 @@ public partial class MainViewModel : ObservableObject
             SortColumn = SortSettings.Instance.Column,
             SortDescending = SortSettings.Instance.Descending,
             FoldersFirst = SortSettings.Instance.FoldersFirst,
+            AutoFolderSize = AutoFolderSize,
             SelectedGroupIndex = Groups.IndexOf(_selectedGroup),
         };
         foreach (var f in Favorites) state.Favorites.Add(new FavoriteState { Name = f.Name, Path = f.Path });
@@ -572,13 +605,18 @@ public partial class MainViewModel : ObservableObject
         {
             var selected = ReferenceEquals(g, _selectedGroup) ? _selectedTab : g.LastSelected;
             var folderTabs = new List<string>();
+            var tabSorts = new List<TabSortState>();
             int selectedIndex = 0;
             foreach (var t in g.Tabs)
             {
-                if (t is FolderTabViewModel f) folderTabs.Add(f.Path);
+                if (t is FolderTabViewModel f)
+                {
+                    folderTabs.Add(f.Path);
+                    tabSorts.Add(new TabSortState { Column = f.SortColumn, Descending = f.SortDescending });
+                }
                 if (ReferenceEquals(t, selected)) selectedIndex = Math.Max(folderTabs.Count - 1, 0);
             }
-            state.Groups.Add(new GroupState { Name = g.Name, IsDefault = g.IsDefault, TabPaths = folderTabs, SelectedIndex = selectedIndex });
+            state.Groups.Add(new GroupState { Name = g.Name, IsDefault = g.IsDefault, TabPaths = folderTabs, TabSorts = tabSorts, SelectedIndex = selectedIndex });
         }
         return state;
     }

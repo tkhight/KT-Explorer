@@ -20,6 +20,14 @@ public sealed class UndoManager
     public string? UndoText => _undo.Count > 0 ? _undo[^1].Description : null;
     public string? RedoText => _redo.Count > 0 ? _redo[^1].Description : null;
 
+    /// <summary>次に元に戻す操作で、パスが変わる項目(古い→新しい)。</summary>
+    public IReadOnlyList<(string From, string To)> NextUndoPathChanges =>
+        _undo.Count > 0 ? _undo[^1].UndoPathChanges : Array.Empty<(string From, string To)>();
+
+    /// <summary>次にやり直す操作で、パスが変わる項目(古い→新しい)。</summary>
+    public IReadOnlyList<(string From, string To)> NextRedoPathChanges =>
+        _redo.Count > 0 ? _redo[^1].RedoPathChanges : Array.Empty<(string From, string To)>();
+
     /// <summary>実行した操作を記録する。新しい操作をすると、やり直しの履歴は消える。</summary>
     public void Push(UndoAction action)
     {

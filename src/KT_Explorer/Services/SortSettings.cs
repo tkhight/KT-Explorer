@@ -6,13 +6,15 @@ namespace KT_Explorer.Services;
 public enum SortColumn { Name, Modified, Type, Size }
 
 /// <summary>
-/// 一覧の並び順(列見出しのクリックで切り替える)。アプリ全体で1つで、すべてのタブ・ペインに適用する。
-/// 状態ファイルに保存する。
+/// 並べ替えの、アプリ全体の設定。並び順そのものは、タブ(ペイン)ごとに持つ(FolderTabViewModel)。
+/// ここが持つのは、新しく開くタブの初期の並び順(最後に列見出しをクリックした並び順)と、
+/// 「フォルダーを先頭にまとめる」(全タブ共通)。状態ファイルに保存する。
 /// </summary>
 public sealed class SortSettings
 {
     public static SortSettings Instance { get; } = new();
 
+    /// <summary>新しく開くタブの初期の並び順(最後に列見出しをクリックした並び順)。</summary>
     public SortColumn Column { get; private set; } = SortColumn.Name;
     public bool Descending { get; private set; }
 
@@ -28,12 +30,11 @@ public sealed class SortSettings
         FoldersFirst = foldersFirst;
     }
 
-    /// <summary>列見出しのクリック。別の列なら昇順で、同じ列なら昇順/降順を入れ替える。</summary>
-    public void Toggle(SortColumn column)
+    /// <summary>列見出しをクリックした並び順を、新しいタブの初期の並び順として覚える。</summary>
+    public void SetDefault(SortColumn column, bool descending)
     {
-        if (column == Column) Descending = !Descending;
-        else { Column = column; Descending = false; }
-        Changed?.Invoke();
+        Column = column;
+        Descending = descending;
     }
 
     public void SetFoldersFirst(bool value)
@@ -43,8 +44,8 @@ public sealed class SortSettings
         Changed?.Invoke();
     }
 
-    /// <summary>現在の設定で並べる比較用(ICollectionView の CustomSort に渡す)。</summary>
-    public IComparer CreateComparer() => new EntryComparer(Column, Descending, FoldersFirst);
+    /// <summary>指定した並び順(と、フォルダー先頭の設定)で並べる比較用(ICollectionView の CustomSort に渡す)。</summary>
+    public IComparer CreateComparer(SortColumn column, bool descending) => new EntryComparer(column, descending, FoldersFirst);
 
     private sealed class EntryComparer(SortColumn column, bool descending, bool foldersFirst) : IComparer
     {

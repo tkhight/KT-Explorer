@@ -30,8 +30,35 @@ public sealed partial class FileEntry : ObservableObject
     public string Name { get; }
     public string FullPath { get; }
     public bool IsDirectory { get; }
-    public DateTime Modified { get; }
-    public long? Size { get; }
+
+    private DateTime _modified;
+
+    /// <summary>更新日時。フォルダは、中を開く(サイズの計算など)と、少し遅れて日時が更新されることがあるため、通知つきで更新できる。</summary>
+    public DateTime Modified
+    {
+        get => _modified;
+        set
+        {
+            if (SetProperty(ref _modified, value)) OnPropertyChanged(nameof(ModifiedText));
+        }
+    }
+
+    private long? _size;
+
+    /// <summary>ファイルの大きさ。フォルダは、サイズを計算したあとに入る(それまでは null)。</summary>
+    public long? Size
+    {
+        get => _size;
+        set
+        {
+            if (SetProperty(ref _size, value)) OnPropertyChanged(nameof(SizeText));
+        }
+    }
+
+    /// <summary>フォルダのサイズを計算中か。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SizeText))]
+    private bool _isCalculating;
 
     public string TypeText => IsDirectory
         ? "ファイル フォルダー"
@@ -39,7 +66,7 @@ public sealed partial class FileEntry : ObservableObject
 
     public string ModifiedText => Modified.ToString("yyyy/MM/dd HH:mm");
 
-    public string SizeText => Size is null ? "" : FormatSize(Size.Value);
+    public string SizeText => IsCalculating ? "計算中…" : Size is null ? "" : FormatSize(Size.Value);
 
     /// <summary>シェルアイコン(拡張子単位でキャッシュ)。</summary>
     public ImageSource? Icon => ShellIconService.GetIcon(FullPath, IsDirectory);
