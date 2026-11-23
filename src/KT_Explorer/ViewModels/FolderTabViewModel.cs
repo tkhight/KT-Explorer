@@ -46,6 +46,35 @@ public partial class FolderTabViewModel : TabBase
 
     public ObservableCollection<FileEntry> Items { get; } = new();
 
+    /// <summary>このタブの並べ替えの列と向き。タブごとに持ち、状態ファイルに保存する。</summary>
+    public SortColumn SortColumn { get; private set; } = SortSettings.Instance.Column;
+    public bool SortDescending { get; private set; } = SortSettings.Instance.Descending;
+
+    /// <summary>並べ替えの列・向きが変わった(列見出しの ▲▼ の更新用)。</summary>
+    public event Action? SortChanged;
+
+    /// <summary>列見出しのクリック。別の列なら昇順で、同じ列なら昇順/降順を入れ替える。新しいタブの初期の並び順としても覚える。</summary>
+    public void ToggleSort(SortColumn column)
+    {
+        if (column == SortColumn) SortDescending = !SortDescending;
+        else { SortColumn = column; SortDescending = false; }
+        SortSettings.Instance.SetDefault(SortColumn, SortDescending);
+        ApplySort();
+        SortChanged?.Invoke();
+    }
+
+    /// <summary>保存された並び順を復元する(新しいタブの初期の並び順は変えない)。</summary>
+    public void SetSort(SortColumn column, bool descending)
+    {
+        SortColumn = column;
+        SortDescending = descending;
+        ApplySort();
+        SortChanged?.Invoke();
+    }
+
+    /// <summary>ペインとして並べたときの幅の比率(0 は未設定)。ペインの増減や、スプリッターのドラッグのあとも保つ。</summary>
+    public double PaneWeight { get; set; }
+
     /// <summary>Items にフィルタを掛けた表示用ビュー(ListView の既定ビューと同一)。</summary>
     private readonly ICollectionView _view;
 
@@ -171,12 +200,13 @@ public partial class FolderTabViewModel : TabBase
     /// </summary>
     private void ApplySort()
     {
-        if (_view is ListCollectionView lcv) lcv.CustomSort = SortSettings.Instance.CreateComparer();
+        if (_view is ListCollectionView lcv) lcv.CustomSort = SortSettings.Instance.CreateComparer(SortColumn, SortDescending);
     }
 
     public override void Dispose()
     {
         _disposed = true;
+        CancelFolderSizes();
         SortSettings.Instance.Changed -= ApplySort;
         _refreshTimer.Stop();
         DisposeWatcher();
@@ -344,6 +374,7 @@ public partial class FolderTabViewModel : TabBase
         CanGoForward = _forward.Count > 0;
         CanGoUp = Directory.GetParent(path) != null;
         PathChanged?.Invoke(this);
+        CancelFolderSizes();
         ResetWatcher(path);
         _ = LoadAsync(path);
     }
@@ -375,6 +406,67 @@ public partial class FolderTabViewModel : TabBase
         }
         _itemsPath = path;
         Error = error;
+        if (FolderSizeSettings.Auto) CalculateAllFolderSizes();
+    }
+
+    // ───────── フォルダのサイズ計算 ─────────
+
+    private CancellationTokenSource _sizeCts = new();
+    private readonly SemaphoreSlim _sizeLock = new(1, 1); // 1つずつ順に計算する(ディスクやネットワークを同時に叩かない)
+
+    /// <summary>一覧のすべてのフォルダのサイズを、バックグラウンドで計算する。</summary>
+    public void CalculateAllFolderSizes() => CalculateFolderSizes(Items.Where(e => e.IsDirectory).ToList());
+
+    /// <summary>
+    /// 指定したフォルダのサイズを、バックグラウンドで順に計算する。計算中のものは飛ばす。
+    /// recalculate が false なら、計算済みのものも飛ばす(自動計算用)。true なら、計算し直す(右クリックでの手動計算用)。
+    /// </summary>
+    public void CalculateFolderSizes(IEnumerable<FileEntry> folders, bool recalculate = false)
+    {
+        var ct = _sizeCts.Token;
+        foreach (var entry in folders.Where(e => e.IsDirectory && !e.IsCalculating && (recalculate || e.Size == null)).ToList())
+        {
+            entry.IsCalculating = true;
+            _ = CalculateOneAsync(entry, ct);
+        }
+    }
+
+    private async Task CalculateOneAsync(FileEntry entry, CancellationToken ct)
+    {
+        try
+        {
+            await _sizeLock.WaitAsync(ct);
+            try
+            {
+                long size = await Task.Run(() => FolderSizeService.Calculate(entry.FullPath, ct), ct);
+                if (!ct.IsCancellationRequested) entry.Size = size;
+            }
+            finally
+            {
+                _sizeLock.Release();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // 別のフォルダへ移動したので、計算をやめた
+        }
+        catch (Exception)
+        {
+            // 計算に失敗したら(権限など)、サイズは空のままにする
+        }
+        finally
+        {
+            entry.IsCalculating = false;
+        }
+        // サイズで並べているときは、計算できた値で並べ直す
+        if (!ct.IsCancellationRequested && SortColumn == SortColumn.Size) _view.Refresh();
+    }
+
+    /// <summary>実行中・待機中のサイズ計算をすべて中断する(別のフォルダへ移動したとき、閉じたとき)。</summary>
+    private void CancelFolderSizes()
+    {
+        _sizeCts.Cancel();
+        _sizeCts = new CancellationTokenSource();
     }
 
     /// <summary>Items を fresh と同じ並びにする。変化の無い項目はそのまま残し、選択が消えないようにする。</summary>
@@ -386,9 +478,20 @@ public partial class FolderTabViewModel : TabBase
         for (int i = Items.Count - 1; i >= 0; i--)
         {
             var old = Items[i];
-            if (!freshByPath.TryGetValue(old.FullPath, out var f) ||
-                f.Modified != old.Modified || f.Size != old.Size || f.IsDirectory != old.IsDirectory)
+            if (!freshByPath.TryGetValue(old.FullPath, out var f) || f.IsDirectory != old.IsDirectory)
+            {
                 Items.RemoveAt(i);
+            }
+            else if (f.IsDirectory)
+            {
+                // フォルダは、更新日時だけが変わっても、項目を作り直さない。サイズを計算すると(中を開くと)、
+                // NTFS がフォルダの更新日時を少し遅れて更新するため、作り直すと、計算したサイズが消えてしまう。
+                if (f.Modified != old.Modified) old.Modified = f.Modified;
+            }
+            else if (f.Modified != old.Modified || f.Size != old.Size)
+            {
+                Items.RemoveAt(i);
+            }
         }
 
         // 残りは fresh の部分列(同じ並び順)なので、足りない項目を位置に挿入していけばよい

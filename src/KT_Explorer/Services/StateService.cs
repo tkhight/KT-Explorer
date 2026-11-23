@@ -4,11 +4,21 @@ using System.Text.Json;
 namespace KT_Explorer.Services;
 
 /// <summary>永続化する状態(タブ一覧・ウィンドウ位置・オプション)。</summary>
+/// <summary>タブごとの並び順(TabPaths と同じ順)。</summary>
+public sealed class TabSortState
+{
+    public SortColumn Column { get; set; } = SortColumn.Name;
+    public bool Descending { get; set; }
+}
+
 public sealed class GroupState
 {
     public string Name { get; set; } = "";
     public bool IsDefault { get; set; }
     public List<string> TabPaths { get; set; } = new();
+
+    /// <summary>TabPaths と同じ順の、タブごとの並び順。古い状態ファイルには無い(その場合は初期の並び順)。</summary>
+    public List<TabSortState> TabSorts { get; set; } = new();
     public int SelectedIndex { get; set; }
 }
 
@@ -37,6 +47,9 @@ public sealed class AppState
 
     /// <summary>フォルダを、並び順にかかわらず先頭にまとめる。</summary>
     public bool FoldersFirst { get; set; } = true;
+
+    /// <summary>一覧を開いたとき、フォルダの合計サイズを自動で計算する(重いので既定はオフ)。</summary>
+    public bool AutoFolderSize { get; set; }
 
     /// <summary>タブグループ(先頭がデフォルトグループ)。</summary>
     public List<GroupState> Groups { get; set; } = new();

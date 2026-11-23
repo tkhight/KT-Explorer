@@ -1,8 +1,9 @@
 # KT_Explorer 画面テスト・ロジックテストの共通部品(各テストスクリプトから . で読み込んで使う)
 #
 # 安全のための決まり(変更するときも守ること):
-#   - すでに KT_Explorer が起動していたら中止する(ユーザーが使用中のインスタンスを止めない)。
-#   - 止めるのは、このスクリプトが起動したプロセスだけ(Stop-Process -Id)。名前での強制終了はしない。
+#   - すでに KT_Explorer が起動していたら、閉じてからテストする(ユーザーの指示)。閉じるときは、まずウィンドウを閉じる
+#     操作(状態の保存が走る)をしてから、残っていれば強制終了する。閉じてよいのは、名前が KT_Explorer のプロセスだけ。
+#   - このスクリプトが起動したテスト用のアプリは、終了時に Stop-Process -Id で止める(状態は保存しない)。
 #   - 作る・変える・消すフォルダは、%TEMP%\kt_test_* の中だけ。
 #   - キーを送る前に、入力欄の中身などが想定どおりか確認し、違えば中止する。
 #   - 引数でコマンドを受け取らない(許可ルールを、スクリプトごとに固定の呼び出しにするため)。
@@ -74,12 +75,30 @@ public static class KtWin {
     $global:Kt.A = [Windows.Automation.AutomationElement]
 }
 
-function Start-KtApp {
-    Initialize-Ui
+# すでに起動している KT_Explorer を閉じる(ユーザーの指示: 起動していたら、強制的に閉じて実装・確認する)。
+# 閉じるときに、タブの構成などの状態が保存されるよう、先にウィンドウを閉じる操作をしてから、残っていれば強制終了する。
+# (トレイ常駐の設定では、閉じる操作は「隠す」になるが、そのときにも状態は保存される。)
+function Close-RunningKtApp {
+    $running = @(Get-Process KT_Explorer -ErrorAction SilentlyContinue)
+    if ($running.Count -eq 0) { return }
+    foreach ($p in $running) {
+        Write-Output "closing the running KT_Explorer (pid $($p.Id), started $($p.StartTime.ToString('HH:mm:ss')))"
+        try { [void]$p.CloseMainWindow() } catch { }
+    }
+    Start-Sleep -Seconds 2
+    foreach ($p in @(Get-Process KT_Explorer -ErrorAction SilentlyContinue)) {
+        Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+    }
+    Start-Sleep -Seconds 1
     if (Get-Process KT_Explorer -ErrorAction SilentlyContinue) {
-        Write-Output 'ABORT: KT_Explorer is already running. Close it first (this script never stops a process it did not start).'
+        Write-Output 'ABORT: could not close the running KT_Explorer.'
         exit 2
     }
+}
+
+function Start-KtApp {
+    Initialize-Ui
+    Close-RunningKtApp
     if (-not (Test-Path -LiteralPath $global:Kt.Exe)) {
         Write-Output "ABORT: build not found: $($global:Kt.Exe)  (run: dotnet build src/KT_Explorer/KT_Explorer.csproj -o `"`$TEMP/kt_build_check`")"
         exit 2

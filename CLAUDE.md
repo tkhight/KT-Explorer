@@ -22,14 +22,18 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 | ツリーの新規作成・名前の変更(その場で入力)の画面テスト | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_tree_rename.ps1'` |
 | 一覧の名前の変更(その場で入力)の画面テスト | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_list_rename.ps1'` |
 | 先頭文字入力、閉じたタブの開き直し(`Ctrl+Shift+T`)の画面テスト | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_typeahead_tabs.ps1'` |
+| フォルダのサイズ計算(右クリックの手動計算・設定の自動計算)の画面テスト | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_folder_size.ps1'` |
+| 列見出しの並べ替えがタブごとに独立していること(▲▼ がタブに合わせて変わる)の画面テスト | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_sort_tabs.ps1'` |
+| ペインの幅(スプリッター、ペインの増減後も比率を保つ)の画面テスト。アプリ本体は起動せず専用ウィンドウだけを使うので、KT_Explorer が起動中でも実行できる | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_pane_width.ps1'` |
+| ツリーの項目の右側の空白をクリックしても、その項目が選択されること(行全体の強調表示・クリック範囲)の画面テスト | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_tree_click.ps1'` |
 | 中断したテストの後片付け(`%TEMP%\kt_test_*` を消す) | `& 'E:\KT_Applications\KT_Explorer\tools\test\cleanup.ps1'` |
 
 - 実行前に、上のビルドを行う。結果は `OK` / `NG` の行と、最後の `RESULT: ok=… ng=…`。
 - 画面テストは時間がかかる(`ui_tree_rename.ps1` は 2〜3 分)。ツリーの画面要素の列挙が重いため。PowerShell ツールの `timeout` を長め(例: 300000)にするか、バックグラウンドで実行して、完了の通知を待つ。
-- **画面テストは、ユーザーが KT_Explorer を起動中だと `ABORT` で中止する**(ユーザーのインスタンスを止めないための仕様)。その場合は、アプリを閉じてもらってから再実行する。
+- **ユーザーの指示**: KT_Explorer が起動していても、確認のために閉じてよい(ユーザーに閉じてもらうのを待たない)。画面テストは(`ui_pane_width.ps1` を除き)、起動中のアプリがあれば、先にウィンドウを閉じる操作(終了時の状態保存が走る)をしてから、残っていれば強制終了して、テストを続ける。閉じるのは、名前が `KT_Explorer` のプロセスだけ。テストのあと、ユーザーのアプリは自動では起動し直さないので、作業の報告で、閉じたことを伝え、再起動はユーザーに任せる。
 - テストを足す・変えるときは、`tools/test/common.ps1` の決まりを守る。
   - 操作するフォルダは `%TEMP%\kt_test_*` の中だけ。
-  - 止めるプロセスは、スクリプトが起動したものだけ(名前での強制終了はしない)。
+  - 止めてよいプロセスは、名前が `KT_Explorer` のものだけ(それ以外のプロセスは止めない)。
   - キーを送る前に、入力欄の中身などが想定どおりか確認し、違えば中止する。
   - 引数でコマンドを受け取らない。
 - **許可済みスクリプトの中身を変えると、確認なしで実行される。** 変更したら、コミット前に必ず内容を見直す。新しいスクリプトを許可に加えるときは、`.claude/settings.json` に、スクリプトごとに1行ずつ(フォルダ全体のワイルドカードにしない)足す。

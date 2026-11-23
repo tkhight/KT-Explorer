@@ -1,7 +1,7 @@
 # 一覧の先頭文字入力による項目移動と、閉じたタブの開き直し(Ctrl+Shift+T)の画面テスト。
 # 事前に: dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 # 使い方: & 'E:\KT_Applications\KT_Explorer\tools\test\ui_typeahead_tabs.ps1'
-# 操作するフォルダは %TEMP%\kt_test_typeahead の中だけ。KT_Explorer が起動中なら中止する。
+# 操作するフォルダは %TEMP%\kt_test_typeahead の中だけ。KT_Explorer が起動中なら、閉じてからテストする(ユーザーの指示)。
 # 注意: Ctrl+W は、環境によってはキーがアプリへ届かないため、タブを閉じるには ✕ ボタンを使う。
 . (Join-Path $PSScriptRoot 'common.ps1')
 
