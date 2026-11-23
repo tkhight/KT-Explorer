@@ -31,6 +31,13 @@ public sealed class AppState
     /// <summary>閉じるボタンで終了せず、タスクトレイへ常駐する。</summary>
     public bool CloseToTray { get; set; } = true;
 
+    /// <summary>一覧の並び順(列見出しのクリックで変わる)。全タブ共通。</summary>
+    public SortColumn SortColumn { get; set; } = SortColumn.Name;
+    public bool SortDescending { get; set; }
+
+    /// <summary>フォルダを、並び順にかかわらず先頭にまとめる。</summary>
+    public bool FoldersFirst { get; set; } = true;
+
     /// <summary>タブグループ(先頭がデフォルトグループ)。</summary>
     public List<GroupState> Groups { get; set; } = new();
     public int SelectedGroupIndex { get; set; }

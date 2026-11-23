@@ -222,6 +222,14 @@ public partial class MainWindow : Window
             "デスクトップ等から開いた Explorer をデフォルトグループのタブへ取り込みます"));
         menu.Items.Add(Check("閉じるボタンでトレイに常駐", nameof(MainViewModel.CloseToTray),
             "オフにすると、閉じるボタンでアプリを終了します(トレイの「終了」でも終了できます)"));
+        var foldersFirst = new MenuItem
+        {
+            Header = "フォルダーを先頭にまとめる", IsCheckable = true, StaysOpenOnClick = true,
+            IsChecked = SortSettings.Instance.FoldersFirst,
+            ToolTip = "どの列で並べ替えても、フォルダーを一覧の先頭に置きます",
+        };
+        foldersFirst.Click += (_, _) => SortSettings.Instance.SetFoldersFirst(foldersFirst.IsChecked);
+        menu.Items.Add(foldersFirst);
 
         // Windows 起動時の自動起動(レジストリが正)。起動時はウィンドウを出さず、トレイだけに常駐して始まる
         var startup = new MenuItem
@@ -313,11 +321,6 @@ public partial class MainWindow : Window
     private void FavoriteRemove_Click(object sender, RoutedEventArgs e)
     {
         if (_contextFavorite != null) _vm.RemoveFavorite(_contextFavorite);
-    }
-
-    private void TreeAddFavorite_Click(object sender, RoutedEventArgs e)
-    {
-        if (_contextNode != null) _vm.AddFavorite(_contextNode.FullPath);
     }
 
     private void PathBox_KeyDown(object sender, KeyEventArgs e)
@@ -546,9 +549,76 @@ public partial class MainWindow : Window
         if (_contextNode == null || _contextNode.IsPlaceholder) e.Handled = true; // メニューを出さない
     }
 
-    private void TreeAddTab_Click(object sender, RoutedEventArgs e)
+    private ContextMenu? _treeMenu;
+
+    /// <summary>ツリーの右クリックメニュー。一覧と同じ作り(独自メニュー + 「その他のオプション」)。Shift+右クリックは標準メニューを直接出す。</summary>
+    private void FolderTree_ContextMenuOpening(object sender, ContextMenuEventArgs e)
     {
-        if (_contextNode != null) _vm.OpenInNewTab(_contextNode.FullPath);
+        var node = _contextNode;
+        if (node == null || node.IsPlaceholder || !System.IO.Directory.Exists(node.FullPath)) { e.Handled = true; return; }
+        string path = node.FullPath;
+
+        if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
+        {
+            e.Handled = true;
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, () => ShowTreeShellMenu(path, extended: true));
+            return;
+        }
+
+        var menu = new ContextMenu();
+        MenuItem Add(string header, Action action, string? gesture = null, bool enabled = true, bool bold = false)
+        {
+            var item = new MenuItem { Header = header, IsEnabled = enabled, InputGestureText = gesture ?? "" };
+            if (bold) item.FontWeight = FontWeights.Bold;
+            item.Click += (_, _) => action();
+            menu.Items.Add(item);
+            return item;
+        }
+
+        Add("開く", () => _vm.NavigateToText(path), bold: true);
+        Add("新しいタブで開く", () => _vm.OpenInNewTab(path));
+        Add("お気に入りに追加", () => _vm.AddFavorite(path));
+        menu.Items.Add(new Separator());
+        Add("切り取り", () => ClipboardService.SetFiles(new[] { path }, cut: true));
+        Add("コピー", () => ClipboardService.SetFiles(new[] { path }, cut: false));
+        Add("貼り付け", () => FolderActions.PasteInto(path, WindowHandle), enabled: ClipboardService.HasFiles());
+        menu.Items.Add(new Separator());
+        Add("パスをコピー", () => FolderActions.CopyPathText(new[] { path }));
+        Add("ここでターミナルを開く", () => FolderActions.OpenTerminal(path));
+        Add("プロパティ", () => FolderActions.ShowProperties(path));
+        menu.Items.Add(new Separator());
+        Add("その他のオプション", () =>
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, () => ShowTreeShellMenu(path, extended: false)),
+            "Shift+右クリック");
+
+        // メニューは自分で開く(ContextMenu プロパティに設定すると、1回目に出ない・古いメニューが出る。一覧と同じ理由)
+        e.Handled = true;
+        if (_treeMenu != null) _treeMenu.IsOpen = false;
+        menu.PlacementTarget = FolderTree;
+        menu.Placement = e.CursorLeft < 0
+            ? System.Windows.Controls.Primitives.PlacementMode.Center
+            : System.Windows.Controls.Primitives.PlacementMode.MousePoint;
+        _treeMenu = menu;
+        menu.IsOpen = true;
+    }
+
+    private void ShowTreeShellMenu(string path, bool extended)
+    {
+        try
+        {
+            ShellContextMenu.Show(WindowHandle, new[] { path }, null, extended, verb =>
+            {
+                // 「開く」は別のエクスプローラーを開かず、KT_Explorer のこのタブで開く
+                if (!verb.Equals("open", StringComparison.OrdinalIgnoreCase)) return false;
+                _vm.NavigateToText(path);
+                return true;
+            });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Windows 標準のメニューを表示できませんでした。\n{ex.Message}", "KT_Explorer",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private static T? FindAncestor<T>(DependencyObject? d) where T : DependencyObject
