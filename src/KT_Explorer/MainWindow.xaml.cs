@@ -274,35 +274,70 @@ public partial class MainWindow : Window
 
     // ───────── お気に入り ─────────
 
-    private Favorite? _contextFavorite;
-
-    private static Favorite? FavoriteAt(object? source) =>
-        source is DependencyObject d ? FindAncestor<ListBoxItem>(d)?.DataContext as Favorite : null;
-
-    private void FavoriteList_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    /// <summary>「★ お気に入り」ボタン: 追加・編集・削除と、お気に入りの一覧を1つのメニューにまとめる。</summary>
+    private void Favorites_Click(object sender, RoutedEventArgs e)
     {
-        var fav = FavoriteAt(e.OriginalSource);
-        if (fav != null && !_vm.OpenFavorite(fav, inNewTab: false))
+        var menu = new ContextMenu { PlacementTarget = (UIElement)sender, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+        var favorites = _vm.Favorites.ToList();
+
+        var add = new MenuItem { Header = "お気に入りに追加(現在のフォルダ)", IsEnabled = _vm.CurrentFolder != null };
+        add.Click += (_, _) => _vm.AddCurrentToFavoritesCommand.Execute(null);
+        menu.Items.Add(add);
+
+        var edit = new MenuItem { Header = "編集", IsEnabled = favorites.Count > 0 };
+        var remove = new MenuItem { Header = "削除", IsEnabled = favorites.Count > 0 };
+        foreach (var fav in favorites)
+        {
+            var f = fav;
+            var editItem = new MenuItem { Header = FavoriteLabel(f), ToolTip = f.Path };
+            editItem.Click += (_, _) => EditFavorite(f);
+            edit.Items.Add(editItem);
+            var removeItem = new MenuItem { Header = FavoriteLabel(f), ToolTip = f.Path };
+            removeItem.Click += (_, _) => _vm.RemoveFavorite(f);
+            remove.Items.Add(removeItem);
+        }
+        menu.Items.Add(edit);
+        menu.Items.Add(remove);
+        menu.Items.Add(new Separator());
+
+        if (favorites.Count == 0)
+        {
+            menu.Items.Add(new MenuItem { Header = "(お気に入りはありません)", IsEnabled = false });
+        }
+        foreach (var fav in favorites)
+        {
+            var f = fav;
+            var item = new MenuItem { Header = FavoriteLabel(f), ToolTip = f.Path };
+            item.Click += (_, _) => OpenFavorite(f, inNewTab: false);
+
+            // 項目を右クリックすると、その項目だけの操作が出る
+            var context = new ContextMenu();
+            var openNew = new MenuItem { Header = "新しいタブで開く" };
+            openNew.Click += (_, _) => OpenFavorite(f, inNewTab: true);
+            var editOne = new MenuItem { Header = "編集…" };
+            editOne.Click += (_, _) => EditFavorite(f);
+            var removeOne = new MenuItem { Header = "削除" };
+            removeOne.Click += (_, _) => _vm.RemoveFavorite(f);
+            context.Items.Add(openNew);
+            context.Items.Add(editOne);
+            context.Items.Add(removeOne);
+            item.ContextMenu = context;
+            menu.Items.Add(item);
+        }
+        menu.IsOpen = true;
+    }
+
+    /// <summary>メニューの表示名。名前に「_」があっても、アクセスキーとして消えないよう TextBlock で包む。</summary>
+    private static TextBlock FavoriteLabel(Favorite fav) => new() { Text = fav.Name };
+
+    private void OpenFavorite(Favorite fav, bool inNewTab)
+    {
+        if (!_vm.OpenFavorite(fav, inNewTab))
             MessageBox.Show($"フォルダが見つかりません。\n{fav.Path}", "KT_Explorer");
     }
 
-    private void FavoriteList_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    private void EditFavorite(Favorite fav)
     {
-        _contextFavorite = FavoriteAt(e.OriginalSource);
-        if (_contextFavorite == null) e.Handled = true; // 項目の上でなければメニューを出さない
-    }
-
-    private void FavoriteNewTab_Click(object sender, RoutedEventArgs e)
-    {
-        if (_contextFavorite != null && !_vm.OpenFavorite(_contextFavorite, inNewTab: true))
-            MessageBox.Show($"フォルダが見つかりません。\n{_contextFavorite.Path}", "KT_Explorer");
-    }
-
-    private void FavoriteEdit_Click(object sender, RoutedEventArgs e)
-    {
-        var fav = _contextFavorite;
-        if (fav == null) return;
-
         var name = InputDialog.Ask(this, "お気に入りを編集", "表示名:", fav.Name);
         if (name == null) return;
         var path = InputDialog.Ask(this, "お気に入りを編集", "フォルダのパス:", fav.Path);
@@ -316,11 +351,6 @@ public partial class MainWindow : Window
         }
         fav.Name = name;
         fav.Path = FolderTabViewModel.Normalize(path);
-    }
-
-    private void FavoriteRemove_Click(object sender, RoutedEventArgs e)
-    {
-        if (_contextFavorite != null) _vm.RemoveFavorite(_contextFavorite);
     }
 
     private void PathBox_KeyDown(object sender, KeyEventArgs e)
