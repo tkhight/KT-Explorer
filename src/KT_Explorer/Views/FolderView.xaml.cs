@@ -128,12 +128,14 @@ public partial class FolderView : UserControl
         {
             _sortTab.SortChanged -= UpdateSortHeaders;
             _sortTab.ViewModeChanged -= ApplyViewMode;
+            _sortTab.NewItemRequested -= NewItem;
         }
         _sortTab = tab;
         if (_sortTab != null)
         {
             _sortTab.SortChanged += UpdateSortHeaders;
             _sortTab.ViewModeChanged += ApplyViewMode;
+            _sortTab.NewItemRequested += NewItem;
         }
         UpdateSortHeaders();
         ApplyViewMode();

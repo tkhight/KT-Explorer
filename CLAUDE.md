@@ -41,6 +41,9 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 | パス欄の補助(入力補完の候補・パンくずの階層の分割・中のフォルダの一覧)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_pathbar.ps1'` |
 | 検索(絞込と同じ条件 `type:` `ext:` `size:` など、ファイルの中身 `content:` / `中身:`)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_search.ps1'` |
 | 詳細表示の追加の列(作成日時・属性・画像のサイズ・再生時間)と列の選択のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_columns.ps1'` |
+| メニューバー「ファイル」のロジック(WinMerge の引数の組み立て・見つけ方)。画面は出ない。WinMerge は起動しない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_menu_file.ps1'` |
+| メニューバー「ファイル」の画面テスト(項目の有無、新規作成でフォルダー・テキストが作られる)。ターミナル・WinMerge・終了は押さない | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_file.ps1'` |
+| マウスジェスチャ「右ボタン+ホイール」(上=左のタブ・下=右のタブ)の判定のロジック。画面は出ない。実際のマウス入力は、マウスジェスチャ系のツール(StrokesPlus など)が常駐していると横取りされるため、画面テストはできない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_gesture.ps1'` |
 | 中断したテストの後片付け(`%TEMP%\kt_test_*` を消す) | `& 'E:\KT_Applications\KT_Explorer\tools\test\cleanup.ps1'` |
 
 - 実行前に、上のビルドを行う。結果は `OK` / `NG` の行と、最後の `RESULT: ok=… ng=…`。

@@ -32,7 +32,10 @@
       "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\logic_history.ps1')",
       "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\logic_pathbar.ps1')",
       "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\logic_search.ps1')",
-      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\logic_columns.ps1')"
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\logic_columns.ps1')",
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\logic_menu_file.ps1')",
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_menu_file.ps1')",
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\logic_gesture.ps1')"
     ]
   }
 }

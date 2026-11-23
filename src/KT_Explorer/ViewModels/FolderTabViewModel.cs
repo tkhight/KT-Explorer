@@ -41,6 +41,9 @@ public partial class FolderTabViewModel : TabBase
     private FileSystemWatcher? _watcher;
     private readonly System.Windows.Threading.DispatcherTimer _refreshTimer;
     private bool _showingSearch;     // 一覧が検索結果のときは自動更新しない
+
+    /// <summary>一覧が検索結果か。</summary>
+    public bool IsShowingSearch => _showingSearch;
     private bool _disposed;
     private string? _itemsPath;      // Items が表している(通常一覧の)フォルダ
 
@@ -80,6 +83,11 @@ public partial class FolderTabViewModel : TabBase
 
     /// <summary>表示が変わった(一覧の見た目の切り替え用)。</summary>
     public event Action? ViewModeChanged;
+
+    /// <summary>メニューなどから「新規作成」を頼まれた(一覧の画面が、作って、名前の入力まで進める)。引数: フォルダーなら true、テキスト ドキュメントなら false。</summary>
+    public event Action<bool>? NewItemRequested;
+
+    public void RequestNewItem(bool folder) => NewItemRequested?.Invoke(folder);
 
     /// <summary>表示を切り替える。remember が true なら、新しく開くタブの初期の表示としても覚える(保存の復元では false)。</summary>
     public void SetViewMode(ViewMode mode, bool remember = true)

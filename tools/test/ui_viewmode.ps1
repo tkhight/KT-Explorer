@@ -14,30 +14,40 @@ $enc = New-Object System.Windows.Media.Imaging.PngBitmapEncoder; $enc.Frames.Add
 $fs = [System.IO.File]::Create((Join-Path $d 'picture.png')); $enc.Save($fs); $fs.Dispose()   # 全部で 81 項目
 
 # 画面要素(UI Automation)には、見えている範囲の項目だけが出る(全部で 81 項目あっても、数十件)。そのため、件数は「十分にある」で確かめる
-function Row-Count { @(Find-All 'DataItem').Count }
+# 一覧の行。表示を切り替えると、画面要素の種類が DataItem / ListItem のどちらにもなる(同じ行の部品を使い回すため)ので、両方を見る
+function Get-Rows {
+    $r = @(Find-All 'DataItem')
+    if ($r.Count -eq 0) {
+        # ListItem には、グループの見出し(デフォルト (2))も含まれるので、一覧の領域(タブの下)にあるものだけを取る
+        $top = $global:Kt.Win.Current.BoundingRectangle.Y + 125
+        $r = @(Find-All 'ListItem' | Where-Object { $_.Current.BoundingRectangle.Y -gt $top })
+    }
+    $r
+}
+function Row-Count { @(Get-Rows).Count }
 function Header-Names { @(Find-All 'HeaderItem' | ForEach-Object { $_.Current.Name }) }
 function Selected-Index {
-    $rows = Find-All 'DataItem'
+    $rows = Get-Rows
     for ($i = 0; $i -lt $rows.Count; $i++) {
         try { if ($rows[$i].GetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern).Current.IsSelected) { return $i } } catch { }
     }
     -1
 }
 function Select-Index([int]$index) {
-    $rows = Find-All 'DataItem'
+    $rows = Get-Rows
     $rows[$index].GetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern).Select(); $rows[$index].SetFocus(); Start-Sleep -Milliseconds 500
 }
 function First-Name {
-    $row = (Find-All 'DataItem')[0]
+    $row = (Get-Rows)[0]
     $A = $global:Kt.A
     $t = $row.FindFirst('Descendants', (New-Object Windows.Automation.PropertyCondition($A::ControlTypeProperty, [Windows.Automation.ControlType]::Text)))
     if ($t) { $t.Current.Name } else { '' }
 }
 function Open-ViewMenu {
     Set-Foreground
-    $b = Find-All 'Button' | Where-Object { $_.Current.Name -eq '表示 ▾' } | Select-Object -First 1
-    if (-not $b) { Stop-Test 'view button not found' }
-    $b.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep -Milliseconds 900
+    $m = Find-AppMenuItem '表示(V)'
+    if (-not $m) { Stop-Test 'View menu not found' }
+    $m.GetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern).Expand(); Start-Sleep -Milliseconds 900
 }
 function Pick-Menu([string]$name) {
     $m = Find-AppMenuItem $name
