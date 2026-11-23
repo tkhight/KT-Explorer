@@ -49,35 +49,21 @@ public sealed class TrayService : IDisposable
         _icon.ShowBalloonTip(3000, "KT_Explorer", "トレイに常駐しています。アイコンをクリックすると表示します。", Forms.ToolTipIcon.Info);
     }
 
-    /// <summary>フォルダ風の簡単なアイコンを描いて作る(アイコンファイルを持たないため)。</summary>
+    /// <summary>アプリのアイコン(リソースの app.ico)を、トレイの大きさで読む。読めなければ、既定のアプリのアイコン。</summary>
     private static Drawing.Icon CreateIcon()
     {
-        using var bmp = new Drawing.Bitmap(32, 32);
-        using (var g = Drawing.Graphics.FromImage(bmp))
-        {
-            g.SmoothingMode = Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            g.Clear(Drawing.Color.Transparent);
-            using var tab = new Drawing.SolidBrush(Drawing.Color.FromArgb(230, 170, 40));
-            using var body = new Drawing.SolidBrush(Drawing.Color.FromArgb(250, 200, 70));
-            g.FillRectangle(tab, 2, 6, 13, 7);
-            g.FillRectangle(body, 2, 10, 28, 19);
-            using var font = new Drawing.Font("Segoe UI", 10, Drawing.FontStyle.Bold, Drawing.GraphicsUnit.Pixel);
-            g.DrawString("KT", font, Drawing.Brushes.SaddleBrown, 7, 13);
-        }
-        IntPtr hIcon = bmp.GetHicon();
         try
         {
-            using var temp = Drawing.Icon.FromHandle(hIcon);
-            return (Drawing.Icon)temp.Clone(); // ハンドルを手放しても使えるよう複製する
+            var info = System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/KT_Explorer;component/Resources/app.ico"));
+            if (info != null)
+            {
+                using var stream = info.Stream;
+                return new Drawing.Icon(stream, Forms.SystemInformation.SmallIconSize); // トレイの大きさに合う画像を選ぶ
+            }
         }
-        finally
-        {
-            DestroyIcon(hIcon);
-        }
+        catch (Exception) { /* リソースが読めなければ、下の既定のアイコン */ }
+        return Drawing.SystemIcons.Application;
     }
-
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
-    private static extern bool DestroyIcon(IntPtr hIcon);
 
     public void Dispose()
     {

@@ -48,6 +48,7 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 | 指定ペインの作成(2〜3 個の条件、フォルダ入力の整理、`MainViewModel.CreatePanes`)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_panecreate.ps1'` |
 | 指定ペインの作成ダイアログの画面テスト(既存タブにチェックを付けて作成、フォルダを 2〜3 個指定して作成、キャンセル) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_pane_create.ps1'` |
 | メニューバー「編集」の画面テスト(元に戻す・やり直し・切り取り・コピー・貼り付け・削除・全て選択。ファイルへの操作と、入力欄の文字への操作)。クリップボードを書き換える | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_edit.ps1'` |
+| アプリのアイコン(app.ico の大きさの種類、exe のアイコン、トレイのアイコンの読み込み)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_icon.ps1'` |
 | 旧「設定」の項目を振り分けた「表示」「ツール」メニューの画面テスト(項目の有無、オン/オフの切り替え、「設定」ボタンが無いこと)。自動起動(レジストリ)は押さない | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_settings.ps1'` |
 | 中断したテストの後片付け(`%TEMP%\kt_test_*` を消す) | `& 'E:\KT_Applications\KT_Explorer\tools\test\cleanup.ps1'` |
 
@@ -61,6 +62,10 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
   - キーを送る・クリックする前に、前面にあるのがテスト用の KT_Explorer であることを確かめ、違えば、何も送らずに中止する(`Assert-AppForeground`)。ユーザーが別のアプリ(ブラウザなど)を使っているとき、そのアプリへキーを送ってしまわないため。**画面テストの実行中は、ユーザーにキーボードとマウスに触らないでもらう**(触ると、入力が乱れて失敗する)。
   - 引数でコマンドを受け取らない。
 - **許可済みスクリプトの中身を変えると、確認なしで実行される。** 変更したら、コミット前に必ず内容を見直す。新しいスクリプトを許可に加えるときは、`.claude/settings.json` に、スクリプトごとに1行ずつ(フォルダ全体のワイルドカードにしない)足す。
+
+## アプリのアイコン
+
+`src/KT_Explorer/Resources/app.ico`(16〜256px)。水色のフォルダを、2 つのペインに分けた図案。図案を変えるときは、`tools/icon/make_icon.ps1` を直して実行すると、`app.ico` が作り直される(`& 'E:\KT_Applications\KT_Explorer\tools\icon\make_icon.ps1'`)。exe・ウィンドウ・トレイのアイコンは、すべてこの `.ico` を使う。
 
 ## リリースの手順(ユーザーの指示)
 
