@@ -37,6 +37,8 @@
                     IsEnabled="{Binding CanUndo}" Click="Undo_Click"/>
             <Button DockPanel.Dock="Left" Content="↷" Width="30" Margin="2,0,6,0" ToolTip="{Binding RedoToolTip}"
                     IsEnabled="{Binding CanRedo}" Click="Redo_Click"/>
+            <Button DockPanel.Dock="Left" Content="★ お気に入り ▾" Margin="0,0,6,0" Padding="8,0"
+                    ToolTip="お気に入りの追加・編集・削除と、一覧から開く" Click="Favorites_Click"/>
             <Button DockPanel.Dock="Right" Content="設定 ▾" Margin="6,0,0,0" Padding="6,0"
                     ToolTip="ツリー連動 / マウスジェスチャ / Explorer 取り込み" Click="Settings_Click"/>
             <Button DockPanel.Dock="Right" Content="指定ペイン ▾" Margin="2,0,0,0" Padding="6,0"
@@ -53,8 +55,6 @@
                      ToolTip="表示中の一覧を名前で絞り込み (Ctrl+F)"
                      Text="{Binding CurrentFolder.FilterText, UpdateSourceTrigger=PropertyChanged}" KeyDown="FilterBox_KeyDown"/>
             <TextBlock DockPanel.Dock="Right" Text="絞込:" Margin="10,0,2,0" VerticalAlignment="Center"/>
-            <Button DockPanel.Dock="Right" Content="★" Width="30" Margin="6,0,0,0" ToolTip="現在のフォルダをお気に入りに追加"
-                    Command="{Binding AddCurrentToFavoritesCommand}"/>
             <TextBox x:Name="PathBox" VerticalContentAlignment="Center"
                      Text="{Binding CurrentFolder.Path, Mode=OneWay}" KeyDown="PathBox_KeyDown"/>
         </DockPanel>
@@ -68,31 +68,7 @@
 
             <!-- 左端: お気に入り + ツリー -->
             <Grid Grid.Column="0">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-
-            <Expander Grid.Row="0" Header="★ お気に入り" IsExpanded="True" Margin="0,0,0,2">
-                <ListBox x:Name="FavoriteList" ItemsSource="{Binding Favorites}" MaxHeight="160"
-                         PreviewMouseLeftButtonUp="FavoriteList_PreviewMouseLeftButtonUp"
-                         PreviewMouseRightButtonDown="FavoriteList_PreviewMouseRightButtonDown">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding Name}" ToolTip="{Binding Path}"/>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                    <ListBox.ContextMenu>
-                        <ContextMenu>
-                            <MenuItem Header="新しいタブで開く" Click="FavoriteNewTab_Click"/>
-                            <MenuItem Header="編集…" Click="FavoriteEdit_Click"/>
-                            <MenuItem Header="削除" Click="FavoriteRemove_Click"/>
-                        </ContextMenu>
-                    </ListBox.ContextMenu>
-                </ListBox>
-            </Expander>
-
-            <TreeView Grid.Row="1" x:Name="FolderTree" ItemsSource="{Binding TreeRoots}"
+            <TreeView x:Name="FolderTree" ItemsSource="{Binding TreeRoots}"
                       PreviewMouseRightButtonDown="FolderTree_PreviewMouseRightButtonDown"
                       ContextMenuOpening="FolderTree_ContextMenuOpening">
                 <TreeView.ItemContainerStyle>
