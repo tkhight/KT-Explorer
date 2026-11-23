@@ -28,7 +28,34 @@ public partial class FolderView : UserControl
         InitializeComponent();
         _renameTimer.Tick += RenameTimer_Tick;
         _hintTimer.Tick += (_, _) => CloseHint();
-        Unloaded += (_, _) => { _renameTimer.Stop(); CloseHint(); };
+        Loaded += (_, _) => { SortSettings.Instance.Changed += UpdateSortHeaders; UpdateSortHeaders(); };
+        Unloaded += (_, _) =>
+        {
+            SortSettings.Instance.Changed -= UpdateSortHeaders;
+            _renameTimer.Stop();
+            CloseHint();
+        };
+    }
+
+    // ───────── 列見出しクリックでの並べ替え ─────────
+
+    private static readonly string[] ColumnNames = { "名前", "更新日時", "種類", "サイズ" };
+
+    private void ColumnHeader_Click(object sender, RoutedEventArgs e)
+    {
+        if (e.OriginalSource is not GridViewColumnHeader { Column: { } column } || FileList.View is not GridView grid) return; // 余白部分のヘッダーは対象外
+        int index = grid.Columns.IndexOf(column);
+        if (index < 0 || index >= ColumnNames.Length) return;
+        SortSettings.Instance.Toggle((SortColumn)index);
+    }
+
+    /// <summary>並べ替えに使っている列の見出しに ▲(昇順)/ ▼(降順)を付ける。</summary>
+    private void UpdateSortHeaders()
+    {
+        if (FileList.View is not GridView grid) return;
+        var sort = SortSettings.Instance;
+        for (int i = 0; i < grid.Columns.Count && i < ColumnNames.Length; i++)
+            grid.Columns[i].Header = (int)sort.Column == i ? ColumnNames[i] + (sort.Descending ? " ▼" : " ▲") : ColumnNames[i];
     }
 
     private FolderTabViewModel? Vm => DataContext as FolderTabViewModel;
@@ -348,17 +375,9 @@ public partial class FolderView : UserControl
 
     // ───────── プロパティ / パスのコピー ─────────
 
-    private static void ShowProperties(string path)
-    {
-        try { Process.Start(new ProcessStartInfo(path) { Verb = "properties", UseShellExecute = true }); }
-        catch (Exception ex) { MessageBox.Show(ex.Message, "KT_Explorer"); }
-    }
+    private static void ShowProperties(string path) => FolderActions.ShowProperties(path);
 
-    private static void CopyPathText(IEnumerable<string> paths)
-    {
-        try { Clipboard.SetText(string.Join(Environment.NewLine, paths)); }
-        catch { /* クリップボード使用中 */ }
-    }
+    private static void CopyPathText(IEnumerable<string> paths) => FolderActions.CopyPathText(paths);
 
     // ───────── 選択 ─────────
 
@@ -447,6 +466,7 @@ public partial class FolderView : UserControl
             Add("削除", () => DeleteSelection(permanent: false), "Del");
             menu.Items.Add(new Separator());
             Add("パスをコピー", () => CopyPathText(sel.Select(s => s.FullPath)));
+            if (single is { IsDirectory: true }) Add("ここでターミナルを開く", () => FolderActions.OpenTerminal(single.FullPath));
             Add("プロパティ", () => ShowProperties(sel[0].FullPath));
         }
         else
@@ -464,6 +484,7 @@ public partial class FolderView : UserControl
             Add("更新", vm.Reload, "F5");
             menu.Items.Add(new Separator());
             Add("パスをコピー", () => CopyPathText(new[] { vm.Path }));
+            Add("ここでターミナルを開く", () => FolderActions.OpenTerminal(vm.Path));
             Add("プロパティ", () => ShowProperties(vm.Path));
         }
 

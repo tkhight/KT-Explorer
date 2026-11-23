@@ -15,6 +15,7 @@
                   PreviewMouseMove="FileList_PreviewMouseMove"
                   PreviewMouseRightButtonDown="FileList_PreviewMouseRightButtonDown"
                   ContextMenuOpening="FileList_ContextMenuOpening"
+                  GridViewColumnHeader.Click="ColumnHeader_Click"
                   DragOver="FileList_DragOver" Drop="FileList_Drop">
             <ListView.View>
                 <GridView>

@@ -93,7 +93,8 @@
             </Expander>
 
             <TreeView Grid.Row="1" x:Name="FolderTree" ItemsSource="{Binding TreeRoots}"
-                      PreviewMouseRightButtonDown="FolderTree_PreviewMouseRightButtonDown">
+                      PreviewMouseRightButtonDown="FolderTree_PreviewMouseRightButtonDown"
+                      ContextMenuOpening="FolderTree_ContextMenuOpening">
                 <TreeView.ItemContainerStyle>
                     <Style TargetType="TreeViewItem">
                         <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
@@ -109,12 +110,6 @@
                         <TextBlock Text="{Binding Name}"/>
                     </HierarchicalDataTemplate>
                 </TreeView.ItemTemplate>
-                <TreeView.ContextMenu>
-                    <ContextMenu>
-                        <MenuItem Header="新しいタブで開く" Click="TreeAddTab_Click"/>
-                        <MenuItem Header="お気に入りに追加" Click="TreeAddFavorite_Click"/>
-                    </ContextMenu>
-                </TreeView.ContextMenu>
             </TreeView>
             </Grid>
 

@@ -55,6 +55,7 @@ public partial class MainViewModel : ObservableObject
         EnableGestures = state.EnableGestures;
         CaptureExplorer = state.CaptureExplorer;
         CloseToTray = state.CloseToTray;
+        SortSettings.Instance.Load(state.SortColumn, state.SortDescending, state.FoldersFirst);
         foreach (var f in state.Favorites.Where(f => !string.IsNullOrWhiteSpace(f.Path)))
             Favorites.Add(new Favorite(string.IsNullOrWhiteSpace(f.Name) ? f.Path : f.Name, f.Path));
         BuildTreeRoots();
@@ -417,6 +418,9 @@ public partial class MainViewModel : ObservableObject
             EnableGestures = EnableGestures,
             CaptureExplorer = CaptureExplorer,
             CloseToTray = CloseToTray,
+            SortColumn = SortSettings.Instance.Column,
+            SortDescending = SortSettings.Instance.Descending,
+            FoldersFirst = SortSettings.Instance.FoldersFirst,
             SelectedGroupIndex = Groups.IndexOf(_selectedGroup),
         };
         foreach (var f in Favorites) state.Favorites.Add(new FavoriteState { Name = f.Name, Path = f.Path });

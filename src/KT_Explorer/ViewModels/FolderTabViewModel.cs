@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using KT_Explorer.Models;
+using KT_Explorer.Services;
 
 namespace KT_Explorer.ViewModels;
 
@@ -86,6 +87,8 @@ public partial class FolderTabViewModel : TabBase
     {
         _view = CollectionViewSource.GetDefaultView(Items);
         _view.Filter = MatchesFilter;
+        ApplySort();
+        SortSettings.Instance.Changed += ApplySort;
 
         // 変更通知が連続しても1回にまとめて更新する
         _refreshTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
@@ -151,9 +154,19 @@ public partial class FolderTabViewModel : TabBase
         _watcher = null;
     }
 
+    /// <summary>
+    /// 並び順を表示用ビューに適用する。Items 自体は名前順のままなので、選択状態や差分更新に影響しない
+    /// (検索結果の一覧にも同じ並び順がかかる)。
+    /// </summary>
+    private void ApplySort()
+    {
+        if (_view is ListCollectionView lcv) lcv.CustomSort = SortSettings.Instance.CreateComparer();
+    }
+
     public override void Dispose()
     {
         _disposed = true;
+        SortSettings.Instance.Changed -= ApplySort;
         _refreshTimer.Stop();
         DisposeWatcher();
         CancelSearch();
