@@ -8,7 +8,9 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
+        <!-- 文字を打つと、その文字で始まる名前の項目へ移動する(TextSearch。続けて打つと絞られ、少し間を置くとリセット) -->
         <ListView x:Name="FileList" ItemsSource="{Binding Items}" SelectionMode="Extended" AllowDrop="True"
+                  IsTextSearchEnabled="True" TextSearch.TextPath="Name"
                   MouseDoubleClick="FileList_MouseDoubleClick" KeyDown="FileList_KeyDown"
                   PreviewMouseLeftButtonDown="FileList_PreviewMouseLeftButtonDown"
                   PreviewMouseLeftButtonUp="FileList_PreviewMouseLeftButtonUp"

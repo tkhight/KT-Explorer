@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git switch *)",
+      "Bash(git merge *)",
+      "Bash(git branch -d *)",
+      "PowerShell(Get-Process*)",
+      "Bash(git ls-remote *)",
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\logic_tabs.ps1')",
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_tree_rename.ps1')",
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_list_rename.ps1')",
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_typeahead_tabs.ps1')",
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\cleanup.ps1')"
+    ]
+  }
+}

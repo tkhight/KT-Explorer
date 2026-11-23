@@ -13,6 +13,15 @@ public partial class TreeNodeViewModel : ObservableObject
     [ObservableProperty] private bool _isExpanded;
     [ObservableProperty] private bool _isSelected;
 
+    /// <summary>表示名。名前を変えたあと、ノードを作り直さずに更新できるよう、通知つきにしている。</summary>
+    [ObservableProperty] private string _name = "";
+
+    /// <summary>名前の直接編集中か(ツリーの項目が入力欄に切り替わる)。</summary>
+    [ObservableProperty] private bool _isEditing;
+
+    /// <summary>直接編集中の入力内容。</summary>
+    [ObservableProperty] private string _editName = "";
+
     public TreeNodeViewModel(string name, string fullPath, Action<TreeNodeViewModel> onSelected)
     {
         Name = name;
@@ -32,7 +41,6 @@ public partial class TreeNodeViewModel : ObservableObject
 
     private static TreeNodeViewModel Placeholder(Action<TreeNodeViewModel> cb) => new(cb);
 
-    public string Name { get; }
     public string FullPath { get; }
     public bool IsPlaceholder { get; }
     public ObservableCollection<TreeNodeViewModel> Children { get; } = new();
@@ -65,6 +73,43 @@ public partial class TreeNodeViewModel : ObservableObject
         {
             // アクセス不可フォルダは子なしとして扱う
         }
+    }
+
+    /// <summary>
+    /// 読み込み済みの子を、実際のフォルダの状態に合わせて更新する(作成・削除・名前の変更のあと)。
+    /// 残る子はそのまま使うので、展開状態は保たれる。
+    /// </summary>
+    public void RefreshChildren()
+    {
+        if (!_loaded || IsPlaceholder) return;
+
+        List<DirectoryInfo> dirs;
+        try
+        {
+            dirs = new DirectoryInfo(FullPath)
+                .EnumerateDirectories()
+                .Where(d => (d.Attributes & (FileAttributes.Hidden | FileAttributes.System)) == 0)
+                .OrderBy(d => d.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+        }
+        catch
+        {
+            dirs = new();
+        }
+
+        // 無くなった子(大文字小文字だけ変わった名前も、表示名を作り直すため入れ替える)を取り除く
+        for (int i = Children.Count - 1; i >= 0; i--)
+        {
+            if (Children[i].IsPlaceholder || !dirs.Any(d => string.Equals(d.FullName, Children[i].FullPath, StringComparison.Ordinal)))
+                Children.RemoveAt(i);
+        }
+        // 残りは dirs の部分列(同じ並び順)なので、足りない子を位置に挿入していく
+        for (int i = 0; i < dirs.Count; i++)
+        {
+            if (i < Children.Count && string.Equals(Children[i].FullPath, dirs[i].FullName, StringComparison.Ordinal)) continue;
+            Children.Insert(i, new TreeNodeViewModel(dirs[i].Name, dirs[i].FullName, _onSelected));
+        }
+        foreach (var child in Children) child.RefreshChildren();
     }
 
     /// <summary>target までのノードを展開し、最後のノードを返す。</summary>

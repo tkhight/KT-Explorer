@@ -34,10 +34,103 @@ public partial class MainViewModel : ObservableObject
     public string RedoToolTip => UndoManager.Instance.RedoText is { } t ? $"やり直し (Ctrl+Y): {t}" : "やり直し (Ctrl+Y)";
 
     /// <summary>直前のファイル操作を元に戻す。できなければ理由を返す。</summary>
-    public string? Undo(IntPtr owner) => UndoManager.Instance.Undo(owner);
+    public string? Undo(IntPtr owner)
+    {
+        PauseWatching(null); // 元に戻す操作が、開いているフォルダの名前の変更・削除を含むことがあるため
+        var error = UndoManager.Instance.Undo(owner);
+        AfterFileChange();
+        return error;
+    }
 
     /// <summary>元に戻した操作をやり直す。できなければ理由を返す。</summary>
-    public string? Redo(IntPtr owner) => UndoManager.Instance.Redo(owner);
+    public string? Redo(IntPtr owner)
+    {
+        PauseWatching(null);
+        var error = UndoManager.Instance.Redo(owner);
+        AfterFileChange();
+        return error;
+    }
+
+    // ───────── フォルダの名前の変更・削除に伴うタブ・ツリーの追従 ─────────
+
+    private IEnumerable<FolderTabViewModel> AllFolders() =>
+        Groups.SelectMany(g => g.Tabs).SelectMany(t => t switch
+        {
+            FolderTabViewModel f => new[] { f },
+            PaneTabViewModel p => p.Panes.ToArray(),
+            _ => Array.Empty<FolderTabViewModel>(),
+        });
+
+    private static bool IsSameOrInside(string path, string folder) =>
+        path.TrimEnd('\\').Equals(folder, StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith(folder + "\\", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// 指定フォルダ(とその中)を表示しているタブ・ペインの監視を止める。null なら、すべて止める。
+    /// 監視中のフォルダは、そのフォルダも親も、名前の変更・削除ができない(アクセス拒否になる)ため、操作の前に呼ぶ。
+    /// 操作のあとは <see cref="ResumeAllWatching"/>(または <see cref="AfterFileChange"/>)で再開する。
+    /// </summary>
+    public void PauseWatching(string? folderPath)
+    {
+        string? folder = folderPath?.TrimEnd('\\');
+        foreach (var f in AllFolders().ToList())
+            if (folder == null || IsSameOrInside(f.Path, folder)) f.PauseWatching();
+    }
+
+    public void ResumeAllWatching()
+    {
+        foreach (var f in AllFolders().ToList()) f.ResumeWatching();
+    }
+
+    /// <summary>
+    /// フォルダの名前を変えたあとに呼ぶ。そのフォルダ(や、その中)を表示しているタブ・ペインと、
+    /// お気に入りを、新しい名前に追従させる。
+    /// </summary>
+    public void OnFolderRenamed(string oldPath, string newPath)
+    {
+        string o = oldPath.TrimEnd('\\');
+        string n = newPath.TrimEnd('\\');
+        // 先にツリーを更新する(新しい名前のノードを作っておく)。そのあとでタブを移すと、ツリーの選択が新しいノードへ合う
+        RefreshTree();
+        foreach (var f in AllFolders().ToList())
+            if (IsSameOrInside(f.Path, o)) f.NavigateTo(n + f.Path.TrimEnd('\\').Substring(o.Length), recordHistory: false);
+        foreach (var fav in Favorites)
+            if (IsSameOrInside(fav.Path, o)) fav.Path = n + fav.Path.TrimEnd('\\').Substring(o.Length);
+    }
+
+    /// <summary>
+    /// フォルダの削除・元に戻す・やり直しのあとに呼ぶ。無くなったフォルダを表示しているタブ・ペインは、
+    /// 残っている最も近い親フォルダへ移し、ツリーを実際の状態に合わせる。
+    /// </summary>
+    public void AfterFileChange()
+    {
+        RefreshTree();
+        foreach (var f in AllFolders().ToList())
+        {
+            if (Directory.Exists(f.Path)) continue;
+            string? p = f.Path;
+            while (p != null && !Directory.Exists(p)) p = Directory.GetParent(p)?.FullName;
+            if (p != null) f.NavigateTo(p, recordHistory: false);
+        }
+        ResumeAllWatching();
+    }
+
+    /// <summary>ツリーの読み込み済みの部分を、実際のフォルダの状態に合わせる。</summary>
+    public void RefreshTree()
+    {
+        // 選択中のノードが無くなると、ツリーの選択が変わって、その選択がタブの移動を引き起こしてしまう
+        // (名前を変えたフォルダを表示中のタブが、親フォルダへ移る)。更新の間は、ツリーの選択を無視する。
+        bool previous = _syncingTree;
+        _syncingTree = true;
+        try
+        {
+            foreach (var root in TreeRoots) root.RefreshChildren();
+        }
+        finally
+        {
+            _syncingTree = previous;
+        }
+    }
 
     private void OnUndoChanged()
     {
@@ -201,6 +294,52 @@ public partial class MainViewModel : ObservableObject
         if (Directory.Exists(path)) AddTab(path, select: true);
     }
 
+    // 閉じたフォルダタブの履歴(新しいものが末尾)。ペインタブは対象外
+    private sealed record ClosedTab(string Path, TabGroupViewModel Group, int Index);
+    private readonly List<ClosedTab> _closedTabs = new();
+    private const int ClosedTabLimit = 20;
+
+    public bool CanReopenClosedTab => _closedTabs.Count > 0;
+
+    /// <summary>直前に閉じたタブを、元のグループの元の位置に開き直す(Ctrl+Shift+T)。フォルダが無くなっていれば、その前のものへ。</summary>
+    [RelayCommand]
+    private void ReopenClosedTab()
+    {
+        while (_closedTabs.Count > 0)
+        {
+            var closed = _closedTabs[^1];
+            _closedTabs.RemoveAt(_closedTabs.Count - 1);
+            if (!Directory.Exists(closed.Path)) continue;
+
+            var group = Groups.Contains(closed.Group) ? closed.Group : _selectedGroup;
+            if (group != _selectedGroup) SelectGroup(group);
+            var tab = new FolderTabViewModel(closed.Path);
+            group.Tabs.Insert(Math.Min(closed.Index, group.Tabs.Count), tab);
+            Select(tab);
+            return;
+        }
+    }
+
+    /// <summary>タブを複製して、その右隣に開く(ペインタブはペインの構成ごと)。</summary>
+    public void DuplicateTab(TabBase tab)
+    {
+        var group = Groups.FirstOrDefault(g => g.Tabs.Contains(tab));
+        if (group == null) return;
+        if (group != _selectedGroup) SelectGroup(group);
+
+        if (tab is FolderTabViewModel folder)
+        {
+            var copy = new FolderTabViewModel(folder.Path);
+            group.Tabs.Insert(group.Tabs.IndexOf(tab) + 1, copy);
+            Select(copy);
+        }
+        else if (tab is PaneTabViewModel pane)
+        {
+            Select(tab); // 複製は、選択中のタブの右隣に作られる
+            CreatePaneTab(pane.Panes.Select(p => p.Path).ToList());
+        }
+    }
+
     [RelayCommand]
     private void CloseTab(TabBase? tab)
     {
@@ -210,6 +349,11 @@ public partial class MainViewModel : ObservableObject
         if (group == null || Groups.Sum(g => g.Tabs.Count) <= 1) return; // 最後の1枚は閉じない
 
         int index = group.Tabs.IndexOf(tab);
+        if (tab is FolderTabViewModel closedFolder)
+        {
+            _closedTabs.Add(new ClosedTab(closedFolder.Path, group, index));
+            if (_closedTabs.Count > ClosedTabLimit) _closedTabs.RemoveAt(0);
+        }
         group.Tabs.Remove(tab);
         tab.Dispose();
         if (ReferenceEquals(tab, _selectedTab) && group == _selectedGroup)

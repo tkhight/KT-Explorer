@@ -146,6 +146,17 @@ public partial class FolderTabViewModel : TabBase
         }
     }
 
+    /// <summary>
+    /// フォルダの監視を止める。監視中のフォルダやその親は、Windows の仕組み上、名前の変更・削除ができないため、
+    /// それらの操作の前に止め、終わったら <see cref="ResumeWatching"/> で再開する。
+    /// </summary>
+    public void PauseWatching() => DisposeWatcher();
+
+    public void ResumeWatching()
+    {
+        if (!_disposed && _watcher == null && Directory.Exists(Path)) ResetWatcher(Path);
+    }
+
     private void DisposeWatcher()
     {
         if (_watcher == null) return;

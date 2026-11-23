@@ -15,6 +15,7 @@
         <KeyBinding Key="F5" Command="{Binding RefreshCommand}"/>
         <KeyBinding Key="T" Modifiers="Ctrl" Command="{Binding NewTabCommand}"/>
         <KeyBinding Key="W" Modifiers="Ctrl" Command="{Binding CloseTabCommand}"/>
+        <KeyBinding Key="T" Modifiers="Ctrl+Shift" Command="{Binding ReopenClosedTabCommand}"/>
     </Window.InputBindings>
 
     <Grid>
@@ -70,7 +71,8 @@
             <Grid Grid.Column="0">
             <TreeView x:Name="FolderTree" ItemsSource="{Binding TreeRoots}"
                       PreviewMouseRightButtonDown="FolderTree_PreviewMouseRightButtonDown"
-                      ContextMenuOpening="FolderTree_ContextMenuOpening">
+                      ContextMenuOpening="FolderTree_ContextMenuOpening"
+                      KeyDown="FolderTree_KeyDown">
                 <TreeView.ItemContainerStyle>
                     <Style TargetType="TreeViewItem">
                         <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
@@ -83,7 +85,34 @@
                 </TreeView.ItemContainerStyle>
                 <TreeView.ItemTemplate>
                     <HierarchicalDataTemplate DataType="{x:Type vm:TreeNodeViewModel}" ItemsSource="{Binding Children}">
-                        <TextBlock Text="{Binding Name}"/>
+                        <Grid>
+                            <TextBlock Text="{Binding Name}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsEditing}" Value="True">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <!-- 名前の直接編集(エクスプローラーと同じ: 全選択、Enter で確定、Esc で取り消し) -->
+                            <TextBox Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}" MinWidth="120" Padding="1,0"
+                                     Loaded="TreeEditBox_Loaded" IsVisibleChanged="TreeEditBox_IsVisibleChanged" KeyDown="TreeEditBox_KeyDown"
+                                     PreviewTextInput="TreeEditBox_PreviewTextInput" LostKeyboardFocus="TreeEditBox_LostKeyboardFocus">
+                                <TextBox.Style>
+                                    <Style TargetType="TextBox">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsEditing}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBox.Style>
+                            </TextBox>
+                        </Grid>
                     </HierarchicalDataTemplate>
                 </TreeView.ItemTemplate>
             </TreeView>
