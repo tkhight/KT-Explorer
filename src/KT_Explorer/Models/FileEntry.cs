@@ -71,7 +71,7 @@ public sealed partial class FileEntry : ObservableObject
     /// <summary>シェルアイコン(拡張子単位でキャッシュ)。</summary>
     public ImageSource? Icon => ShellIconService.GetIcon(FullPath, IsDirectory);
 
-    private static string FormatSize(long bytes)
+    public static string FormatSize(long bytes)
     {
         if (bytes < 1024) return $"{bytes} B";
         double kb = bytes / 1024.0;

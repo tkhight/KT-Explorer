@@ -19,6 +19,27 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool _captureExplorer = true;
     [ObservableProperty] private bool _closeToTray = true;
 
+    /// <summary>プレビューウィンドウを表示する。</summary>
+    [ObservableProperty] private bool _showPreview;
+
+    /// <summary>プレビューウィンドウの表示内容(操作中のペインで選択している項目)。</summary>
+    public PreviewViewModel Preview { get; } = new();
+
+    partial void OnShowPreviewChanged(bool value)
+    {
+        if (value) RefreshPreview(); else Preview.Clear();
+    }
+
+    [RelayCommand]
+    private void TogglePreview() => ShowPreview = !ShowPreview;
+
+    private void RefreshPreview()
+    {
+        if (ShowPreview) Preview.Show(CurrentFolder?.Selection ?? Array.Empty<FileEntry>());
+    }
+
+    private void OnCurrentSelectionChanged() => RefreshPreview();
+
     /// <summary>一覧を開いたとき、フォルダの合計サイズを自動で計算する。</summary>
     [ObservableProperty] private bool _autoFolderSize;
 
@@ -119,7 +140,7 @@ public partial class MainViewModel : ObservableObject
         RefreshTree();
         foreach (var f in AllFolders().ToList())
             if (IsSameOrInside(f.Path, o)) f.NavigateTo(n + f.Path.TrimEnd('\\').Substring(o.Length), recordHistory: false);
-        foreach (var fav in Favorites)
+        foreach (var fav in FavoriteTree.Folders(Favorites))
             if (IsSameOrInside(fav.Path, o)) fav.Path = n + fav.Path.TrimEnd('\\').Substring(o.Length);
     }
 
@@ -175,8 +196,12 @@ public partial class MainViewModel : ObservableObject
         CloseToTray = state.CloseToTray;
         SortSettings.Instance.Load(state.SortColumn, state.SortDescending, state.FoldersFirst);
         AutoFolderSize = state.AutoFolderSize;
-        foreach (var f in state.Favorites.Where(f => !string.IsNullOrWhiteSpace(f.Path)))
-            Favorites.Add(new Favorite(string.IsNullOrWhiteSpace(f.Name) ? f.Path : f.Name, f.Path));
+        ShowPreview = state.ShowPreview;
+        foreach (var fs in state.Favorites)
+        {
+            var fav = FavoriteFromState(fs);
+            if (fav != null) Favorites.Add(fav);
+        }
         BuildTreeRoots();
         string profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
@@ -246,14 +271,20 @@ public partial class MainViewModel : ObservableObject
             PaneTabViewModel p => p.ActivePane,
             _ => null,
         };
-        if (_observed != null) _observed.PathChanged -= OnActivePathChanged;
+        if (_observed != null)
+        {
+            _observed.PathChanged -= OnActivePathChanged;
+            _observed.SelectionChanged -= OnCurrentSelectionChanged;
+        }
         _observed = folder;
         CurrentFolder = folder;
         if (folder != null)
         {
             folder.PathChanged += OnActivePathChanged;
+            folder.SelectionChanged += OnCurrentSelectionChanged;
             SyncTreeTo(folder.Path);
         }
+        RefreshPreview(); // 操作中の一覧(タブ・ペイン)が変わったので、そちらの選択を表示する
     }
 
     private void OnActivePathChanged(FolderTabViewModel tab) => SyncTreeTo(tab.Path);
@@ -520,7 +551,7 @@ public partial class MainViewModel : ObservableObject
     {
         if (!Directory.Exists(path)) return;
         string p = FolderTabViewModel.Normalize(path);
-        if (Favorites.Any(f => string.Equals(f.Path, p, StringComparison.OrdinalIgnoreCase))) return;
+        if (FavoriteTree.Folders(Favorites).Any(f => string.Equals(f.Path, p, StringComparison.OrdinalIgnoreCase))) return;
         string leaf = Path.GetFileName(p.TrimEnd('\\', '/'));
         Favorites.Add(new Favorite(string.IsNullOrEmpty(leaf) ? p : leaf, p));
     }
@@ -531,7 +562,43 @@ public partial class MainViewModel : ObservableObject
         if (CurrentFolder != null) AddFavorite(CurrentFolder.Path);
     }
 
-    public void RemoveFavorite(Favorite fav) => Favorites.Remove(fav);
+    public void RemoveFavorite(Favorite fav) => FavoriteTree.Remove(Favorites, fav);
+
+    /// <summary>整理ウィンドウで整理したお気に入りに、まるごと置き換える。</summary>
+    public void ReplaceFavorites(IEnumerable<Favorite> items)
+    {
+        var list = items.ToList();
+        Favorites.Clear();
+        foreach (var f in list) Favorites.Add(f);
+    }
+
+    private static Favorite? FavoriteFromState(FavoriteState s)
+    {
+        switch (s.Kind)
+        {
+            case FavoriteKind.Separator:
+                return Favorite.NewSeparator();
+            case FavoriteKind.Group:
+            {
+                var group = Favorite.NewGroup(string.IsNullOrWhiteSpace(s.Name) ? "グループ" : s.Name);
+                foreach (var child in s.Children)
+                {
+                    var c = FavoriteFromState(child);
+                    if (c != null && !c.IsGroup) group.Children.Add(c); // グループは入れ子にしない
+                }
+                return group;
+            }
+            default:
+                return string.IsNullOrWhiteSpace(s.Path) ? null : new Favorite(string.IsNullOrWhiteSpace(s.Name) ? s.Path : s.Name, s.Path);
+        }
+    }
+
+    private static FavoriteState FavoriteToState(Favorite f)
+    {
+        var s = new FavoriteState { Kind = f.Kind, Name = f.Name, Path = f.Path };
+        foreach (var child in f.Children) s.Children.Add(FavoriteToState(child));
+        return s;
+    }
 
     /// <summary>お気に入りを現在のフォルダ(操作中のペイン)で開く。存在しなければ false。</summary>
     public bool OpenFavorite(Favorite fav, bool inNewTab)
@@ -598,9 +665,10 @@ public partial class MainViewModel : ObservableObject
             SortDescending = SortSettings.Instance.Descending,
             FoldersFirst = SortSettings.Instance.FoldersFirst,
             AutoFolderSize = AutoFolderSize,
+            ShowPreview = ShowPreview,
             SelectedGroupIndex = Groups.IndexOf(_selectedGroup),
         };
-        foreach (var f in Favorites) state.Favorites.Add(new FavoriteState { Name = f.Name, Path = f.Path });
+        foreach (var f in Favorites) state.Favorites.Add(FavoriteToState(f));
         foreach (var g in Groups)
         {
             var selected = ReferenceEquals(g, _selectedGroup) ? _selectedTab : g.LastSelected;

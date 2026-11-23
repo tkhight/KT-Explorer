@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:KT_Explorer.ViewModels"
         xmlns:views="clr-namespace:KT_Explorer.Views"
+        xmlns:svc="clr-namespace:KT_Explorer.Services"
         Title="KT_Explorer" Height="700" Width="1100"
         PreviewMouseDown="Window_PreviewMouseDown" PreviewKeyDown="Window_PreviewKeyDown"
         PreviewMouseRightButtonDown="Window_PreviewMouseRightButtonDown"
@@ -15,6 +16,7 @@
         <KeyBinding Key="F5" Command="{Binding RefreshCommand}"/>
         <KeyBinding Key="T" Modifiers="Ctrl" Command="{Binding NewTabCommand}"/>
         <KeyBinding Key="W" Modifiers="Ctrl" Command="{Binding CloseTabCommand}"/>
+        <KeyBinding Key="P" Modifiers="Alt" Command="{Binding TogglePreviewCommand}"/>
         <KeyBinding Key="T" Modifiers="Ctrl+Shift" Command="{Binding ReopenClosedTabCommand}"/>
     </Window.InputBindings>
 
@@ -42,6 +44,8 @@
                     ToolTip="お気に入りの追加・編集・削除と、一覧から開く" Click="Favorites_Click"/>
             <Button DockPanel.Dock="Right" Content="設定 ▾" Margin="6,0,0,0" Padding="6,0"
                     ToolTip="ツリー連動 / マウスジェスチャ / Explorer 取り込み" Click="Settings_Click"/>
+            <ToggleButton DockPanel.Dock="Right" Content="プレビュー" Margin="2,0,0,0" Padding="6,0" IsChecked="{Binding ShowPreview}"
+                          ToolTip="選択したファイルの内容を、右側に表示します (Alt+P)"/>
             <Button DockPanel.Dock="Right" Content="指定ペイン ▾" Margin="2,0,0,0" Padding="6,0"
                     ToolTip="既存タブ / フォルダを指定して右にペインを追加" Click="SpecifyPane_Click"/>
             <Button DockPanel.Dock="Right" Content="▥3" Width="34" Margin="2,0,0,0"
@@ -53,7 +57,7 @@
                      Text="{Binding CurrentFolder.SearchText, UpdateSourceTrigger=PropertyChanged}" KeyDown="SearchBox_KeyDown"/>
             <TextBlock DockPanel.Dock="Right" Text="検索:" Margin="10,0,2,0" VerticalAlignment="Center"/>
             <TextBox DockPanel.Dock="Right" x:Name="FilterBox" Width="120" Margin="6,0,0,0" VerticalContentAlignment="Center"
-                     ToolTip="表示中の一覧を名前で絞り込み (Ctrl+F)"
+                     ToolTip="表示中の一覧を絞り込み (Ctrl+F / 解除は Esc)&#10;&#10;名前: 文字を含むもの / *.png(ワイルドカード)/ &quot;二語 以上&quot;(引用符)&#10;-draft: 含まないもの(-type:画像 のように条件にも付けられます)&#10;type:画像 動画 音声 文書 圧縮 コード フォルダー ファイル&#10;ext:png,jpg(拡張子)&#10;size:&gt;10MB / size:&lt;=500KB / size:1MB..10MB&#10;date:今日 昨日 今週 今月 今年 / 7d(7日以内)/ &gt;2024-01-01 / 2024-01-01..2024-03-31&#10;空白で区切った条件は、すべて満たすものだけを残します"
                      Text="{Binding CurrentFolder.FilterText, UpdateSourceTrigger=PropertyChanged}" KeyDown="FilterBox_KeyDown"/>
             <TextBlock DockPanel.Dock="Right" Text="絞込:" Margin="10,0,2,0" VerticalAlignment="Center"/>
             <TextBox x:Name="PathBox" VerticalContentAlignment="Center"
@@ -65,6 +69,8 @@
                 <ColumnDefinition Width="240" MinWidth="120"/>
                 <ColumnDefinition Width="5"/>
                 <ColumnDefinition Width="*"/>
+                <ColumnDefinition x:Name="PreviewSplitterColumn" Width="0"/>
+                <ColumnDefinition x:Name="PreviewColumn" Width="0" MinWidth="0"/>
             </Grid.ColumnDefinitions>
 
             <!-- 左端: お気に入り + ツリー -->
@@ -281,6 +287,61 @@
                     </ContentControl.Resources>
                 </ContentControl>
             </Grid>
+
+            <!-- プレビューウィンドウ(選択したファイルの内容。Alt+P / 設定で表示・非表示) -->
+            <GridSplitter x:Name="PreviewSplitter" Grid.Column="3" Width="5" HorizontalAlignment="Stretch" Visibility="Collapsed"
+                          DragCompleted="PreviewSplitter_DragCompleted"/>
+            <Border x:Name="PreviewPanel" Grid.Column="4" Visibility="Collapsed" DataContext="{Binding Preview}"
+                    Background="White" BorderBrush="#FFCCCCCC" BorderThickness="1,0,0,0">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="{Binding Title}" FontWeight="SemiBold" Margin="8,6,8,2"
+                               TextTrimming="CharacterEllipsis"/>
+                    <!-- 説明: 画像・テキストのときは下に、それ以外(情報だけ)のときは上に出す -->
+                    <TextBlock Text="{Binding Info}" TextWrapping="Wrap" Margin="8,4" Foreground="#FF555555">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="DockPanel.Dock" Value="Top"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Kind}" Value="{x:Static svc:PreviewKind.Image}">
+                                        <Setter Property="DockPanel.Dock" Value="Bottom"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Kind}" Value="{x:Static svc:PreviewKind.Text}">
+                                        <Setter Property="DockPanel.Dock" Value="Bottom"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <Grid>
+                        <Image Source="{Binding Image}" Stretch="Uniform" Margin="6" RenderOptions.BitmapScalingMode="HighQuality">
+                            <Image.Style>
+                                <Style TargetType="Image">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Kind}" Value="{x:Static svc:PreviewKind.Image}">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Image.Style>
+                        </Image>
+                        <TextBox Text="{Binding Text, Mode=OneWay}" IsReadOnly="True" BorderThickness="0" Padding="8,4"
+                                 FontFamily="Consolas, MS Gothic" FontSize="12"
+                                 VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                            <TextBox.Style>
+                                <Style TargetType="TextBox">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Kind}" Value="{x:Static svc:PreviewKind.Text}">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBox.Style>
+                        </TextBox>
+                    </Grid>
+                </DockPanel>
+            </Border>
         </Grid>
     </Grid>
 </Window>

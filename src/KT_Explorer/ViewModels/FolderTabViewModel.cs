@@ -46,6 +46,18 @@ public partial class FolderTabViewModel : TabBase
 
     public ObservableCollection<FileEntry> Items { get; } = new();
 
+    /// <summary>一覧で選択中の項目(プレビューの表示に使う)。</summary>
+    public IReadOnlyList<FileEntry> Selection { get; private set; } = Array.Empty<FileEntry>();
+
+    /// <summary>選択が変わった。</summary>
+    public event Action? SelectionChanged;
+
+    public void SetSelection(IReadOnlyList<FileEntry> selection)
+    {
+        Selection = selection;
+        SelectionChanged?.Invoke();
+    }
+
     /// <summary>このタブの並べ替えの列と向き。タブごとに持ち、状態ファイルに保存する。</summary>
     public SortColumn SortColumn { get; private set; } = SortSettings.Instance.Column;
     public bool SortDescending { get; private set; } = SortSettings.Instance.Descending;
@@ -78,11 +90,36 @@ public partial class FolderTabViewModel : TabBase
     /// <summary>Items にフィルタを掛けた表示用ビュー(ListView の既定ビューと同一)。</summary>
     private readonly ICollectionView _view;
 
-    partial void OnFilterTextChanged(string value) => _view.Refresh();
+    /// <summary>絞り込みの件数の表示(「絞り込み: 12 / 40 件」)。絞り込んでいないときは空。</summary>
+    [ObservableProperty] private string? _filterNote;
 
-    private bool MatchesFilter(object o) =>
-        string.IsNullOrEmpty(FilterText) ||
-        (o is FileEntry e && e.Name.Contains(FilterText, StringComparison.CurrentCultureIgnoreCase));
+    /// <summary>絞り込みの条件のうち、解釈できなかったもの(その条件は無視される)。</summary>
+    [ObservableProperty] private string? _filterProblem;
+
+    private FilterQuery _query = FilterQuery.Empty;
+
+    partial void OnFilterTextChanged(string value)
+    {
+        _query = FilterQuery.Parse(value, DateTime.Now);
+        _view.Refresh();
+        UpdateFilterNote();
+    }
+
+    private bool MatchesFilter(object o) => o is FileEntry e && (_query.IsEmpty || _query.Matches(e));
+
+    /// <summary>絞り込み中の件数と、解釈できなかった条件を、表示用に更新する。</summary>
+    private void UpdateFilterNote()
+    {
+        if (string.IsNullOrWhiteSpace(FilterText))
+        {
+            FilterNote = null;
+            FilterProblem = null;
+            return;
+        }
+        int shown = _view.Cast<object>().Count();
+        FilterNote = _query.IsEmpty ? null : $"絞り込み: {shown} / {Items.Count} 件";
+        FilterProblem = _query.Problems.Count == 0 ? null : string.Join("、", _query.Problems);
+    }
 
     public override string ToolTipText => Path;
 
@@ -94,12 +131,20 @@ public partial class FolderTabViewModel : TabBase
 
     public void RequestActivate() => Activated?.Invoke(this);
 
-    /// <summary>項目を開く。フォルダなら移動、ファイルなら関連付けで起動。</summary>
+    /// <summary>
+    /// 項目を開く。フォルダなら移動、ファイルなら関連付けで起動。
+    /// リンク先がフォルダのショートカット(.lnk)は、エクスプローラーを開かず、リンク先のフォルダへ、この一覧のまま移動する。
+    /// </summary>
     public void Open(FileEntry entry)
     {
         if (entry.IsDirectory)
         {
             NavigateTo(entry.FullPath);
+            return;
+        }
+        if (ShortcutService.TryResolveFolder(entry.FullPath, out var target))
+        {
+            NavigateTo(target);
             return;
         }
         try
@@ -133,7 +178,9 @@ public partial class FolderTabViewModel : TabBase
     /// <summary>一覧を今すぐ読み直す。selectPath があれば、読み直し後にその項目を返す(選択用)。</summary>
     public async Task<FileEntry?> RefreshAsync(string? selectPath = null)
     {
-        await LoadAsync(Path);
+        // 検索結果を表示中は、通常の一覧に置き換えず、同じ検索をやり直して、結果に反映する
+        if (_showingSearch && !string.IsNullOrWhiteSpace(SearchText)) await SearchAsync();
+        else await LoadAsync(Path);
         return selectPath == null
             ? null
             : Items.FirstOrDefault(e => string.Equals(e.FullPath, selectPath, StringComparison.OrdinalIgnoreCase));
@@ -406,6 +453,7 @@ public partial class FolderTabViewModel : TabBase
         }
         _itemsPath = path;
         Error = error;
+        UpdateFilterNote();
         if (FolderSizeSettings.Auto) CalculateAllFolderSizes();
     }
 
@@ -458,8 +506,12 @@ public partial class FolderTabViewModel : TabBase
         {
             entry.IsCalculating = false;
         }
-        // サイズで並べているときは、計算できた値で並べ直す
-        if (!ct.IsCancellationRequested && SortColumn == SortColumn.Size) _view.Refresh();
+        // サイズで並べているときや、サイズで絞り込んでいるときは、計算できた値で並べ直す・絞り直す
+        if (!ct.IsCancellationRequested && (SortColumn == SortColumn.Size || !_query.IsEmpty))
+        {
+            _view.Refresh();
+            UpdateFilterNote();
+        }
     }
 
     /// <summary>実行中・待機中のサイズ計算をすべて中断する(別のフォルダへ移動したとき、閉じたとき)。</summary>

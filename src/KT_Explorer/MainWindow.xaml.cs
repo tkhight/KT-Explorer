@@ -42,6 +42,44 @@ public partial class MainWindow : Window
             Top = _state.Top;
         }
         if (_state.Maximized) WindowState = WindowState.Maximized;
+
+        _previewWidth = _state.PreviewWidth > 0 ? _state.PreviewWidth : 320;
+        ApplyPreviewColumns();
+        _vm.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(MainViewModel.ShowPreview)) ApplyPreviewColumns();
+        };
+    }
+
+    // ───────── プレビューウィンドウ ─────────
+
+    private double _previewWidth = 320;
+
+    /// <summary>プレビューの表示・非表示に合わせて、列の幅と部品の表示を切り替える(幅は、閉じても覚えておく)。</summary>
+    private void ApplyPreviewColumns()
+    {
+        if (_vm.ShowPreview)
+        {
+            PreviewSplitterColumn.Width = new GridLength(5);
+            PreviewColumn.Width = new GridLength(Math.Max(_previewWidth, 160));
+            PreviewColumn.MinWidth = 160;
+            PreviewSplitter.Visibility = Visibility.Visible;
+            PreviewPanel.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            if (PreviewColumn.ActualWidth > 0) _previewWidth = PreviewColumn.ActualWidth;
+            PreviewColumn.MinWidth = 0;
+            PreviewSplitterColumn.Width = new GridLength(0);
+            PreviewColumn.Width = new GridLength(0);
+            PreviewSplitter.Visibility = Visibility.Collapsed;
+            PreviewPanel.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private void PreviewSplitter_DragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e)
+    {
+        if (PreviewColumn.ActualWidth > 0) _previewWidth = PreviewColumn.ActualWidth;
     }
 
     protected override void OnSourceInitialized(EventArgs e)
@@ -99,6 +137,7 @@ public partial class MainWindow : Window
         var b = WindowState == WindowState.Normal ? new Rect(Left, Top, Width, Height) : RestoreBounds;
         s.Left = b.Left; s.Top = b.Top; s.Width = b.Width; s.Height = b.Height;
         s.Maximized = WindowState == WindowState.Maximized;
+        s.PreviewWidth = _vm.ShowPreview && PreviewColumn.ActualWidth > 0 ? PreviewColumn.ActualWidth : _previewWidth;
         StateService.Save(s);
     }
 
@@ -229,6 +268,8 @@ public partial class MainWindow : Window
             "デスクトップ等から開いた Explorer をデフォルトグループのタブへ取り込みます"));
         menu.Items.Add(Check("閉じるボタンでトレイに常駐", nameof(MainViewModel.CloseToTray),
             "オフにすると、閉じるボタンでアプリを終了します(トレイの「終了」でも終了できます)"));
+        menu.Items.Add(Check("プレビューを表示", nameof(MainViewModel.ShowPreview),
+            "一覧で選択したファイルの内容(画像・テキスト・情報)を、右側に表示します (Alt+P)"));
         menu.Items.Add(Check("フォルダーのサイズを自動計算", nameof(MainViewModel.AutoFolderSize),
             "一覧を開くと、フォルダーの合計サイズをバックグラウンドで計算して「サイズ」列に表示します(フォルダーが多い場所や、ネットワークドライブでは重くなります)。右クリックの「フォルダーのサイズを計算」でも、必要なときだけ計算できます"));
         var foldersFirst = new MenuItem
@@ -283,57 +324,71 @@ public partial class MainWindow : Window
 
     // ───────── お気に入り ─────────
 
-    /// <summary>「★ お気に入り」ボタン: 追加・編集・削除と、お気に入りの一覧を1つのメニューにまとめる。</summary>
+    /// <summary>「★ お気に入り」ボタン: 追加・整理と、お気に入りの一覧(グループはサブメニュー、区切り線つき)を1つのメニューにまとめる。</summary>
     private void Favorites_Click(object sender, RoutedEventArgs e)
     {
         var menu = new ContextMenu { PlacementTarget = (UIElement)sender, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
-        var favorites = _vm.Favorites.ToList();
 
         var add = new MenuItem { Header = "お気に入りに追加(現在のフォルダ)", IsEnabled = _vm.CurrentFolder != null };
         add.Click += (_, _) => _vm.AddCurrentToFavoritesCommand.Execute(null);
         menu.Items.Add(add);
 
-        var edit = new MenuItem { Header = "編集", IsEnabled = favorites.Count > 0 };
-        var remove = new MenuItem { Header = "削除", IsEnabled = favorites.Count > 0 };
-        foreach (var fav in favorites)
-        {
-            var f = fav;
-            var editItem = new MenuItem { Header = FavoriteLabel(f), ToolTip = f.Path };
-            editItem.Click += (_, _) => EditFavorite(f);
-            edit.Items.Add(editItem);
-            var removeItem = new MenuItem { Header = FavoriteLabel(f), ToolTip = f.Path };
-            removeItem.Click += (_, _) => _vm.RemoveFavorite(f);
-            remove.Items.Add(removeItem);
-        }
-        menu.Items.Add(edit);
-        menu.Items.Add(remove);
+        var organize = new MenuItem { Header = "お気に入りを整理…(並べ替え・グループ・区切り線・編集・削除)" };
+        organize.Click += (_, _) => Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, ManageFavorites);
+        menu.Items.Add(organize);
         menu.Items.Add(new Separator());
 
-        if (favorites.Count == 0)
-        {
+        if (_vm.Favorites.Count == 0)
             menu.Items.Add(new MenuItem { Header = "(お気に入りはありません)", IsEnabled = false });
-        }
-        foreach (var fav in favorites)
+        else
+            AddFavoriteItems(menu.Items, _vm.Favorites);
+        menu.IsOpen = true;
+    }
+
+    /// <summary>お気に入り(フォルダ・グループ・区切り線)を、メニューの項目として並べる。グループは、サブメニューにする。</summary>
+    private void AddFavoriteItems(ItemCollection target, IEnumerable<Favorite> favorites)
+    {
+        foreach (var fav in favorites.ToList())
         {
             var f = fav;
-            var item = new MenuItem { Header = FavoriteLabel(f), ToolTip = f.Path };
-            item.Click += (_, _) => OpenFavorite(f, inNewTab: false);
+            if (f.IsSeparator)
+            {
+                target.Add(new Separator());
+            }
+            else if (f.IsGroup)
+            {
+                var group = new MenuItem { Header = FavoriteLabel(f) };
+                if (f.Children.Count == 0) group.Items.Add(new MenuItem { Header = "(空)", IsEnabled = false });
+                else AddFavoriteItems(group.Items, f.Children);
+                target.Add(group);
+            }
+            else
+            {
+                var item = new MenuItem { Header = FavoriteLabel(f), ToolTip = f.Path };
+                item.Click += (_, _) => OpenFavorite(f, inNewTab: false);
 
-            // 項目を右クリックすると、その項目だけの操作が出る
-            var context = new ContextMenu();
-            var openNew = new MenuItem { Header = "新しいタブで開く" };
-            openNew.Click += (_, _) => OpenFavorite(f, inNewTab: true);
-            var editOne = new MenuItem { Header = "編集…" };
-            editOne.Click += (_, _) => EditFavorite(f);
-            var removeOne = new MenuItem { Header = "削除" };
-            removeOne.Click += (_, _) => _vm.RemoveFavorite(f);
-            context.Items.Add(openNew);
-            context.Items.Add(editOne);
-            context.Items.Add(removeOne);
-            item.ContextMenu = context;
-            menu.Items.Add(item);
+                // 項目を右クリックすると、その項目だけの操作が出る
+                var context = new ContextMenu();
+                var openNew = new MenuItem { Header = "新しいタブで開く" };
+                openNew.Click += (_, _) => OpenFavorite(f, inNewTab: true);
+                var editOne = new MenuItem { Header = "編集…" };
+                editOne.Click += (_, _) => EditFavorite(f);
+                var removeOne = new MenuItem { Header = "削除" };
+                removeOne.Click += (_, _) => _vm.RemoveFavorite(f);
+                context.Items.Add(openNew);
+                context.Items.Add(editOne);
+                context.Items.Add(removeOne);
+                item.ContextMenu = context;
+                target.Add(item);
+            }
         }
-        menu.IsOpen = true;
+    }
+
+    /// <summary>お気に入りの整理ウィンドウを開く。「OK」で、整理したものに置き換える。</summary>
+    private void ManageFavorites()
+    {
+        var window = new FavoritesWindow(_vm.Favorites) { Owner = this };
+        if (window.ShowDialog() == true) _vm.ReplaceFavorites(window.Result);
     }
 
     /// <summary>メニューの表示名。名前に「_」があっても、アクセスキーとして消えないよう TextBlock で包む。</summary>
