@@ -89,6 +89,11 @@ public partial class FolderTabViewModel : TabBase
 
     public void RequestNewItem(bool folder) => NewItemRequested?.Invoke(folder);
 
+    /// <summary>メニュー(編集)から、切り取り・コピー・貼り付け・削除・全て選択を頼まれた(一覧の画面が実行する)。</summary>
+    public event Action<EditCommand>? EditRequested;
+
+    public void RequestEdit(EditCommand command) => EditRequested?.Invoke(command);
+
     /// <summary>表示を切り替える。remember が true なら、新しく開くタブの初期の表示としても覚える(保存の復元では false)。</summary>
     public void SetViewMode(ViewMode mode, bool remember = true)
     {
@@ -645,4 +650,14 @@ public partial class FolderTabViewModel : TabBase
         string root = System.IO.Path.GetPathRoot(full) ?? "";
         return string.Equals(full, root, StringComparison.OrdinalIgnoreCase) ? root : full.TrimEnd('\\');
     }
+}
+
+/// <summary>編集メニューから一覧へ頼む操作。</summary>
+public enum EditCommand
+{
+    Cut,
+    Copy,
+    Paste,
+    Delete,
+    SelectAll,
 }

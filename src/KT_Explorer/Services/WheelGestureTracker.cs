@@ -6,11 +6,13 @@ public enum WheelAction
     None,
     PreviousTab,
     NextTab,
+    PreviousGroup,
+    NextGroup,
 }
 
 /// <summary>
 /// 「右ボタンを押したままホイールを回す」ジェスチャの状態。
-/// 右ボタンを押している間に、ホイールを上へ回すと左のタブ、下へ回すと右のタブへ切り替える。
+/// 右ボタンを押している間に、ホイールを上へ回すと左のタブ、下へ回すと右のタブへ切り替える(Ctrl を押していれば、前・次のタブグループへ)。
 /// 使ったあとに右ボタンを離したときは、右クリックのメニューを出さない(<see cref="RightUp"/> が true を返す)。
 /// </summary>
 public sealed class WheelGestureTracker
@@ -28,11 +30,15 @@ public sealed class WheelGestureTracker
         Used = false;
     }
 
-    /// <summary>ホイールを回した(上=正、下=負)。右ボタンを押している間だけ、左のタブ・右のタブを返す。</summary>
-    public WheelAction Wheel(int delta)
+    /// <summary>
+    /// ホイールを回した(上=正、下=負)。右ボタンを押している間だけ、左のタブ・右のタブを返す。
+    /// ctrl が true(Ctrl を押している)なら、前・次のタブグループを返す。
+    /// </summary>
+    public WheelAction Wheel(int delta, bool ctrl = false)
     {
         if (!IsHeld || delta == 0) return WheelAction.None;
         Used = true;
+        if (ctrl) return delta > 0 ? WheelAction.PreviousGroup : WheelAction.NextGroup;
         return delta > 0 ? WheelAction.PreviousTab : WheelAction.NextTab;
     }
 

@@ -43,4 +43,12 @@ $t = New-Tracker
 $t.RightDown($true)
 $many = 1..5 | ForEach-Object { Wheel $t 120 }
 Check 'several notches in one press each count' (($many | Where-Object { $_ -eq 'PreviousTab' }).Count -eq 5)
+# ── Ctrl つき: 前・次のタブグループ
+$t = New-Tracker
+$t.RightDown($true)
+$up = "$($t.Wheel(120, $true))"; $down = "$($t.Wheel(-120, $true))"
+Check 'Ctrl + right button + wheel up = PreviousGroup, down = NextGroup' (($up -eq 'PreviousGroup') -and ($down -eq 'NextGroup'))
+Check 'releasing after a Ctrl wheel also suppresses the context menu' ($t.RightUp() -eq $true)
+$t = New-Tracker
+Check 'Ctrl + wheel without the right button does nothing' ("$($t.Wheel(120, $true))" -eq 'None')
 Show-Result

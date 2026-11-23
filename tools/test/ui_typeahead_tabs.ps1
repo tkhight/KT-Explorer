@@ -2,7 +2,7 @@
 # 事前に: dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 # 使い方: & 'E:\KT_Applications\KT_Explorer\tools\test\ui_typeahead_tabs.ps1'
 # 操作するフォルダは %TEMP%\kt_test_typeahead の中だけ。KT_Explorer が起動中なら、閉じてからテストする(ユーザーの指示)。
-# 注意: Ctrl+W は、環境によってはキーがアプリへ届かないため、タブを閉じるには ✕ ボタンを使う。
+# 注意: Ctrl+W は、環境によってはキーがアプリへ届かないため、タブはタブの右クリックの「タブを閉じる」で閉じる(タブに ✕ は無い)。
 . (Join-Path $PSScriptRoot 'common.ps1')
 
 $d = New-TestDir 'kt_test_typeahead'
@@ -30,7 +30,7 @@ try {
     Start-Sleep -Milliseconds 1800
     Send-Keys 'ba' 500; Check "typeahead 'ba' -> banana" ((Get-SelectedName) -eq 'banana')
 
-    # ── タブ: 新規タブ → ✕ で閉じる → Ctrl+Shift+T で開き直し
+    # ── タブ: 新規タブ → 右クリックで閉じる → Ctrl+Shift+T で開き直し
     function Get-TabCount { @(Find-All 'ListItem' | Where-Object { $_.Current.Name -like '*FolderTab*' }).Count }
     $t0 = Get-TabCount
     Set-Foreground
@@ -38,12 +38,16 @@ try {
     $t1 = Get-TabCount
     Check 'Ctrl+T adds a tab' ($t1 -eq $t0 + 1)
     $last = (Find-All 'ListItem' | Where-Object { $_.Current.Name -like '*FolderTab*' })[-1]
-    $A = $global:Kt.A
-    $x = $last.FindFirst('Descendants', (New-Object Windows.Automation.PropertyCondition($A::ControlTypeProperty, [Windows.Automation.ControlType]::Button)))
-    if (-not $x) { Stop-Test 'close button of the last tab not found' }
-    $x.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep -Milliseconds 800
+    # タブの「✕」は無い。タブを右クリックして、「タブを閉じる」を選ぶ
+    $rc = $last.Current.BoundingRectangle
+    Assert-AppForeground
+    [void][KtWin]::SetCursorPos([int]($rc.X + $rc.Width / 2), [int]($rc.Y + $rc.Height / 2)); Start-Sleep -Milliseconds 500
+    [KtWin]::mouse_event(8, 0, 0, 0, [UIntPtr]::Zero); [KtWin]::mouse_event(16, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 1200
+    $close = Find-AppMenuItem 'タブを閉じる'
+    if (-not $close) { Stop-Test 'the tab context menu (Close tab) was not found' }
+    $close.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep -Milliseconds 800
     $t2 = Get-TabCount
-    Check 'close button closes the tab' ($t2 -eq $t0)
+    Check 'the tab context menu closes the tab' ($t2 -eq $t0)
     Set-Foreground
     Send-Keys '^+t' 800
     $t3 = Get-TabCount

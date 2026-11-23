@@ -61,11 +61,29 @@ try {
     Check '0) details view: rows are shown, with a column header' (((Row-Count) -ge 15) -and ((Header-Names) -contains '名前 ▲'))
 
     # ── 1) メニューで「アイコン」: 列見出しが消え、項目は同じ数。画像(サムネイル用)が並ぶ
-    Open-ViewMenu; Pick-Menu 'アイコン'
+    Open-ViewMenu; Pick-Menu '中アイコン'
     Check '1) icons view: no column headers' ((Header-Names).Count -eq 0)
     Check '1) icons view: items are shown' ((Row-Count) -ge 15)
     $images = @(Find-All 'Image' | Where-Object { -not $_.Current.IsOffscreen })
     Check '1) icons view: items show images (icons / thumbnails)' ($images.Count -ge 10)
+
+    # ── 1b) 表示メニューの並び: 大アイコン / 中アイコン / 小アイコン / 一覧 / 詳細(アイコンの大きさのサブメニューは無い)
+    Open-ViewMenu
+    $ys = @('大アイコン', '中アイコン', '小アイコン', '一覧', '詳細') | ForEach-Object { $m = Find-AppMenuItem $_; if ($m) { $m.Current.BoundingRectangle.Y } else { -1 } }
+    $inOrder = $true; for ($i = 1; $i -lt $ys.Count; $i++) { if ($ys[$i] -le $ys[$i - 1]) { $inOrder = $false } }
+    Check '1b) view menu order: Large / Medium / Small icons, List, Details' (($ys -notcontains -1) -and $inOrder)
+    Check '1b) the "icon size" submenu is gone' (-not (Find-AppMenuItem 'アイコンの大きさ'))
+    Send-Keys '{ESC}' 500; Send-Keys '{ESC}' 500
+
+    # ── 1c) 大アイコン・小アイコンで、アイコンの画像の大きさが変わる
+    function Max-ImageWidth { (@(Find-All 'Image' | Where-Object { -not $_.Current.IsOffscreen } | ForEach-Object { $_.Current.BoundingRectangle.Width }) | Measure-Object -Maximum).Maximum }
+    $mediumW = Max-ImageWidth
+    Open-ViewMenu; Pick-Menu '大アイコン'
+    $largeW = Max-ImageWidth
+    Open-ViewMenu; Pick-Menu '小アイコン'
+    $smallW = Max-ImageWidth
+    Check "1c) icon sizes differ: large ($largeW) > medium ($mediumW) > small ($smallW)" (($largeW -gt $mediumW) -and ($mediumW -gt $smallW))
+    Open-ViewMenu; Pick-Menu '中アイコン'
 
     # ── 2) アイコンでの矢印キー: 右=次、下=1行下(折り返した行の下)
     Select-Index 0

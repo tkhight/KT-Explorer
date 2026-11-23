@@ -37,7 +37,7 @@
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="0,1,4,1">
             <Button Content="▥2" Width="34" ToolTip="2ペイン(現在のフォルダを右に追加)" Command="{Binding OpenPanesCommand}" CommandParameter="2"/>
             <Button Content="▥3" Width="34" Margin="2,0,0,0" ToolTip="3ペイン(現在のフォルダを右に追加)" Command="{Binding OpenPanesCommand}" CommandParameter="3"/>
-            <Button Content="指定ペイン ▾" Margin="2,0,0,0" Padding="6,0" ToolTip="既存タブ / フォルダを指定して右にペインを追加" Click="SpecifyPane_Click"/>
+            <Button Content="指定ペイン ▾" Margin="2,0,0,0" Padding="6,0" ToolTip="2つか3つのタブ・フォルダを選んで、ペインを作成" Click="SpecifyPane_Click"/>
         </StackPanel>
         <Menu x:Name="MainMenu">
             <MenuItem Header="ファイル(_F)" SubmenuOpened="FileMenu_SubmenuOpened">
@@ -53,12 +53,22 @@
                 <MenuItem Header="アプリケーションの終了(_X)" Click="MenuExit_Click"/>
             </MenuItem>
             <!-- 以下の項目は、順に作っていく(いまは、見出しだけ) -->
-            <MenuItem x:Name="MenuEdit" Header="編集(_E)"/>
+            <MenuItem x:Name="MenuEdit" Header="編集(_E)" SubmenuOpened="EditMenu_SubmenuOpened">
+                <MenuItem x:Name="MenuUndo" Header="元に戻す(_U)" InputGestureText="Ctrl+Z" Click="MenuUndo_Click"/>
+                <MenuItem x:Name="MenuRedo" Header="やり直し(_R)" InputGestureText="Ctrl+Y" Click="MenuRedo_Click"/>
+                <Separator/>
+                <MenuItem x:Name="MenuCut" Header="切り取り(_T)" InputGestureText="Ctrl+X" Click="MenuCut_Click"/>
+                <MenuItem x:Name="MenuCopy" Header="コピー(_C)" InputGestureText="Ctrl+C" Click="MenuCopy_Click"/>
+                <MenuItem x:Name="MenuPaste" Header="貼り付け(_P)" InputGestureText="Ctrl+V" Click="MenuPaste_Click"/>
+                <MenuItem x:Name="MenuDelete" Header="削除(_D)" InputGestureText="Delete" Click="MenuDelete_Click"/>
+                <Separator/>
+                <MenuItem x:Name="MenuSelectAll" Header="全て選択(_A)" InputGestureText="Ctrl+A" Click="MenuSelectAll_Click"/>
+            </MenuItem>
             <!-- 表示・お気に入り・履歴は、開くたびに中身を作る(最初の項目は、開くための仮のもの) -->
             <MenuItem x:Name="MenuView" Header="表示(_V)" SubmenuOpened="ViewMenu_SubmenuOpened"><MenuItem Header="…"/></MenuItem>
             <MenuItem x:Name="MenuFavorites" Header="お気に入り(_A)" SubmenuOpened="FavoritesMenu_SubmenuOpened"><MenuItem Header="…"/></MenuItem>
             <MenuItem x:Name="MenuHistory" Header="履歴(_R)" SubmenuOpened="HistoryMenu_SubmenuOpened"><MenuItem Header="…"/></MenuItem>
-            <MenuItem x:Name="MenuTools" Header="ツール(_T)"/>
+            <MenuItem x:Name="MenuTools" Header="ツール(_T)" SubmenuOpened="ToolsMenu_SubmenuOpened"><MenuItem Header="…"/></MenuItem>
             <MenuItem x:Name="MenuHelp" Header="ヘルプ(_H)"/>
         </Menu>
         </DockPanel>
@@ -77,8 +87,6 @@
                     IsEnabled="{Binding CanUndo}" Click="Undo_Click"/>
             <Button DockPanel.Dock="Left" Content="↷" Width="30" Margin="2,0,6,0" ToolTip="{Binding RedoToolTip}"
                     IsEnabled="{Binding CanRedo}" Click="Redo_Click"/>
-            <Button DockPanel.Dock="Right" Content="設定 ▾" Margin="6,0,0,0" Padding="6,0"
-                    ToolTip="ツリー連動 / マウスジェスチャ / Explorer 取り込み" Click="Settings_Click"/>
             <ToggleButton DockPanel.Dock="Right" Content="プレビュー" Margin="2,0,0,0" Padding="6,0" IsChecked="{Binding ShowPreview}"
                           ToolTip="選択したファイルの内容を、右側に表示します (Alt+P)"/>
             <TextBox DockPanel.Dock="Right" x:Name="SearchBox" Width="150" Margin="6,0,0,0" VerticalContentAlignment="Center"
@@ -110,6 +118,10 @@
         </DockPanel>
 
         <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="240" MinWidth="120"/>
                 <ColumnDefinition Width="5"/>
@@ -118,8 +130,37 @@
                 <ColumnDefinition x:Name="PreviewColumn" Width="0" MinWidth="0"/>
             </Grid.ColumnDefinitions>
 
-            <!-- 左端: お気に入り + ツリー -->
-            <Grid Grid.Column="0">
+            <!-- タブグループ(全幅の行。タブをここへドロップして移動できる) -->
+            <DockPanel Grid.Row="0" Grid.ColumnSpan="5" Background="#FFE8EEF5">
+                <Button DockPanel.Dock="Right" Content="＋グループ" Padding="8,0" ToolTip="タブグループを追加"
+                        Click="AddGroup_Click"/>
+                <ListBox x:Name="GroupBar" ItemsSource="{Binding Groups}" SelectedItem="{Binding SelectedGroup}"
+                         BorderThickness="0" Background="Transparent"
+                         ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                         ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                         PreviewMouseWheel="GroupBar_PreviewMouseWheel">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Display}" Padding="6,1" FontWeight="SemiBold" AllowDrop="True"
+                                       ToolTip="タブをドロップするとこのグループへ移動"
+                                       DragOver="Group_DragOver" Drop="Group_Drop">
+                                <TextBlock.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="名前を変更" Click="RenameGroup_Click"/>
+                                        <MenuItem Header="グループを削除" Click="DeleteGroup_Click"/>
+                                    </ContextMenu>
+                                </TextBlock.ContextMenu>
+                            </TextBlock>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+
+            <!-- 左端: ツリー(グループタブの行の下) -->
+            <Grid Grid.Row="1" Grid.Column="0">
             <TreeView x:Name="FolderTree" ItemsSource="{Binding TreeRoots}"
                       PreviewMouseRightButtonDown="FolderTree_PreviewMouseRightButtonDown"
                       ContextMenuOpening="FolderTree_ContextMenuOpening"
@@ -250,47 +291,17 @@
             </TreeView>
             </Grid>
 
-            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"/>
+            <GridSplitter Grid.Row="1" Grid.Column="1" Width="5" HorizontalAlignment="Stretch"/>
 
-            <!-- 右側: タブグループバー + タブバー + 内容 -->
-            <Grid Grid.Column="2">
+            <!-- 右側: フォルダタブのバー + 内容 -->
+            <Grid Grid.Row="1" Grid.Column="2">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- タブグループ(タブをここへドロップして移動できる) -->
-                <DockPanel Grid.Row="0" Background="#FFE8EEF5">
-                    <Button DockPanel.Dock="Right" Content="＋グループ" Padding="8,0" ToolTip="タブグループを追加"
-                            Click="AddGroup_Click"/>
-                    <ListBox x:Name="GroupBar" ItemsSource="{Binding Groups}" SelectedItem="{Binding SelectedGroup}"
-                             BorderThickness="0" Background="Transparent"
-                             ScrollViewer.VerticalScrollBarVisibility="Disabled"
-                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                             PreviewMouseWheel="GroupBar_PreviewMouseWheel">
-                        <ListBox.ItemsPanel>
-                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-                        </ListBox.ItemsPanel>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding Display}" Padding="6,1" FontWeight="SemiBold" AllowDrop="True"
-                                           ToolTip="タブをドロップするとこのグループへ移動"
-                                           DragOver="Group_DragOver" Drop="Group_Drop">
-                                    <TextBlock.ContextMenu>
-                                        <ContextMenu>
-                                            <MenuItem Header="名前を変更" Click="RenameGroup_Click"/>
-                                            <MenuItem Header="グループを削除" Click="DeleteGroup_Click"/>
-                                        </ContextMenu>
-                                    </TextBlock.ContextMenu>
-                                </TextBlock>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </DockPanel>
-
                 <!-- タブバー(ホイールでタブ切替) -->
-                <DockPanel Grid.Row="1">
+                <DockPanel Grid.Row="0">
                     <Button DockPanel.Dock="Right" Content="＋" Width="28" ToolTip="新しいタブ (Ctrl+T)"
                             Command="{Binding NewTabCommand}"/>
                     <ListBox x:Name="TabBar" ItemsSource="{Binding SelectedGroup.Tabs}" SelectedItem="{Binding SelectedTab}"
@@ -310,10 +321,7 @@
                                             ContextMenuOpening="TabItem_ContextMenuOpening"
                                             DragOver="TabItem_DragOver" Drop="TabItem_Drop">
                                     <TextBlock Text="{Binding Title}" MaxWidth="200" TextTrimming="CharacterEllipsis"
-                                               VerticalAlignment="Center"/>
-                                    <Button Content="✕" Margin="6,0,0,0" Padding="3,0" BorderThickness="0" Background="Transparent"
-                                            Command="{Binding DataContext.CloseTabCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                            CommandParameter="{Binding}"/>
+                                               Margin="2,0" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -321,7 +329,7 @@
                 </DockPanel>
 
                 <!-- 内容: 通常タブ=1つの一覧 / ペインタブ=複数ペイン -->
-                <ContentControl Grid.Row="2" Content="{Binding SelectedTab}">
+                <ContentControl Grid.Row="1" Content="{Binding SelectedTab}">
                     <ContentControl.Resources>
                         <DataTemplate DataType="{x:Type vm:FolderTabViewModel}">
                             <views:FolderView/>
@@ -334,9 +342,9 @@
             </Grid>
 
             <!-- プレビューウィンドウ(選択したファイルの内容。Alt+P / 設定で表示・非表示) -->
-            <GridSplitter x:Name="PreviewSplitter" Grid.Column="3" Width="5" HorizontalAlignment="Stretch" Visibility="Collapsed"
+            <GridSplitter x:Name="PreviewSplitter" Grid.Row="1" Grid.Column="3" Width="5" HorizontalAlignment="Stretch" Visibility="Collapsed"
                           DragCompleted="PreviewSplitter_DragCompleted"/>
-            <Border x:Name="PreviewPanel" Grid.Column="4" Visibility="Collapsed" DataContext="{Binding Preview}"
+            <Border x:Name="PreviewPanel" Grid.Row="1" Grid.Column="4" Visibility="Collapsed" DataContext="{Binding Preview}"
                     Background="White" BorderBrush="#FFCCCCCC" BorderThickness="1,0,0,0">
                 <DockPanel>
                     <TextBlock DockPanel.Dock="Top" Text="{Binding Title}" FontWeight="SemiBold" Margin="8,6,8,2"
