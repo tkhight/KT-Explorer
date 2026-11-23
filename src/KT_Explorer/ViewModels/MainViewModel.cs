@@ -203,6 +203,9 @@ public partial class MainViewModel : ObservableObject
         CloseToTray = state.CloseToTray;
         SortSettings.Instance.Load(state.SortColumn, state.SortDescending, state.FoldersFirst);
         SortSettings.Instance.DefaultViewMode = state.ViewMode;
+        ViewSettings.Load(state.IconSize);
+        FolderHistory.Load(state.Visits);
+        ViewSettings.LoadColumns(state.ExtraColumns);
         AutoFolderSize = state.AutoFolderSize;
         ShowPreview = state.ShowPreview;
         foreach (var fs in state.Favorites)
@@ -366,7 +369,9 @@ public partial class MainViewModel : ObservableObject
     /// <summary>指定フォルダを新しいタブで開く(ツリー右クリック「タブ追加」)。</summary>
     public void OpenInNewTab(string path)
     {
-        if (Directory.Exists(path)) AddTab(path, select: true);
+        if (!Directory.Exists(path)) return;
+        AddTab(path, select: true);
+        FolderHistory.Record(FolderTabViewModel.Normalize(path)); // 新しいタブで開いた場所も、開いた履歴に残す
     }
 
     // 閉じたフォルダタブの履歴(新しいものが末尾)。ペインタブは対象外
@@ -677,6 +682,9 @@ public partial class MainViewModel : ObservableObject
             SortDescending = SortSettings.Instance.Descending,
             FoldersFirst = SortSettings.Instance.FoldersFirst,
             ViewMode = SortSettings.Instance.DefaultViewMode,
+            IconSize = ViewSettings.IconSize,
+            Visits = FolderHistory.ToState(),
+            ExtraColumns = ViewSettings.ExtraColumns.ToList(),
             AutoFolderSize = AutoFolderSize,
             ShowPreview = ShowPreview,
             SelectedGroupIndex = Groups.IndexOf(_selectedGroup),

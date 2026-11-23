@@ -24,12 +24,24 @@ public sealed class FilterQuery
     /// <summary>解釈できなかった条件(その条件は無視される)。</summary>
     public IReadOnlyList<string> Problems => _problems;
 
-    public bool IsEmpty => _conditions.Count == 0;
+    public bool IsEmpty => _conditions.Count == 0 && _content.Count == 0;
 
-    public bool Matches(FileEntry entry)
+    /// <summary>中身の条件(content:語)。ファイルを読むため、検索でだけ使い、絞込欄では使わない。</summary>
+    private readonly List<(string Term, bool Negate)> _content = new();
+
+    /// <summary>中身の条件があるか。</summary>
+    public bool HasContent => _content.Count > 0;
+
+    /// <summary>名前・種類・サイズ・日付の条件を満たし、かつ(あれば)中身の条件も満たすか。中身は、他の条件を満たしたものだけ読む。</summary>
+    public bool Matches(FileEntry entry, CancellationToken ct = default)
     {
         foreach (var condition in _conditions)
             if (!condition(entry)) return false;
+        foreach (var (term, negate) in _content)
+        {
+            bool found = !entry.IsDirectory && ContentSearch.FileContains(entry.FullPath, term, ct);
+            if (found == negate) return false;
+        }
         return true;
     }
 
@@ -59,7 +71,7 @@ public sealed class FilterQuery
     private static readonly HashSet<string> FolderTypes = new(StringComparer.OrdinalIgnoreCase) { "フォルダー", "フォルダ", "folder", "folders", "dir" };
     private static readonly HashSet<string> FileTypes = new(StringComparer.OrdinalIgnoreCase) { "ファイル", "file", "files" };
 
-    public static FilterQuery Parse(string? text, DateTime now)
+    public static FilterQuery Parse(string? text, DateTime now, bool allowContent = false)
     {
         var query = new FilterQuery();
         if (string.IsNullOrWhiteSpace(text)) return query;
@@ -90,11 +102,16 @@ public sealed class FilterQuery
                     case "date" or "日付" or "更新":
                         condition = ParseDate(value, now);
                         break;
+                    case "content" or "中身" or "本文":
+                        if (value.Length == 0) break;
+                        if (!allowContent) { query._problems.Add($"中身の条件は、検索欄で使えます: {token}"); continue; }
+                        query._content.Add((value, negate));
+                        continue; // 通常の条件ではなく、別に持つ(読み込みが重いので、最後に判定する)
                     default:
                         condition = Name(token); // 「a:b」のような、条件ではない名前
                         break;
                 }
-                if (condition == null && key is "type" or "種類" or "ext" or "拡張子" or "size" or "サイズ" or "date" or "日付" or "更新")
+                if (condition == null && key is "type" or "種類" or "ext" or "拡張子" or "size" or "サイズ" or "date" or "日付" or "更新" or "content" or "中身" or "本文")
                 {
                     query._problems.Add($"条件を解釈できません: {token}");
                     continue; // その条件は無視する(全部を隠してしまわない)

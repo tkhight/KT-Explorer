@@ -119,7 +119,7 @@ try {
     Check 'folder size: not calculated until requested' ($szEntry.IsDirectory -and $null -eq $szEntry.Size -and $szEntry.SizeText -eq '')
     $arr = [Array]::CreateInstance($FE, 1); $arr.SetValue($szEntry, 0)
     $tab.CalculateFolderSizes($arr)
-    for ($i = 0; $i -lt 100 -and $null -eq $szEntry.Size; $i++) { Start-Sleep -Milliseconds 100 }
+    for ($i = 0; $i -lt 100 -and ($null -eq $szEntry.Size -or $szEntry.IsCalculating); $i++) { Start-Sleep -Milliseconds 100 }
     Check 'folder size: calculated through the tab (600 B)' ($szEntry.Size -eq 600 -and $szEntry.SizeText -eq '600 B')
     Check 'folder size: not calculating any more' (-not $szEntry.IsCalculating)
     $tab.Dispose()

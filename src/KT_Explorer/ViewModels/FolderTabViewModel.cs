@@ -194,11 +194,16 @@ public partial class FolderTabViewModel : TabBase
         _refreshTimer.Tick += (_, _) =>
         {
             _refreshTimer.Stop();
-            if (!_disposed && !_showingSearch) _ = LoadAsync(Path);
+            if (_disposed) return;
+            FolderSizeCache.InvalidateUp(Path); // このフォルダの中身が変わった: このフォルダと、上位のフォルダのサイズの記憶は古い
+            if (!_showingSearch) _ = LoadAsync(Path);
         };
 
         NavigateTo(path, recordHistory: false);
+        _recordVisits = true; // 作った(復元した)ときの場所は、開いた履歴に数えない
     }
+
+    private bool _recordVisits;
 
     /// <summary>一覧を今すぐ読み直す。selectPath があれば、読み直し後にその項目を返す(選択用)。</summary>
     public async Task<FileEntry?> RefreshAsync(string? selectPath = null)
@@ -358,9 +363,18 @@ public partial class FolderTabViewModel : TabBase
 
         try
         {
-            int total = await Task.Run(() => SearchCore(root, query, progress, cts.Token), cts.Token);
+            var parsed = FilterQuery.Parse(query, DateTime.Now, allowContent: true);
+            if (parsed.IsEmpty)
+            {
+                Status = parsed.Problems.Count > 0 ? string.Join(" / ", parsed.Problems) : "検索条件がありません";
+                return;
+            }
+            int total = await Task.Run(() => SearchCore(root, parsed, progress, cts.Token), cts.Token);
             if (!cts.IsCancellationRequested)
-                Status = total >= MaxSearchResults ? $"{total} 件(上限に達したため打ち切り)" : $"{total} 件";
+            {
+                string note = parsed.Problems.Count > 0 ? "  ※" + string.Join(" / ", parsed.Problems) : "";
+                Status = (total >= MaxSearchResults ? $"{total} 件(上限に達したため打ち切り)" : $"{total} 件") + note;
+            }
         }
         catch (OperationCanceledException)
         {
@@ -377,9 +391,8 @@ public partial class FolderTabViewModel : TabBase
         Status = null;
     }
 
-    private static int SearchCore(string root, string query, IProgress<(List<FileEntry> Batch, int Folders)> progress, CancellationToken ct)
+    internal static int SearchCore(string root, FilterQuery query, IProgress<(List<FileEntry> Batch, int Folders)> progress, CancellationToken ct)
     {
-        var match = MakeMatcher(query);
         var pending = new Stack<string>();
         pending.Push(root);
         var batch = new List<FileEntry>();
@@ -407,9 +420,10 @@ public partial class FolderTabViewModel : TabBase
                 ct.ThrowIfCancellationRequested();
                 if ((info.Attributes & (FileAttributes.Hidden | FileAttributes.System)) != 0) continue;
 
-                if (match(info.Name))
+                var entry = new FileEntry(info, System.IO.Path.GetRelativePath(root, info.FullName));
+                if (query.Matches(entry, ct))
                 {
-                    batch.Add(new FileEntry(info, System.IO.Path.GetRelativePath(root, info.FullName)));
+                    batch.Add(entry);
                     total++;
                     if (total >= MaxSearchResults) break;
                 }
@@ -446,6 +460,7 @@ public partial class FolderTabViewModel : TabBase
         CanGoForward = _forward.Count > 0;
         CanGoUp = Directory.GetParent(path) != null;
         PathChanged?.Invoke(this);
+        if (_recordVisits) FolderHistory.Record(path); // 開いたフォルダの履歴(戻る・進むも含む)
         CancelFolderSizes();
         ResetWatcher(path);
         _ = LoadAsync(path);
@@ -478,6 +493,7 @@ public partial class FolderTabViewModel : TabBase
         }
         _itemsPath = path;
         Error = error;
+        PrefillFolderSizes(entries);
         UpdateFilterNote();
         if (FolderSizeSettings.Auto) CalculateAllFolderSizes();
     }
@@ -486,6 +502,13 @@ public partial class FolderTabViewModel : TabBase
 
     private CancellationTokenSource _sizeCts = new();
     private readonly SemaphoreSlim _sizeLock = new(1, 1); // 1つずつ順に計算する(ディスクやネットワークを同時に叩かない)
+
+    /// <summary>計算済み(記憶してある)のフォルダのサイズは、計算し直さず、すぐに表示する(別のフォルダへ移って戻ったときなど)。</summary>
+    private static void PrefillFolderSizes(IEnumerable<FileEntry> entries)
+    {
+        foreach (var e in entries)
+            if (e.IsDirectory && e.Size == null && FolderSizeCache.TryGet(e.FullPath, out long size)) e.Size = size;
+    }
 
     /// <summary>一覧のすべてのフォルダのサイズを、バックグラウンドで計算する。</summary>
     public void CalculateAllFolderSizes() => CalculateFolderSizes(Items.Where(e => e.IsDirectory).ToList());
@@ -500,19 +523,30 @@ public partial class FolderTabViewModel : TabBase
         foreach (var entry in folders.Where(e => e.IsDirectory && !e.IsCalculating && (recalculate || e.Size == null)).ToList())
         {
             entry.IsCalculating = true;
-            _ = CalculateOneAsync(entry, ct);
+            _ = CalculateOneAsync(entry, ct, useCache: !recalculate);
         }
     }
 
-    private async Task CalculateOneAsync(FileEntry entry, CancellationToken ct)
+    private async Task CalculateOneAsync(FileEntry entry, CancellationToken ct, bool useCache)
     {
         try
         {
             await _sizeLock.WaitAsync(ct);
             try
             {
-                long size = await Task.Run(() => FolderSizeService.Calculate(entry.FullPath, ct), ct);
-                if (!ct.IsCancellationRequested) entry.Size = size;
+                if (useCache && FolderSizeCache.TryGet(entry.FullPath, out long cached))
+                {
+                    if (!ct.IsCancellationRequested) entry.Size = cached;
+                }
+                else
+                {
+                    long size = await Task.Run(() => FolderSizeService.Calculate(entry.FullPath, ct), ct);
+                    if (!ct.IsCancellationRequested)
+                    {
+                        entry.Size = size;
+                        FolderSizeCache.Set(entry.FullPath, size);
+                    }
+                }
             }
             finally
             {

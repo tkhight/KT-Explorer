@@ -28,6 +28,13 @@ try {
     $m.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep -Milliseconds 2500
     Check '1) manual calculation shows the size (2 KB)' (Has-Text '2 KB')
 
+    # ── 1b) 別のフォルダへ移って戻っても、計算済みのサイズは、計算し直さずに(自動計算がオフのまま)すぐ表示される
+    Move-To $d
+    Check '1b) in the parent folder the cached size is not shown for other folders' (-not (Has-Text '2 KB'))
+    Move-To $manual
+    Start-Sleep -Milliseconds 800
+    Check '1b) back in the folder: the size calculated earlier is shown again at once (from the cache, auto calculation is off)' (Has-Text '2 KB')
+
     # ── 2) 自動: 設定で「フォルダーのサイズを自動計算」をオン → 別のフォルダへ移動すると、操作なしで計算される
     Set-Foreground
     $settings = Find-All 'Button' | Where-Object { $_.Current.Name -like '設定*' } | Select-Object -First 1

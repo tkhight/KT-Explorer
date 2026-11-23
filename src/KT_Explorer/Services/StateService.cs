@@ -37,8 +37,19 @@ public sealed class FavoriteState
     public List<FavoriteState> Children { get; set; } = new();
 }
 
+/// <summary>開いたフォルダの履歴の1件(状態ファイル用)。</summary>
+public sealed class VisitState
+{
+    public string Path { get; set; } = "";
+    public int Count { get; set; }
+    public DateTime LastVisited { get; set; }
+}
+
 public sealed class AppState
 {
+    /// <summary>開いたフォルダの履歴(最近開いたフォルダ・よく開くフォルダ・パス欄の補完に使う)。</summary>
+    public List<VisitState> Visits { get; set; } = new();
+
     public List<FavoriteState> Favorites { get; set; } = new();
 
     /// <summary>右ボタンドラッグのマウスジェスチャ(左=戻る / 右=進む / 上=一つ上)。</summary>
@@ -62,6 +73,12 @@ public sealed class AppState
 
     /// <summary>新しく開くタブの初期の表示(最後に切り替えた表示)。</summary>
     public KT_Explorer.Models.ViewMode ViewMode { get; set; } = KT_Explorer.Models.ViewMode.Details;
+
+    /// <summary>詳細表示で追加している列(created / attributes / dimensions / duration)。</summary>
+    public List<string> ExtraColumns { get; set; } = new();
+
+    /// <summary>アイコン表示の大きさ(小・中・大)。</summary>
+    public IconSize IconSize { get; set; } = IconSize.Medium;
 
     /// <summary>プレビューウィンドウを表示する。</summary>
     public bool ShowPreview { get; set; }

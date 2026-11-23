@@ -33,10 +33,10 @@ try {
     $entries = @(Get-ChildItem -LiteralPath $d -Force | ForEach-Object {
         [System.Activator]::CreateInstance($FE, [object[]]@($_.PSObject.BaseObject, $null)) })
     function Names([string]$query) {
-        $q = $FQ.GetMethod('Parse').Invoke($null, [object[]]@($query, $now))
+        $q = $FQ.GetMethod('Parse').Invoke($null, [object[]]@($query, $now, $false))
         (@($entries | Where-Object { $q.Matches($_) } | ForEach-Object { $_.Name } | Sort-Object) -join ',')
     }
-    function Problems([string]$query) { $q = $FQ.GetMethod('Parse').Invoke($null, [object[]]@($query, $now)); @($q.Problems) }
+    function Problems([string]$query) { $q = $FQ.GetMethod('Parse').Invoke($null, [object[]]@($query, $now, $false)); @($q.Problems) }
 
     # ── 名前
     Check 'empty query: everything'                   ((Names '') -eq 'a.png,b.jpg,c.txt,d.zip,notes draft.md,report_final.docx,sub')

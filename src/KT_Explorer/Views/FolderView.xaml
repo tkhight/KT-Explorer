@@ -22,8 +22,9 @@
 
         <!-- アイコン: 大きなアイコン(画像・動画などはサムネイル)の下に、名前 -->
         <DataTemplate x:Key="IconItemTemplate">
-            <StackPanel Width="108" Margin="2" ToolTip="{Binding Name}">
-                <Image Source="{Binding Thumbnail}" Width="80" Height="80" Stretch="Uniform" HorizontalAlignment="Center"
+            <StackPanel Width="{DynamicResource IconItemWidth}" Margin="2" ToolTip="{Binding Name}">
+                <Image Source="{Binding Thumbnail}" Width="{DynamicResource IconImageSize}" Height="{DynamicResource IconImageSize}"
+                       Stretch="Uniform" HorizontalAlignment="Center"
                        RenderOptions.BitmapScalingMode="HighQuality"/>
                 <TextBlock Text="{Binding Name}" Tag="NameText" Style="{StaticResource NameTextStyle}" Margin="0,2,0,0"
                            TextAlignment="Center" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="34"/>
@@ -72,7 +73,7 @@
                   PreviewMouseMove="FileList_PreviewMouseMove"
                   PreviewMouseRightButtonDown="FileList_PreviewMouseRightButtonDown"
                   ContextMenuOpening="FileList_ContextMenuOpening"
-                  PreviewKeyDown="FileList_PreviewKeyDown"
+                  PreviewKeyDown="FileList_PreviewKeyDown" PreviewMouseWheel="FileList_PreviewMouseWheel" PreviewMouseRightButtonUp="FileList_PreviewMouseRightButtonUp"
                   GridViewColumnHeader.Click="ColumnHeader_Click"
                   SelectionChanged="FileList_SelectionChanged"
                   DragOver="FileList_DragOver" Drop="FileList_Drop">
