@@ -26,6 +26,12 @@ public sealed class FavoriteState
 {
     public string Name { get; set; } = "";
     public string Path { get; set; } = "";
+
+    /// <summary>フォルダ / グループ / 区切り線。古い状態ファイルには無い(その場合はフォルダ)。</summary>
+    public KT_Explorer.Models.FavoriteKind Kind { get; set; } = KT_Explorer.Models.FavoriteKind.Folder;
+
+    /// <summary>グループの中身。</summary>
+    public List<FavoriteState> Children { get; set; } = new();
 }
 
 public sealed class AppState
@@ -50,6 +56,12 @@ public sealed class AppState
 
     /// <summary>一覧を開いたとき、フォルダの合計サイズを自動で計算する(重いので既定はオフ)。</summary>
     public bool AutoFolderSize { get; set; }
+
+    /// <summary>プレビューウィンドウを表示する。</summary>
+    public bool ShowPreview { get; set; }
+
+    /// <summary>プレビューウィンドウの幅。</summary>
+    public double PreviewWidth { get; set; } = 320;
 
     /// <summary>タブグループ(先頭がデフォルトグループ)。</summary>
     public List<GroupState> Groups { get; set; } = new();

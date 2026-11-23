@@ -17,7 +17,15 @@
       "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_folder_size.ps1')",
       "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_pane_width.ps1')",
       "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_sort_tabs.ps1')",
-      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_tree_click.ps1')"
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_tree_click.ps1')",
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\logic_preview.ps1')",
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\logic_filter.ps1')",
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\logic_favorites.ps1')",
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_preview.ps1')",
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_filter.ps1')",
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_favorites.ps1')",
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\logic_shortcut.ps1')",
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_shortcut.ps1')"
     ]
   }
 }

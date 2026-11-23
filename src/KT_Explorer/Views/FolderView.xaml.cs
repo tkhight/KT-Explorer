@@ -59,6 +59,9 @@ public partial class FolderView : UserControl
         CommitRename(entry, entry.EditName);
     }
 
+    /// <summary>選択が変わったことを、タブへ伝える(プレビューの表示に使う)。</summary>
+    private void FileList_SelectionChanged(object sender, SelectionChangedEventArgs e) => Vm?.SetSelection(Selected);
+
     // ───────── 列見出しクリックでの並べ替え ─────────
 
     private static readonly string[] ColumnNames = { "名前", "更新日時", "種類", "サイズ" };
@@ -486,8 +489,11 @@ public partial class FolderView : UserControl
         {
             var single = sel.Count == 1 ? sel[0] : null;
             Add("開く", () => { if (single != null) vm.Open(single); }, "Enter", single != null, bold: true);
-            if (single is { IsDirectory: true })
-                Add("新しいタブで開く", () => (Application.Current.MainWindow?.DataContext as MainViewModel)?.OpenInNewTab(single.FullPath));
+            // フォルダ、または、リンク先がフォルダのショートカット
+            var openTarget = single == null ? null : single.IsDirectory ? single.FullPath
+                : ShortcutService.TryResolveFolder(single.FullPath, out var linked) ? linked : null;
+            if (openTarget != null)
+                Add("新しいタブで開く", () => (Application.Current.MainWindow?.DataContext as MainViewModel)?.OpenInNewTab(openTarget));
             menu.Items.Add(new Separator());
             Add("切り取り", () => CopySelection(cut: true), "Ctrl+X");
             Add("コピー", () => CopySelection(cut: false), "Ctrl+C");
@@ -626,8 +632,8 @@ public partial class FolderView : UserControl
             case "paste":
                 Paste(onItem && single is { IsDirectory: true } ? single.FullPath : null);
                 return true;
-            case "open" when onItem && single is { IsDirectory: true }:
-                vm.Open(single);                       // 別のエクスプローラーを開かず、このタブで開く
+            case "open" when onItem && single != null && (single.IsDirectory || ShortcutService.TryResolveFolder(single.FullPath, out _)):
+                vm.Open(single);                       // 別のエクスプローラーを開かず、このタブで開く(リンク先がフォルダのショートカットも)
                 return true;
             case "refresh" when !onItem:
                 vm.Reload();

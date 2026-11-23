@@ -18,6 +18,7 @@
                   PreviewMouseRightButtonDown="FileList_PreviewMouseRightButtonDown"
                   ContextMenuOpening="FileList_ContextMenuOpening"
                   GridViewColumnHeader.Click="ColumnHeader_Click"
+                  SelectionChanged="FileList_SelectionChanged"
                   DragOver="FileList_DragOver" Drop="FileList_Drop">
             <ListView.View>
                 <GridView>
@@ -72,6 +73,8 @@
 
         <StackPanel Grid.Row="1" Orientation="Horizontal">
             <TextBlock Margin="6,2" Foreground="DimGray" Text="{Binding Status}"/>
+            <TextBlock Margin="6,2" Foreground="DimGray" Text="{Binding FilterNote}"/>
+            <TextBlock Margin="6,2" Foreground="DarkOrange" Text="{Binding FilterProblem}"/>
             <TextBlock Margin="6,2" Foreground="Firebrick" Text="{Binding Error}"/>
         </StackPanel>
     </Grid>
