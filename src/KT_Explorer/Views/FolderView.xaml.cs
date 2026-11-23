@@ -128,12 +128,16 @@ public partial class FolderView : UserControl
         {
             _sortTab.SortChanged -= UpdateSortHeaders;
             _sortTab.ViewModeChanged -= ApplyViewMode;
+            _sortTab.NewItemRequested -= NewItem;
+            _sortTab.EditRequested -= OnEditRequested;
         }
         _sortTab = tab;
         if (_sortTab != null)
         {
             _sortTab.SortChanged += UpdateSortHeaders;
             _sortTab.ViewModeChanged += ApplyViewMode;
+            _sortTab.NewItemRequested += NewItem;
+            _sortTab.EditRequested += OnEditRequested;
         }
         UpdateSortHeaders();
         ApplyViewMode();
@@ -561,6 +565,20 @@ public partial class FolderView : UserControl
         _renameCandidate = null;
         if (candidate != null && FileList.SelectedItems.Count == 1 && ReferenceEquals(FileList.SelectedItem, candidate))
             StartRename(candidate);
+    }
+
+    // ───────── 編集メニューからの操作 ─────────
+
+    private void OnEditRequested(EditCommand command)
+    {
+        switch (command)
+        {
+            case EditCommand.Cut: CopySelection(cut: true); break;
+            case EditCommand.Copy: CopySelection(cut: false); break;
+            case EditCommand.Paste: Paste(null); break;
+            case EditCommand.Delete: DeleteSelection(permanent: false); break;
+            case EditCommand.SelectAll: FileList.SelectAll(); break;
+        }
     }
 
     // ───────── 新規作成 ─────────

@@ -521,12 +521,15 @@ public partial class MainViewModel : ObservableObject
         CreatePaneTab(Enumerable.Repeat(path, count));
     }
 
-    /// <summary>指定フォルダを右ペインとして追加する(既存タブ選択 / フォルダ指定モード)。</summary>
-    public void AddPane(string path)
+    /// <summary>
+    /// 指定した 2 つか 3 つのフォルダで、ペインを作る(「指定ペイン」の「既存タブから選択」「フォルダを指定」)。
+    /// カレントタブの右隣に、新しいペインタブとして作り、選択する。存在しないフォルダが含まれるときや、数が 2〜3 でないときは、何もせず false。
+    /// </summary>
+    public bool CreatePanes(IReadOnlyList<string> paths)
     {
-        if (!Directory.Exists(path)) return;
-        if (_selectedTab is PaneTabViewModel existing) existing.AddPane(path);
-        else if (_selectedTab is FolderTabViewModel f) CreatePaneTab(new[] { f.Path, path });
+        if (!PaneRequest.IsValidCount(paths.Count) || paths.Any(p => !Directory.Exists(p))) return false;
+        CreatePaneTab(paths);
+        return true;
     }
 
     /// <summary>既存タブから選ぶための候補(全グループのフォルダタブ)。</summary>

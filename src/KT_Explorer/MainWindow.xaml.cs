@@ -28,6 +28,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        Deactivated += (_, _) => EndGestureTracking(); // 右ボタンを押したまま別のウィンドウへ移ったときの保険
         _state = StateService.Load();
         _vm = new MainViewModel(_state);
         DataContext = _vm;
@@ -51,12 +52,148 @@ public partial class MainWindow : Window
         };
     }
 
+    // ───────── メニューバー: 編集 ─────────
+
+    /// <summary>
+    /// 編集メニューの対象の入力欄。パス欄・絞込欄・検索欄・名前の入力中などの、文字の入力欄にフォーカスがあるときは、その入力欄(文字の操作)。
+    /// なければ null(ファイルの操作)。メニューを開いている間も、論理的なフォーカスは、直前の場所に残る。
+    /// </summary>
+    private TextBox? ActiveTextBox() => FocusManager.GetFocusedElement(this) as TextBox ?? Keyboard.FocusedElement as TextBox;
+
+    /// <summary>編集メニューを開くとき、いまできる項目だけを有効にする。</summary>
+    private void EditMenu_SubmenuOpened(object sender, RoutedEventArgs e)
+    {
+        if (!IsOwnOpen(sender, e)) return;
+        var tb = ActiveTextBox();
+        var tab = Target;
+        bool folder = tab != null && System.IO.Directory.Exists(tab.Path);
+        bool hasSelection = tab != null && tab.Selection.Count > 0;
+
+        if (tb != null)
+        {
+            MenuUndo.IsEnabled = tb.CanUndo;
+            MenuRedo.IsEnabled = tb.CanRedo;
+            MenuCut.IsEnabled = tb.SelectionLength > 0 && !tb.IsReadOnly;
+            MenuCopy.IsEnabled = tb.SelectionLength > 0;
+            MenuPaste.IsEnabled = !tb.IsReadOnly && Clipboard.ContainsText();
+            MenuDelete.IsEnabled = !tb.IsReadOnly && (tb.SelectionLength > 0 || tb.CaretIndex < tb.Text.Length);
+            MenuSelectAll.IsEnabled = tb.Text.Length > 0;
+            MenuUndo.ToolTip = MenuRedo.ToolTip = null;
+        }
+        else
+        {
+            MenuUndo.IsEnabled = _vm.CanUndo;
+            MenuRedo.IsEnabled = _vm.CanRedo;
+            MenuUndo.ToolTip = _vm.UndoToolTip;
+            MenuRedo.ToolTip = _vm.RedoToolTip;
+            MenuCut.IsEnabled = hasSelection;
+            MenuCopy.IsEnabled = hasSelection;
+            MenuPaste.IsEnabled = folder && !tab!.IsShowingSearch && ClipboardService.GetFiles() != null;
+            MenuDelete.IsEnabled = hasSelection;
+            MenuSelectAll.IsEnabled = folder;
+        }
+    }
+
+    private void MenuUndo_Click(object sender, RoutedEventArgs e) { if (ActiveTextBox() is { } tb) tb.Undo(); else Undo(); }
+
+    private void MenuRedo_Click(object sender, RoutedEventArgs e) { if (ActiveTextBox() is { } tb) tb.Redo(); else Redo(); }
+
+    private void MenuCut_Click(object sender, RoutedEventArgs e) { if (ActiveTextBox() is { } tb) tb.Cut(); else Target?.RequestEdit(EditCommand.Cut); }
+
+    private void MenuCopy_Click(object sender, RoutedEventArgs e) { if (ActiveTextBox() is { } tb) tb.Copy(); else Target?.RequestEdit(EditCommand.Copy); }
+
+    private void MenuPaste_Click(object sender, RoutedEventArgs e) { if (ActiveTextBox() is { } tb) tb.Paste(); else Target?.RequestEdit(EditCommand.Paste); }
+
+    private void MenuDelete_Click(object sender, RoutedEventArgs e)
+    {
+        if (ActiveTextBox() is { } tb) System.Windows.Documents.EditingCommands.Delete.Execute(null, tb);
+        else Target?.RequestEdit(EditCommand.Delete);
+    }
+
+    private void MenuSelectAll_Click(object sender, RoutedEventArgs e) { if (ActiveTextBox() is { } tb) tb.SelectAll(); else Target?.RequestEdit(EditCommand.SelectAll); }
+
+    // ───────── メニューバー: ファイル ─────────
+
+    /// <summary>操作の対象にするフォルダ(操作中のタブ・ペインのフォルダ)。</summary>
+    private FolderTabViewModel? Target => _vm.CurrentFolder;
+
+    /// <summary>ファイルメニューを開くとき、いまできない項目を無効にする。</summary>
+    private void FileMenu_SubmenuOpened(object sender, RoutedEventArgs e)
+    {
+        bool hasFolder = Target != null && System.IO.Directory.Exists(Target.Path);
+        MenuOpenTerminal.IsEnabled = hasFolder;
+        MenuNew.IsEnabled = hasFolder && !Target!.IsShowingSearch; // 検索結果の上には作れない(作る場所が決まらない)
+        MenuProperties.IsEnabled = hasFolder;
+    }
+
+    private void MenuOpenTerminal_Click(object sender, RoutedEventArgs e)
+    {
+        // 選択がフォルダ 1 つならその中で、そうでなければ、表示中のフォルダで開く
+        if (Target != null) FolderActions.OpenTerminal(TerminalFolder(Target));
+    }
+
+    /// <summary>ターミナルを開くフォルダ: 選択が 1 つのフォルダならそのフォルダ、それ以外は表示中のフォルダ。</summary>
+    internal static string TerminalFolder(FolderTabViewModel tab)
+    {
+        if (tab.Selection.Count == 1 && tab.Selection[0].IsDirectory) return tab.Selection[0].FullPath;
+        return tab.Path;
+    }
+
+    private void MenuNewFolder_Click(object sender, RoutedEventArgs e) => Target?.RequestNewItem(folder: true);
+
+    private void MenuNewTextFile_Click(object sender, RoutedEventArgs e) => Target?.RequestNewItem(folder: false);
+
+    private void MenuProperties_Click(object sender, RoutedEventArgs e)
+    {
+        if (Target == null) return;
+        // 選択が 1 つならその項目の、それ以外は表示中のフォルダのプロパティ
+        FolderActions.ShowProperties(Target.Selection.Count == 1 ? Target.Selection[0].FullPath : Target.Path);
+    }
+
+    private void MenuExit_Click(object sender, RoutedEventArgs e) => ExitApp();
+
+    /// <summary>
+    /// WinMerge で比較する対象。選択が 2 つなら、その 2 つ。選択が 2 つでなく、ペインが 2 つ以上あれば、操作中のペインと、その右隣(右端なら左端)のペインのフォルダ。
+    /// それ以外は、何も渡さず WinMerge だけを起動する。
+    /// </summary>
+    private List<string> WinMergeTargets()
+    {
+        var tab = Target;
+        if (tab == null) return new List<string>();
+        if (tab.Selection.Count == 2) return tab.Selection.Select(s => s.FullPath).ToList();
+        if (tab.Selection.Count <= 1 && _vm.SelectedTab is PaneTabViewModel pane && pane.Panes.Count >= 2 && pane.ActivePane != null)
+        {
+            int i = pane.Panes.IndexOf(pane.ActivePane);
+            var other = pane.Panes[(i + 1) % pane.Panes.Count];
+            return new List<string> { pane.ActivePane.Path, other.Path };
+        }
+        return new List<string>();
+    }
+
+    private void MenuWinMerge_Click(object sender, RoutedEventArgs e)
+    {
+        var targets = WinMergeTargets();
+        var args = WinMergeService.BuildArguments(targets);
+        if (args == null)
+        {
+            MessageBox.Show("ファイルとフォルダーは、いっしょに比較できません。同じ種類の 2 つを選んでください。", "KT_Explorer", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        if (!WinMergeService.Launch(args, out var error))
+            MessageBox.Show(error, "KT_Explorer", MessageBoxButton.OK, MessageBoxImage.Warning);
+    }
+
     // ───────── 履歴(最近開いたフォルダ・よく開くフォルダ) ─────────
 
-    /// <summary>「履歴 ▾」ボタン: 最近開いたフォルダと、よく開くフォルダ。クリックで開き、Ctrl+クリックで新しいタブで開く。</summary>
-    private void History_Click(object sender, RoutedEventArgs e)
+    /// <summary>メニューを開くとき、入れ子のメニューから伝わってきた通知は無視する(自分自身が開かれたときだけ、中身を作り直す)。</summary>
+    private static bool IsOwnOpen(object sender, RoutedEventArgs e) => ReferenceEquals(e.OriginalSource, sender);
+
+    /// <summary>「履歴」メニュー: 最近開いたフォルダと、よく開くフォルダ。クリックで開き、Ctrl+クリックで新しいタブで開く。</summary>
+    private void HistoryMenu_SubmenuOpened(object sender, RoutedEventArgs e)
     {
-        var menu = new ContextMenu { PlacementTarget = (UIElement)sender, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+        if (!IsOwnOpen(sender, e)) return;
+        var menu = (MenuItem)sender;
+        menu.Items.Clear();
 
         // 存在するフォルダだけを出す(消えた・つながらない場所は、出さない)
         static IEnumerable<FolderVisit> Existing(IEnumerable<FolderVisit> visits, int count) =>
@@ -97,38 +234,41 @@ public partial class MainWindow : Window
             clear.Click += (_, _) => FolderHistory.Clear();
             menu.Items.Add(clear);
         }
-        menu.IsOpen = true;
     }
 
     // ───────── 表示の切り替え・並べ替え ─────────
 
-    /// <summary>「表示 ▾」ボタン: 一覧の表示(詳細・アイコン・一覧)と、並べ替え(アイコン・一覧には列見出しが無いため、ここからも選べる)。</summary>
-    private void View_Click(object sender, RoutedEventArgs e)
+    /// <summary>「表示」メニュー: 一覧の表示(詳細・アイコン・一覧)と、並べ替え(アイコン・一覧には列見出しが無いため、ここからも選べる)。</summary>
+    private void ViewMenu_SubmenuOpened(object sender, RoutedEventArgs e)
     {
+        if (!IsOwnOpen(sender, e)) return;
+        var menu = (MenuItem)sender;
+        menu.Items.Clear();
         var tab = _vm.CurrentFolder;
-        if (tab == null) return;
-        var menu = new ContextMenu { PlacementTarget = (UIElement)sender, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+        if (tab == null) { menu.Items.Add(new MenuItem { Header = "(フォルダを開いていません)", IsEnabled = false }); AddViewSettings(menu.Items); return; }
 
-        void Mode(string header, ViewMode mode, string gesture)
+        // 表示の種類。上から: 大アイコン / 中アイコン / 小アイコン / 一覧 / 詳細(アイコンの大きさは、全タブ共通の設定)
+        void Add(string header, string gesture, bool isChecked, Action apply)
         {
-            var item = new MenuItem { Header = header, InputGestureText = gesture, IsChecked = tab.ViewMode == mode };
-            item.Click += (_, _) => tab.SetViewMode(mode);
+            var item = new MenuItem { Header = header, InputGestureText = gesture, IsChecked = isChecked };
+            item.Click += (_, _) => apply();
             menu.Items.Add(item);
         }
-        Mode("詳細", ViewMode.Details, "Ctrl+Shift+1");
-        Mode("アイコン", ViewMode.Icons, "Ctrl+Shift+2");
-        Mode("一覧", ViewMode.List, "Ctrl+Shift+3");
-
-        // アイコンの大きさ(アイコン表示のとき。全タブ共通。アイコン表示で Ctrl+ホイールでも変えられる)
-        var size = new MenuItem { Header = "アイコンの大きさ" };
-        foreach (var (value, label) in new[] { (IconSize.Small, "小"), (IconSize.Medium, "中"), (IconSize.Large, "大") })
+        void Icons(string header, IconSize size)
         {
-            var v = value;
-            var item = new MenuItem { Header = label, IsChecked = ViewSettings.IconSize == v };
-            item.Click += (_, _) => ViewSettings.IconSize = v;
-            size.Items.Add(item);
+            // Ctrl+Shift+2 は、いまの大きさのアイコン表示
+            string gesture = ViewSettings.IconSize == size ? "Ctrl+Shift+2" : "";
+            Add(header, gesture, tab.ViewMode == ViewMode.Icons && ViewSettings.IconSize == size, () =>
+            {
+                ViewSettings.IconSize = size;
+                tab.SetViewMode(ViewMode.Icons);
+            });
         }
-        menu.Items.Add(size);
+        Icons("大アイコン", IconSize.Large);
+        Icons("中アイコン", IconSize.Medium);
+        Icons("小アイコン", IconSize.Small);
+        Add("一覧", "Ctrl+Shift+3", tab.ViewMode == ViewMode.List, () => tab.SetViewMode(ViewMode.List));
+        Add("詳細", "Ctrl+Shift+1", tab.ViewMode == ViewMode.Details, () => tab.SetViewMode(ViewMode.Details));
         menu.Items.Add(new Separator());
 
         var sort = new MenuItem { Header = "並べ替え" };
@@ -147,7 +287,7 @@ public partial class MainWindow : Window
         sort.Items.Add(asc);
         sort.Items.Add(desc);
         menu.Items.Add(sort);
-        menu.IsOpen = true;
+        AddViewSettings(menu.Items);
     }
 
     // ───────── プレビューウィンドウ ─────────
@@ -271,6 +411,7 @@ public partial class MainWindow : Window
             && !(e.OriginalSource is DependencyObject src && FindAncestor<TextBox>(src) is { } tb && ReferenceEquals(tb.DataContext, editing)))
             CommitTreeRename(editing);
 
+        if (e.ChangedButton == MouseButton.Left) EndGestureTracking(); // 右ボタンの離しを見逃したときの保険
         if (e.ChangedButton == MouseButton.XButton1) { _vm.BackCommand.Execute(null); e.Handled = true; }
         else if (e.ChangedButton == MouseButton.XButton2) { _vm.ForwardCommand.Execute(null); e.Handled = true; }
     }
@@ -315,16 +456,38 @@ public partial class MainWindow : Window
 
     // ───────── マウスジェスチャ(右ボタンドラッグ: 左=戻る / 右=進む / 上=一つ上) ─────────
 
+    private readonly WheelGestureTracker _wheelGesture = new();   // 右ボタン+ホイール(上=左のタブ / 下=右のタブ。Ctrl つきは、前・次のタブグループ)
+
+    /// <summary>右ボタンを押している途中で、ウィンドウが非アクティブになった・左ボタンが押された: 右ボタンを離したのを見逃した可能性があるので、ジェスチャを終える。</summary>
+    private void EndGestureTracking() { _gestureTracking = false; _wheelGesture.Cancel(); }
+
     private void Window_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
         _gestureTracking = _vm.EnableGestures;
+        _wheelGesture.RightDown(_vm.EnableGestures);
         if (_gestureTracking) _gestureStart = e.GetPosition(this);
+    }
+
+    /// <summary>右ボタンを押したままホイールを回すと、左のタブ(上へ回す)・右のタブ(下へ回す)へ切り替える(タブバーのホイールと同じ動き)。</summary>
+    private void Window_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        switch (_wheelGesture.Wheel(e.Delta, ctrl: (Keyboard.Modifiers & ModifierKeys.Control) != 0))
+        {
+            case WheelAction.PreviousTab: _vm.CycleTab(-1); break;
+            case WheelAction.NextTab: _vm.CycleTab(1); break;
+            case WheelAction.PreviousGroup: _vm.CycleGroup(-1); break;
+            case WheelAction.NextGroup: _vm.CycleGroup(1); break;
+            default: return;
+        }
+        e.Handled = true; // ホイールの本来の動き(スクロール・タブ切り替え)はさせない
     }
 
     private void Window_PreviewMouseRightButtonUp(object sender, MouseButtonEventArgs e)
     {
+        bool wheelUsed = _wheelGesture.RightUp();
         if (!_gestureTracking) return;
         _gestureTracking = false;
+        if (wheelUsed) { e.Handled = true; return; } // ホイールで操作したときは、右クリックのメニューを出さない
 
         const double MinDistance = 40;       // これ未満の動きは通常の右クリック(メニュー表示)
         const double DirectionRatio = 1.5;   // 縦横の差がはっきりしないものはジェスチャにしない
@@ -347,30 +510,24 @@ public partial class MainWindow : Window
         e.Handled = true; // コンテキストメニューを出さない
     }
 
-    // ───────── 設定メニュー ─────────
+    // ───────── 設定の項目(「表示」「ツール」メニューに振り分け) ─────────
 
-    private void Settings_Click(object sender, RoutedEventArgs e)
+    /// <summary>設定(オン/オフ)の項目。MainViewModel のプロパティと、双方向に連動する。</summary>
+    private MenuItem SettingCheck(string header, string property, string tip)
     {
-        var menu = new ContextMenu { PlacementTarget = (UIElement)sender, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+        var item = new MenuItem { Header = header, IsCheckable = true, ToolTip = tip, StaysOpenOnClick = true };
+        item.SetBinding(MenuItem.IsCheckedProperty,
+            new System.Windows.Data.Binding(property) { Source = _vm, Mode = System.Windows.Data.BindingMode.TwoWay });
+        return item;
+    }
 
-        MenuItem Check(string header, string property, string tip)
-        {
-            var item = new MenuItem { Header = header, IsCheckable = true, ToolTip = tip, StaysOpenOnClick = true };
-            item.SetBinding(MenuItem.IsCheckedProperty,
-                new System.Windows.Data.Binding(property) { Source = _vm, Mode = System.Windows.Data.BindingMode.TwoWay });
-            return item;
-        }
-
-        menu.Items.Add(Check("ツリーをタブに連動", nameof(MainViewModel.SyncTreeWithTab), "タブを切り替えるたびにツリーの位置も追従します"));
-        menu.Items.Add(Check("マウスジェスチャ(右ドラッグ)", nameof(MainViewModel.EnableGestures), "左=戻る / 右=進む / 上=一つ上の階層へ"));
-        menu.Items.Add(Check("開いた Explorer を取り込む", nameof(MainViewModel.CaptureExplorer),
-            "デスクトップ等から開いた Explorer をデフォルトグループのタブへ取り込みます"));
-        menu.Items.Add(Check("閉じるボタンでトレイに常駐", nameof(MainViewModel.CloseToTray),
-            "オフにすると、閉じるボタンでアプリを終了します(トレイの「終了」でも終了できます)"));
-        menu.Items.Add(Check("プレビューを表示", nameof(MainViewModel.ShowPreview),
+    /// <summary>「表示」メニューの設定: ツリーをタブに連動 / プレビューを表示 / フォルダーを先頭にまとめる。</summary>
+    private void AddViewSettings(ItemCollection items)
+    {
+        items.Add(new Separator());
+        items.Add(SettingCheck("ツリーをタブに連動", nameof(MainViewModel.SyncTreeWithTab), "タブを切り替えるたびにツリーの位置も追従します"));
+        items.Add(SettingCheck("プレビューを表示", nameof(MainViewModel.ShowPreview),
             "一覧で選択したファイルの内容(画像・テキスト・情報)を、右側に表示します (Alt+P)"));
-        menu.Items.Add(Check("フォルダーのサイズを自動計算", nameof(MainViewModel.AutoFolderSize),
-            "一覧を開くと、フォルダーの合計サイズをバックグラウンドで計算して「サイズ」列に表示します(フォルダーが多い場所や、ネットワークドライブでは重くなります)。右クリックの「フォルダーのサイズを計算」でも、必要なときだけ計算できます"));
         var foldersFirst = new MenuItem
         {
             Header = "フォルダーを先頭にまとめる", IsCheckable = true, StaysOpenOnClick = true,
@@ -378,7 +535,23 @@ public partial class MainWindow : Window
             ToolTip = "どの列で並べ替えても、フォルダーを一覧の先頭に置きます",
         };
         foldersFirst.Click += (_, _) => SortSettings.Instance.SetFoldersFirst(foldersFirst.IsChecked);
-        menu.Items.Add(foldersFirst);
+        items.Add(foldersFirst);
+    }
+
+    /// <summary>「ツール」メニュー: マウスジェスチャ / 開いた Explorer を取り込む / 閉じるボタンでトレイに常駐 / フォルダーのサイズを自動計算 / Windows 起動時に自動起動。</summary>
+    private void ToolsMenu_SubmenuOpened(object sender, RoutedEventArgs e)
+    {
+        if (!IsOwnOpen(sender, e)) return;
+        var menu = (MenuItem)sender;
+        menu.Items.Clear();
+
+        menu.Items.Add(SettingCheck("マウスジェスチャ(右ドラッグ)", nameof(MainViewModel.EnableGestures), "左=戻る / 右=進む / 上=一つ上の階層へ / 右ボタン+ホイール: 上=左のタブ・下=右のタブ / Ctrl も押すと、前・次のタブグループ"));
+        menu.Items.Add(SettingCheck("開いた Explorer を取り込む", nameof(MainViewModel.CaptureExplorer),
+            "デスクトップ等から開いた Explorer をデフォルトグループのタブへ取り込みます"));
+        menu.Items.Add(SettingCheck("閉じるボタンでトレイに常駐", nameof(MainViewModel.CloseToTray),
+            "オフにすると、閉じるボタンでアプリを終了します(トレイの「終了」でも終了できます)"));
+        menu.Items.Add(SettingCheck("フォルダーのサイズを自動計算", nameof(MainViewModel.AutoFolderSize),
+            "一覧を開くと、フォルダーの合計サイズをバックグラウンドで計算して「サイズ」列に表示します(フォルダーが多い場所や、ネットワークドライブでは重くなります)。右クリックの「フォルダーのサイズを計算」でも、必要なときだけ計算できます"));
 
         // Windows 起動時の自動起動(レジストリが正)。起動時はウィンドウを出さず、トレイだけに常駐して始まる
         var startup = new MenuItem
@@ -396,7 +569,6 @@ public partial class MainWindow : Window
             }
         };
         menu.Items.Add(startup);
-        menu.IsOpen = true;
     }
 
     // ───────── 絞込 / 検索 ─────────
@@ -423,10 +595,12 @@ public partial class MainWindow : Window
 
     // ───────── お気に入り ─────────
 
-    /// <summary>「★ お気に入り」ボタン: 追加・整理と、お気に入りの一覧(グループはサブメニュー、区切り線つき)を1つのメニューにまとめる。</summary>
-    private void Favorites_Click(object sender, RoutedEventArgs e)
+    /// <summary>「お気に入り」メニュー: 追加・整理と、お気に入りの一覧(グループはサブメニュー、区切り線つき)を1つのメニューにまとめる。</summary>
+    private void FavoritesMenu_SubmenuOpened(object sender, RoutedEventArgs e)
     {
-        var menu = new ContextMenu { PlacementTarget = (UIElement)sender, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+        if (!IsOwnOpen(sender, e)) return;
+        var menu = (MenuItem)sender;
+        menu.Items.Clear();
 
         var add = new MenuItem { Header = "お気に入りに追加(現在のフォルダ)", IsEnabled = _vm.CurrentFolder != null };
         add.Click += (_, _) => _vm.AddCurrentToFavoritesCommand.Execute(null);
@@ -441,7 +615,6 @@ public partial class MainWindow : Window
             menu.Items.Add(new MenuItem { Header = "(お気に入りはありません)", IsEnabled = false });
         else
             AddFavoriteItems(menu.Items, _vm.Favorites);
-        menu.IsOpen = true;
     }
 
     /// <summary>お気に入り(フォルダ・グループ・区切り線)を、メニューの項目として並べる。グループは、サブメニューにする。</summary>
@@ -614,7 +787,7 @@ public partial class MainWindow : Window
             var seg = segments[i];
             var crumb = new Button
             {
-                Content = seg.Name, Padding = new Thickness(5, 1, 5, 1), Margin = new Thickness(0),
+                Content = new TextBlock { Text = seg.Name }, /* 文字列のままだと、名前の「_」がアクセスキー扱いで消える */ Padding = new Thickness(2, 0, 2, 0), Margin = new Thickness(0), MinWidth = 0,
                 Background = Brushes.Transparent, BorderThickness = new Thickness(0), Focusable = false, ToolTip = seg.FullPath,
             };
             crumb.Click += (_, _) =>
@@ -627,7 +800,7 @@ public partial class MainWindow : Window
             // ▸: その階層の中のフォルダを一覧にして、選んだものへ移動
             var arrow = new Button
             {
-                Content = "▸", Padding = new Thickness(3, 1, 3, 1), Background = Brushes.Transparent, BorderThickness = new Thickness(0),
+                Content = ">", Padding = new Thickness(0), Margin = new Thickness(0), MinWidth = 0, Background = Brushes.Transparent, BorderThickness = new Thickness(0),
                 Focusable = false, Foreground = Brushes.Gray, ToolTip = "この中のフォルダ",
             };
             arrow.Click += (_, _) => ShowCrumbChildren(arrow, seg.FullPath);
@@ -847,28 +1020,32 @@ public partial class MainWindow : Window
 
     // ───────── ペイン(指定モード) ─────────
 
+    /// <summary>
+    /// 「指定ペイン ▾」: 2 つか 3 つのタブ・フォルダを選び、「作成」を押して、ペインを作る。
+    /// 既存タブから選択: タブにチェックを付けるダイアログ / フォルダを指定: フォルダを入力するダイアログ。
+    /// </summary>
     private void SpecifyPane_Click(object sender, RoutedEventArgs e)
     {
         var menu = new ContextMenu { PlacementTarget = (UIElement)sender, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
 
-        var fromTab = new MenuItem { Header = "既存タブから選択" };
         var candidates = _vm.AllFolderTabs().ToList();
-        foreach (var (group, tab) in candidates)
+        var fromTab = new MenuItem { Header = "既存タブから選択…", IsEnabled = candidates.Count >= PaneRequest.Min };
+        fromTab.Click += (_, _) => Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, () =>
         {
-            var path = tab.Path;
-            var item = new MenuItem { Header = $"{group.Name} / {tab.Title}  —  {tab.Path}" };
-            item.Click += (_, _) => _vm.AddPane(path);
-            fromTab.Items.Add(item);
-        }
-        fromTab.IsEnabled = candidates.Count > 0;
+            var list = candidates.Select(c => ($"{c.Group.Name} / {c.Tab.Title}  —  {c.Tab.Path}", c.Tab.Path)).ToList();
+            var picked = PaneCreateDialog.PickTabs(this, list, _vm.CurrentFolder?.Path);
+            if (picked != null && !_vm.CreatePanes(picked))
+                MessageBox.Show("ペインを作れませんでした(フォルダが見つからないタブがあります)。", "KT_Explorer");
+        });
         menu.Items.Add(fromTab);
 
         var browse = new MenuItem { Header = "フォルダを指定…" };
-        browse.Click += (_, _) =>
+        browse.Click += (_, _) => Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, () =>
         {
-            var dlg = new Microsoft.Win32.OpenFolderDialog { Title = "右ペインに表示するフォルダ" };
-            if (dlg.ShowDialog(this) == true) _vm.AddPane(dlg.FolderName);
-        };
+            var picked = PaneCreateDialog.PickFolders(this);
+            if (picked != null && !_vm.CreatePanes(picked))
+                MessageBox.Show("ペインを作れませんでした(フォルダが見つかりません)。", "KT_Explorer");
+        });
         menu.Items.Add(browse);
 
         menu.IsOpen = true;

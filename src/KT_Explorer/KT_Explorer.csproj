@@ -8,12 +8,19 @@
     <UseWPF>true</UseWPF>
     <!-- トレイアイコン(NotifyIcon)のためだけに WinForms を使う -->
     <UseWindowsForms>true</UseWindowsForms>
+    <!-- アプリのアイコン(exe・エクスプローラーでの表示) -->
+    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- WPF の型(Application, MessageBox, Button など)と名前が衝突するため、暗黙の using から外す -->
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- ウィンドウ・トレイのアイコンとして、実行ファイルの中から読む -->
+    <Resource Include="Resources\app.ico" />
   </ItemGroup>
 
   <ItemGroup>

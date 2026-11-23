@@ -12,9 +12,9 @@ $OrganizeName = 'お気に入りを整理…(並べ替え・グループ・区�
 
 function Open-FavoritesMenu {
     Set-Foreground
-    $b = Find-All 'Button' | Where-Object { $_.Current.Name -like '★ お気に入り*' } | Select-Object -First 1
-    if (-not $b) { Stop-Test 'favorites button not found' }
-    $b.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep -Milliseconds 900
+    $m = Find-AppMenuItem 'お気に入り(A)'
+    if (-not $m) { Stop-Test 'Favorites menu not found' }
+    $m.GetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern).Expand(); Start-Sleep -Milliseconds 900
 }
 function Menu-Y([string]$name) { $m = Find-AppMenuItem $name; if ($m) { $m.Current.BoundingRectangle.Y } else { $null } }
 function Find-Dialog([string]$title) {

@@ -41,6 +41,15 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 | パス欄の補助(入力補完の候補・パンくずの階層の分割・中のフォルダの一覧)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_pathbar.ps1'` |
 | 検索(絞込と同じ条件 `type:` `ext:` `size:` など、ファイルの中身 `content:` / `中身:`)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_search.ps1'` |
 | 詳細表示の追加の列(作成日時・属性・画像のサイズ・再生時間)と列の選択のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_columns.ps1'` |
+| メニューバー「ファイル」のロジック(WinMerge の引数の組み立て・見つけ方)。画面は出ない。WinMerge は起動しない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_menu_file.ps1'` |
+| メニューバー「ファイル」の画面テスト(項目の有無、新規作成でフォルダー・テキストが作られる)。ターミナル・WinMerge・終了は押さない | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_file.ps1'` |
+| マウスジェスチャ「右ボタン+ホイール」(上=左のタブ・下=右のタブ。Ctrl つきは前・次のタブグループ)の判定のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_gesture.ps1'` |
+| 同じジェスチャの画面テスト(実際のマウス入力)。**StrokesPlus などのマウスジェスチャの常駐ツールが有効だと、合成した右ボタンが横取りされて失敗する**(無効にして実行する) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_gesture_wheel.ps1'` |
+| 指定ペインの作成(2〜3 個の条件、フォルダ入力の整理、`MainViewModel.CreatePanes`)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_panecreate.ps1'` |
+| 指定ペインの作成ダイアログの画面テスト(既存タブにチェックを付けて作成、フォルダを 2〜3 個指定して作成、キャンセル) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_pane_create.ps1'` |
+| メニューバー「編集」の画面テスト(元に戻す・やり直し・切り取り・コピー・貼り付け・削除・全て選択。ファイルへの操作と、入力欄の文字への操作)。クリップボードを書き換える | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_edit.ps1'` |
+| アプリのアイコン(app.ico の大きさの種類、exe のアイコン、トレイのアイコンの読み込み)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_icon.ps1'` |
+| 旧「設定」の項目を振り分けた「表示」「ツール」メニューの画面テスト(項目の有無、オン/オフの切り替え、「設定」ボタンが無いこと)。自動起動(レジストリ)は押さない | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_settings.ps1'` |
 | 中断したテストの後片付け(`%TEMP%\kt_test_*` を消す) | `& 'E:\KT_Applications\KT_Explorer\tools\test\cleanup.ps1'` |
 
 - 実行前に、上のビルドを行う。結果は `OK` / `NG` の行と、最後の `RESULT: ok=… ng=…`。
@@ -53,6 +62,10 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
   - キーを送る・クリックする前に、前面にあるのがテスト用の KT_Explorer であることを確かめ、違えば、何も送らずに中止する(`Assert-AppForeground`)。ユーザーが別のアプリ(ブラウザなど)を使っているとき、そのアプリへキーを送ってしまわないため。**画面テストの実行中は、ユーザーにキーボードとマウスに触らないでもらう**(触ると、入力が乱れて失敗する)。
   - 引数でコマンドを受け取らない。
 - **許可済みスクリプトの中身を変えると、確認なしで実行される。** 変更したら、コミット前に必ず内容を見直す。新しいスクリプトを許可に加えるときは、`.claude/settings.json` に、スクリプトごとに1行ずつ(フォルダ全体のワイルドカードにしない)足す。
+
+## アプリのアイコン
+
+`src/KT_Explorer/Resources/app.ico`(16〜256px)。水色のフォルダを、2 つのペインに分けた図案。図案を変えるときは、`tools/icon/make_icon.ps1` を直して実行すると、`app.ico` が作り直される(`& 'E:\KT_Applications\KT_Explorer\tools\icon\make_icon.ps1'`)。exe・ウィンドウ・トレイのアイコンは、すべてこの `.ico` を使う。
 
 ## リリースの手順(ユーザーの指示)
 
@@ -73,5 +86,5 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 
 - アイコン・一覧の表示では、項目の中身(名前の入力欄など)が、画面要素(UI Automation)の一覧に出ない。また、見えている範囲の項目だけが出る(全部で数十件を超えても、件数は数十)。そのため、画面テストでは、入力欄の中身やフォーカスを確かめられない。名前の変更を試すときは、Enter ではなく、フォーカスを受け取れない場所(ラベル「絞込:」)のクリックで確定する。
 
-- `Ctrl+W` は、自動操作(SendKeys など)では、キーがアプリへ届かない環境がある。タブは `✕` ボタンで閉じる。実機(ユーザーの操作)では、`Ctrl+W` でタブが閉じることを確認済みなので、アプリの不具合ではない。
+- `Ctrl+W` は、自動操作(SendKeys など)では、キーがアプリへ届かない環境がある。タブは、タブの右クリックの「タブを閉じる」で閉じる(タブに ✕ は無い)。実機(ユーザーの操作)では、`Ctrl+W` でタブが閉じることを確認済みなので、アプリの不具合ではない。
 - ユーザーの実機の `C:\OneDrive(link)`(ジャンクション)など、**`%TEMP%\kt_test_*` の外のフォルダを、テストで操作しない**。過去に、画面テストが誤って実機のフォルダの名前を変えた(復旧済み)。
