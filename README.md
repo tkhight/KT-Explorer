@@ -30,8 +30,8 @@ Tabracus のような使い方をベースに、プロジェクトごとにフ�
 ## ビルドと起動
 
 ```powershell
-git clone https://github.com/tkhight/KT_Explorer.git
-cd KT_Explorer
+git clone https://github.com/tkhight/KT-Explorer.git
+cd KT-Explorer
 dotnet run --project src/KT_Explorer
 ```
 
