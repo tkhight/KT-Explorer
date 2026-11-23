@@ -71,6 +71,34 @@ public sealed partial class FileEntry : ObservableObject
     /// <summary>シェルアイコン(拡張子単位でキャッシュ)。</summary>
     public ImageSource? Icon => ShellIconService.GetIcon(FullPath, IsDirectory);
 
+    private ImageSource? _thumbnail;
+    private bool _thumbnailRequested;
+
+    /// <summary>
+    /// アイコン表示で使う、大きなアイコン・サムネイル。最初に参照されたときに、バックグラウンドで読み込み、
+    /// 読み込めるまでは、小さなアイコンを返す(画面を止めない。アイコン表示でない間は、読み込まない)。
+    /// </summary>
+    public ImageSource? Thumbnail
+    {
+        get
+        {
+            if (!_thumbnailRequested)
+            {
+                _thumbnailRequested = true;
+                _ = LoadThumbnailAsync();
+            }
+            return _thumbnail ?? Icon;
+        }
+    }
+
+    private async Task LoadThumbnailAsync()
+    {
+        var image = await ThumbnailService.GetAsync(FullPath, 96);
+        if (image == null) return;
+        _thumbnail = image;
+        OnPropertyChanged(nameof(Thumbnail));
+    }
+
     public static string FormatSize(long bytes)
     {
         if (bytes < 1024) return $"{bytes} B";

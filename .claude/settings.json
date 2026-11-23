@@ -25,7 +25,9 @@
       "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_filter.ps1')",
       "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_favorites.ps1')",
       "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\logic_shortcut.ps1')",
-      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_shortcut.ps1')"
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_shortcut.ps1')",
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\logic_viewmode.ps1')",
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_viewmode.ps1')"
     ]
   }
 }
