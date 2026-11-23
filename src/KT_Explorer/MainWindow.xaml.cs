@@ -222,6 +222,23 @@ public partial class MainWindow : Window
             "デスクトップ等から開いた Explorer をデフォルトグループのタブへ取り込みます"));
         menu.Items.Add(Check("閉じるボタンでトレイに常駐", nameof(MainViewModel.CloseToTray),
             "オフにすると、閉じるボタンでアプリを終了します(トレイの「終了」でも終了できます)"));
+
+        // Windows 起動時の自動起動(レジストリが正)。起動時はウィンドウを出さず、トレイだけに常駐して始まる
+        var startup = new MenuItem
+        {
+            Header = "Windows 起動時に自動起動", IsCheckable = true, StaysOpenOnClick = true,
+            IsChecked = StartupService.IsEnabled,
+            ToolTip = "サインインしたときに、トレイに常駐した状態で起動します(ウィンドウは開きません)",
+        };
+        startup.Click += (_, _) =>
+        {
+            if (!StartupService.SetEnabled(startup.IsChecked))
+            {
+                startup.IsChecked = StartupService.IsEnabled;
+                MessageBox.Show("自動起動の設定を変更できませんでした。", "KT_Explorer", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        };
+        menu.Items.Add(startup);
         menu.IsOpen = true;
     }
 
@@ -438,9 +455,28 @@ public partial class MainWindow : Window
         _ => null,
     };
 
-    private void TabItem_DragOver(object sender, DragEventArgs e) => DropHelper.HandleDragOver(e, TabDropTarget(sender));
+    private void TabItem_DragOver(object sender, DragEventArgs e)
+    {
+        // タブ同士のドラッグは並べ替え
+        if (e.Data.GetDataPresent(TabDragFormat))
+        {
+            e.Effects = DragDropEffects.Move;
+            e.Handled = true;
+            return;
+        }
+        DropHelper.HandleDragOver(e, TabDropTarget(sender));
+    }
 
-    private void TabItem_Drop(object sender, DragEventArgs e) => DropHelper.HandleDrop(e, TabDropTarget(sender), WindowHandle);
+    private void TabItem_Drop(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetData(TabDragFormat) is TabBase dragged)
+        {
+            if (((FrameworkElement)sender).DataContext is TabBase target) _vm.ReorderTab(dragged, target);
+            e.Handled = true;
+            return;
+        }
+        DropHelper.HandleDrop(e, TabDropTarget(sender), WindowHandle);
+    }
 
     // ───────── タブグループ ─────────
 

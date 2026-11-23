@@ -34,7 +34,21 @@ public partial class App : Application
         { IsBackground = true, Name = "KT_Explorer show-listener" };
         waiter.Start();
 
-        base.OnStartup(e); // StartupUri のメインウィンドウを作る
+        base.OnStartup(e);
+
+        // メインウィンドウを自分で作る(自動起動のときは表示しない)
+        var window = new MainWindow();
+        MainWindow = window;
+        if (e.Args.Contains(Services.StartupService.StartupArg))
+        {
+            // 表示しないままウィンドウのハンドルだけ作る(トレイ・Explorer 取り込み・仮想デスクトップ追従を始めるため)。
+            // トレイのアイコンをクリックすると表示される。
+            new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
+        }
+        else
+        {
+            window.Show();
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)

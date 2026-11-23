@@ -74,6 +74,8 @@ public partial class FolderView : UserControl
         else if (ctrl && e.Key == Key.X) CopySelection(cut: true);
         else if (ctrl && e.Key == Key.V) Paste(null);
         else if (ctrl && shift && e.Key == Key.N) NewItem(folder: true);
+        else if (ctrl && shift && e.Key == Key.C) TransferToPane(NextPane(), move: false);
+        else if (ctrl && shift && e.Key == Key.M) TransferToPane(NextPane(), move: true);
         else if (e.Key == Key.Delete) DeleteSelection(permanent: shift);
         else if (e.Key == Key.F2) RenameSelected();
         else return;
@@ -112,6 +114,45 @@ public partial class FolderView : UserControl
         await vm.RefreshAsync();
         if (destDir == null && result != FileOperationService.Result.Failed)
             SelectByPaths(paths.Select(p => Path.Combine(dest, Path.GetFileName(p.TrimEnd('\\')))));
+    }
+
+    // ───────── 他のペインへコピー / 移動 ─────────
+
+    /// <summary>このペインと同じペインタブにある、ほかのペイン(ペインタブ以外では空)。</summary>
+    private List<FolderTabViewModel> OtherPanes()
+    {
+        if (Vm == null || Application.Current.MainWindow?.DataContext is not MainViewModel { SelectedTab: PaneTabViewModel tab }
+            || !tab.Panes.Contains(Vm)) return new();
+        return tab.Panes.Where(p => p != Vm).ToList();
+    }
+
+    /// <summary>ショートカットの宛先。右隣のペイン(右端なら左端へ戻る)。</summary>
+    private FolderTabViewModel? NextPane()
+    {
+        var vm = Vm;
+        if (vm == null || Application.Current.MainWindow?.DataContext is not MainViewModel { SelectedTab: PaneTabViewModel tab }) return null;
+        int i = tab.Panes.IndexOf(vm);
+        return i < 0 || tab.Panes.Count < 2 ? null : tab.Panes[(i + 1) % tab.Panes.Count];
+    }
+
+    /// <summary>選択項目を、別のペインが表示しているフォルダへコピー/移動する。</summary>
+    private async void TransferToPane(FolderTabViewModel? target, bool move)
+    {
+        var vm = Vm;
+        var sel = Selected;
+        if (vm == null || target == null || sel.Count == 0) return;
+
+        string dest = target.Path;
+        var paths = sel.Select(s => s.FullPath).ToList();
+        if (!CanTransfer(paths, dest)) return;
+        if (move) paths = paths.Where(p => !IsInFolder(p, dest)).ToList(); // 同じフォルダへの移動は何もしない
+        if (paths.Count == 0) return;
+
+        var result = FileOperationService.Transfer(paths, dest, move, Owner);
+        if (result == FileOperationService.Result.Failed) ShowFailed();
+
+        await vm.RefreshAsync();
+        await target.RefreshAsync();
     }
 
     private static bool IsInFolder(string path, string folder) =>
@@ -400,6 +441,7 @@ public partial class FolderView : UserControl
             Add("コピー", () => CopySelection(cut: false), "Ctrl+C");
             // フォルダを1つ選んでいるときは、そのフォルダの中へ貼り付ける
             Add("貼り付け", () => Paste(single is { IsDirectory: true } ? single.FullPath : null), "Ctrl+V", canPaste);
+            AddPaneTransfer(menu, vm, Add);
             menu.Items.Add(new Separator());
             Add("名前の変更", RenameSelected, "F2", single != null);
             Add("削除", () => DeleteSelection(permanent: false), "Del");
@@ -436,6 +478,28 @@ public partial class FolderView : UserControl
         // (プロパティには設定しないので、次回以降も WPF 側の処理が二重に開くことはない)
         e.Handled = true;
         OpenMenu(menu, e);
+    }
+
+    /// <summary>ペインが複数あるとき、「(反対の)ペインへコピー/移動」を右クリックメニューへ加える。</summary>
+    private void AddPaneTransfer(ContextMenu menu, FolderTabViewModel vm,
+        Func<string, Action, string?, bool, bool, MenuItem> add)
+    {
+        var others = OtherPanes();
+        if (others.Count == 0) return;
+        menu.Items.Add(new Separator());
+        if (others.Count == 1)
+        {
+            var target = others[0];
+            add("反対のペインへコピー", () => TransferToPane(target, move: false), "Ctrl+Shift+C", true, false);
+            add("反対のペインへ移動", () => TransferToPane(target, move: true), "Ctrl+Shift+M", true, false);
+            return;
+        }
+        foreach (var target in others)
+        {
+            string name = string.IsNullOrEmpty(target.Title) ? target.Path : target.Title;
+            add($"ペイン「{name}」へコピー", () => TransferToPane(target, move: false), null, true, false);
+            add($"ペイン「{name}」へ移動", () => TransferToPane(target, move: true), null, true, false);
+        }
     }
 
     private ContextMenu? _openMenu;

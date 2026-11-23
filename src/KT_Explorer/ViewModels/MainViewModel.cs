@@ -271,6 +271,15 @@ public partial class MainViewModel : ObservableObject
             Select(source.Tabs.Count > 0 ? source.Tabs[Math.Min(index, source.Tabs.Count - 1)] : null);
     }
 
+    /// <summary>同じグループ内でタブの並び順を変える。tab を target の位置へ移す(選択は変えない)。</summary>
+    public void ReorderTab(TabBase tab, TabBase target)
+    {
+        if (ReferenceEquals(tab, target)) return;
+        var group = Groups.FirstOrDefault(g => g.Tabs.Contains(tab) && g.Tabs.Contains(target));
+        if (group == null) return;
+        group.Tabs.Move(group.Tabs.IndexOf(tab), group.Tabs.IndexOf(target));
+    }
+
     // ───────── ペイン ─────────
 
     /// <summary>2/3ペイン。アクティブなタブのフォルダを右側に追加する(ペインタブ未作成なら作成)。</summary>
