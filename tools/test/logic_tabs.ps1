@@ -144,6 +144,33 @@ try {
     $r1 = $vm2.Groups[0].Tabs | Where-Object { $_.Path -eq "$d\s1" } | Select-Object -First 1
     $r2 = $vm2.Groups[0].Tabs | Where-Object { $_.Path -eq "$d\s2" } | Select-Object -First 1
     Check 'state: sorts are restored per tab' (($null -ne $r1) -and ("$($r1.SortColumn)" -eq 'Size') -and $r1.SortDescending -and ("$($r2.SortColumn)" -eq 'Name') -and -not $r2.SortDescending)
+
+    # ── タブをグループへ移動 → 移動先のグループを表示して、移したタブをアクティブにする
+    $g1 = $vm.SelectedGroup
+    $vm.AddGroup('G2'); $g2 = $vm.SelectedGroup
+    $vm.SelectedGroup = $g1
+    $vm.OpenInNewTab("$d2") 2>$null
+    New-Item -ItemType Directory "$d\mvg" -Force | Out-Null
+    $vm.OpenInNewTab("$d\mvg"); $mv = $vm.SelectedTab
+    $vm.OpenInNewTab("$d\sub"); $other = $vm.SelectedTab     # 別のタブが選択されている状態から、mvg のタブを移す
+    $vm.MoveTabToGroup($mv, $g2)
+    Check 'move to group: the destination group is shown' ($vm.SelectedGroup -eq $g2)
+    Check 'move to group: the moved tab is in the destination and is the active tab' (($g2.Tabs -contains $mv) -and ($vm.SelectedTab -eq $mv) -and ($vm.CurrentFolder -eq $mv))
+    Check 'move to group: the tab is gone from the source group' (-not ($g1.Tabs -contains $mv))
+    $vm.SelectedGroup = $g1
+    Check 'move to group: going back to the source group restores the tab that was active there' ($vm.SelectedTab -eq $other)
+    # 表示中のタブを移した場合: 元のグループでは隣のタブが選ばれた状態になり、移動先が表示される
+    $vm.SelectedGroup = $g1
+    $vm.OpenInNewTab("$d\mvg"); $mv2 = $vm.SelectedTab
+    $vm.MoveTabToGroup($mv2, $g2)
+    Check 'move to group: moving the active tab shows the destination with that tab active' (($vm.SelectedGroup -eq $g2) -and ($vm.SelectedTab -eq $mv2))
+    $vm.SelectedGroup = $g1
+    Check 'move to group: the source group falls back to a neighbor of the moved tab' (($null -ne $vm.SelectedTab) -and ($g1.Tabs -contains $vm.SelectedTab))
+    # ペインタブも同じ
+    $vm.SelectedGroup = $g1
+    [void]$vm.CreatePanes([string[]]@("$d2", "$d\sub")); $pane = $vm.SelectedTab
+    $vm.MoveTabToGroup($pane, $g2)
+    Check 'move to group: a pane tab moves too, and the destination shows it as the active tab' (($vm.SelectedGroup -eq $g2) -and ($vm.SelectedTab -eq $pane))
 }
 finally {
     Remove-TestDir $d

@@ -43,12 +43,19 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 | 詳細表示の追加の列(作成日時・属性・画像のサイズ・再生時間)と列の選択のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_columns.ps1'` |
 | メニューバー「ファイル」のロジック(WinMerge の引数の組み立て・見つけ方)。画面は出ない。WinMerge は起動しない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_menu_file.ps1'` |
 | メニューバー「ファイル」の画面テスト(項目の有無、新規作成でフォルダー・テキストが作られる)。ターミナル・WinMerge・終了は押さない | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_file.ps1'` |
-| マウスジェスチャ「右ボタン+ホイール」(上=左のタブ・下=右のタブ。Ctrl つきは前・次のタブグループ)の判定のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_gesture.ps1'` |
-| 同じジェスチャの画面テスト(実際のマウス入力)。**StrokesPlus などのマウスジェスチャの常駐ツールが有効だと、合成した右ボタンが横取りされて失敗する**(無効にして実行する) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_gesture_wheel.ps1'` |
+| マウスジェスチャ「右ボタン+ホイール」(上=左のタブ・下=右のタブ。Ctrl つきは前・次のタブグループ)と、ロッカー(右ボタンを押したまま左クリック=タブを閉じる)の判定のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_gesture.ps1'` |
+| 同じジェスチャとロッカーの画面テスト(実際のマウス入力)。**StrokesPlus などのマウスジェスチャの常駐ツールが有効だと、合成した右ボタンが横取りされて失敗する**(無効にして実行する) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_gesture_wheel.ps1'` |
 | 指定ペインの作成(2〜3 個の条件、フォルダ入力の整理、`MainViewModel.CreatePanes`)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_panecreate.ps1'` |
 | 指定ペインの作成ダイアログの画面テスト(既存タブにチェックを付けて作成、フォルダを 2〜3 個指定して作成、キャンセル) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_pane_create.ps1'` |
 | メニューバー「編集」の画面テスト(元に戻す・やり直し・切り取り・コピー・貼り付け・削除・全て選択。ファイルへの操作と、入力欄の文字への操作)。クリップボードを書き換える | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_edit.ps1'` |
 | アプリのアイコン(app.ico の大きさの種類、exe のアイコン、トレイのアイコンの読み込み)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_icon.ps1'` |
+| ツリーとタブのアイコン(固有のアイコンを持つフォルダ・共通アイコンの使い回し・ツリーのノードとタブのアイコンとオーバーレイ・パスが変わったときの付け替え・ペインタブは無し・設定のオフ/オン)のロジック。画面は出ない。ジャンクションを作る(テスト用フォルダの中だけ) | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_navicon.ps1'` |
+| ツリーとタブのアイコンの画面テスト(タブとツリーに、フォルダのアイコンが出る。ジャンクションのタブに、リンクの矢印が重なり、「表示」メニューのオフ/オンで消える・戻る) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_navicon.ps1'` |
+| オーバーレイアイコン(シェルのオーバーレイの取得・ショートカットの矢印・項目への反映・オフ/オン・既定はオン)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_overlay.ps1'` |
+| オーバーレイアイコンの画面テスト(ジャンクションの矢印が、一覧のアイコンに出て、「表示」メニューのオフ/オンで消える・戻る)。ジャンクションを作る(テスト用フォルダの中だけ) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_overlay.ps1'` |
+| ピン留め(別のフォルダへ移ると新しいタブで開く・内部の移動は動く)とタブの色(パレット・複製・開き直し・状態の保存と復元・古い状態の読み込み)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_pin.ps1'` |
+| パスのコピーの画面テスト(長いパスで、パンくず・パス欄・タブの右クリックからコピーできる)。クリップボードを書き換える | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_copy_path.ps1'` |
+| ピン留めとタブの色の画面テスト(タブの右クリックから留める・外す、移動で新しいタブ、色の線が画面に出る)。実際のマウスを使う | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_pin_color.ps1'` |
 | 旧「設定」の項目を振り分けた「表示」「ツール」メニューの画面テスト(項目の有無、オン/オフの切り替え、「設定」ボタンが無いこと)。自動起動(レジストリ)は押さない | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_settings.ps1'` |
 | 中断したテストの後片付け(`%TEMP%\kt_test_*` を消す) | `& 'E:\KT_Applications\KT_Explorer\tools\test\cleanup.ps1'` |
 

@@ -12,6 +12,12 @@ public sealed class TabSortState
 
     /// <summary>タブごとの表示(詳細・アイコン・一覧)。古い状態ファイルには無い(その場合は詳細)。</summary>
     public KT_Explorer.Models.ViewMode ViewMode { get; set; } = KT_Explorer.Models.ViewMode.Details;
+
+    /// <summary>ピン留め。古い状態ファイルには無い(その場合は留めない)。</summary>
+    public bool IsPinned { get; set; }
+
+    /// <summary>タブの色(#RRGGBB)。古い状態ファイルには無い(その場合は色なし)。</summary>
+    public string? Color { get; set; }
 }
 
 public sealed class GroupState
@@ -82,6 +88,9 @@ public sealed class AppState
 
     /// <summary>プレビューウィンドウを表示する。</summary>
     public bool ShowPreview { get; set; }
+
+    /// <summary>一覧のアイコンに、シェルのオーバーレイ(OneDrive・SVN などの状態)を重ねる。</summary>
+    public bool ShowOverlayIcons { get; set; } = true;
 
     /// <summary>プレビューウィンドウの幅。</summary>
     public double PreviewWidth { get; set; } = 320;

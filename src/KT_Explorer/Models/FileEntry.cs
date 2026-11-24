@@ -19,6 +19,7 @@ public sealed partial class FileEntry : ObservableObject
     {
         Name = displayName ?? info.Name;
         FullPath = info.FullName;
+        _overlayLoader = new OverlayLoader(() => FullPath, OnOverlayChanged);
         IsDirectory = info is DirectoryInfo;
         Modified = info.LastWriteTime;
         Created = info.CreationTime;
@@ -120,6 +121,31 @@ public sealed partial class FileEntry : ObservableObject
 
     /// <summary>シェルアイコン(拡張子単位でキャッシュ)。</summary>
     public ImageSource? Icon => ShellIconService.GetIcon(FullPath, IsDirectory);
+
+    // ───────── オーバーレイアイコン(OneDrive・SVN などの状態。項目ごとに、最初に表示されたとき、バックグラウンドで調べる) ─────────
+
+    private readonly OverlayLoader _overlayLoader;
+
+    private void OnOverlayChanged()
+    {
+        OnPropertyChanged(nameof(OverlayIcon));
+        OnPropertyChanged(nameof(OverlayIconLarge));
+    }
+
+    /// <summary>アイコンに重ねる小さなオーバーレイ(16px 用)。無い・調べている間は null。</summary>
+    public ImageSource? OverlayIcon => _overlayLoader.Small;
+
+    /// <summary>アイコン表示で、大きなアイコンに重ねるオーバーレイ。</summary>
+    public ImageSource? OverlayIconLarge => _overlayLoader.Large;
+
+    /// <summary>
+    /// 状態が変わったかもしれないので、オーバーレイを調べ直す(一覧の再読み込みのとき)。
+    /// いまのオーバーレイは、新しい結果が来るまで、そのまま出しておく(ちらつかせない)。まだ一度も表示していない項目は、何もしない。
+    /// </summary>
+    public void RefreshOverlay() => _overlayLoader.Refresh();
+
+    /// <summary>オーバーレイをいったん消して、次に表示するときに調べ直す(「オーバーレイを表示」の切り替えのとき)。</summary>
+    public void ResetOverlay() => _overlayLoader.Reset();
 
     private ImageSource? _thumbnail;
     private int _thumbnailSize;

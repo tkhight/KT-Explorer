@@ -37,10 +37,36 @@ public static class ShellIconService
     [DllImport("user32.dll")]
     private static extern bool DestroyIcon(IntPtr hIcon);
 
+    // 固有のアイコンを持つフォルダ(ドライブ、デスクトップ、ダウンロード、ドキュメントなど)。通常のフォルダは、共通のフォルダのアイコンを使い回す
+    private static readonly Lazy<HashSet<string>> SpecialFolders = new(() =>
+    {
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        void Add(string? p) { if (!string.IsNullOrEmpty(p)) set.Add(p.TrimEnd('\\')); }
+        string profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        Add(profile);
+        Add(Path.Combine(profile, "Downloads"));
+        Add(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory));
+        Add(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
+        Add(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures));
+        Add(Environment.GetFolderPath(Environment.SpecialFolder.MyMusic));
+        Add(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos));
+        return set;
+    });
+
+    /// <summary>固有のアイコンを持つフォルダか(ドライブのルート、または、デスクトップなどの特別なフォルダ)。</summary>
+    public static bool HasOwnIcon(string path)
+    {
+        if (string.IsNullOrEmpty(path)) return false;
+        string trimmed = path.TrimEnd('\\');
+        // ドライブのルート(C: / C:\)
+        if (trimmed.Length == 2 && trimmed[1] == ':') return true;
+        return SpecialFolders.Value.Contains(trimmed);
+    }
+
     public static ImageSource? GetIcon(string path, bool isDirectory)
     {
         string ext = isDirectory ? "<dir>" : Path.GetExtension(path);
-        bool perFile = !isDirectory && PerFileExt.Contains(ext);
+        bool perFile = isDirectory ? HasOwnIcon(path) : PerFileExt.Contains(ext);
         string key = perFile ? path : ext;
         return Cache.GetOrAdd(key, _ => Load(path, isDirectory, perFile));
     }

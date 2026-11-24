@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows.Data;
+using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using KT_Explorer.Models;
 using KT_Explorer.Services;
@@ -195,6 +196,18 @@ public partial class FolderTabViewModel : TabBase
         }
     }
 
+    private OverlayLoader? _overlayLoader;
+    private OverlayLoader TabOverlay => _overlayLoader ??= new OverlayLoader(() => Path, () => OnPropertyChanged(nameof(OverlayIcon)));
+
+    /// <summary>タブの左に出す、フォルダのアイコン(通常は共通のフォルダのアイコン。ドライブ・デスクトップなどは固有のもの)。</summary>
+    public override ImageSource? Icon => string.IsNullOrEmpty(Path) ? null : ShellIconService.GetIcon(Path, isDirectory: true);
+
+    /// <summary>フォルダのオーバーレイ(OneDrive・SVN などの状態)。表示されたとき、バックグラウンドで調べる。</summary>
+    public override ImageSource? OverlayIcon => string.IsNullOrEmpty(Path) ? null : TabOverlay.Small;
+
+    /// <summary>オーバーレイをいったん消して、調べ直す(「オーバーレイを表示」の切り替え)。</summary>
+    public void ResetTabOverlay() => _overlayLoader?.Reset();
+
     public FolderTabViewModel(string path)
     {
         _view = CollectionViewSource.GetDefaultView(Items);
@@ -303,10 +316,22 @@ public partial class FolderTabViewModel : TabBase
         CancelSearch();
     }
 
+    /// <summary>ピン留めされたタブが、別のフォルダへの移動を頼まれた。移動はせず、移動先を新しいタブで開いてもらう(引数: 移動先)。</summary>
+    public event Action<FolderTabViewModel, string>? NewTabRequested;
+
+    /// <summary>
+    /// フォルダへ移動する。ピン留めされたタブでは、ユーザーの操作による別のフォルダへの移動(recordHistory が true)は、
+    /// このタブを動かさず、移動先を新しいタブで開く。名前の変更への追従などの内部の移動(recordHistory が false)は、そのまま移動する。
+    /// </summary>
     public void NavigateTo(string path, bool recordHistory = true)
     {
         string normalized = Normalize(path);
         if (string.Equals(normalized, Path, StringComparison.OrdinalIgnoreCase)) { Reload(); return; }
+        if (IsPinned && recordHistory && NewTabRequested != null)
+        {
+            NewTabRequested.Invoke(this, normalized);
+            return;
+        }
 
         if (recordHistory && !string.IsNullOrEmpty(Path))
         {
@@ -467,7 +492,9 @@ public partial class FolderTabViewModel : TabBase
         SearchText = "";
         FilterText = "";
         Path = path;
-        string leaf = System.IO.Path.GetFileName(path.TrimEnd('\\', '/'));
+        OnPropertyChanged(nameof(Icon));
+        _overlayLoader?.Reset(); // 別のフォルダになったので、オーバーレイも調べ直す
+        string leaf =System.IO.Path.GetFileName(path.TrimEnd('\\', '/'));
         Title = string.IsNullOrEmpty(leaf) ? path : leaf;
         CanGoBack = _back.Count > 0;
         CanGoForward = _forward.Count > 0;
@@ -498,6 +525,7 @@ public partial class FolderTabViewModel : TabBase
         if (_itemsPath != null && string.Equals(_itemsPath, path, StringComparison.OrdinalIgnoreCase))
         {
             SyncItems(entries); // 同じフォルダの再読み込みは差分だけ反映(選択状態を保つ)
+            _overlayLoader?.Refresh(); // このフォルダ自身の状態(タブのオーバーレイ)も調べ直す
         }
         else
         {
@@ -611,10 +639,15 @@ public partial class FolderTabViewModel : TabBase
                 // フォルダは、更新日時だけが変わっても、項目を作り直さない。サイズを計算すると(中を開くと)、
                 // NTFS がフォルダの更新日時を少し遅れて更新するため、作り直すと、計算したサイズが消えてしまう。
                 if (f.Modified != old.Modified) old.Modified = f.Modified;
+                old.RefreshOverlay();
             }
             else if (f.Modified != old.Modified || f.Size != old.Size)
             {
                 Items.RemoveAt(i);
+            }
+            else
+            {
+                old.RefreshOverlay(); // 変わっていないファイルも、同期の状態などは変わっているかもしれない
             }
         }
 

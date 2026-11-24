@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
+using KT_Explorer.Services;
 
 namespace KT_Explorer.ViewModels;
 
@@ -43,6 +45,22 @@ public partial class TreeNodeViewModel : ObservableObject
 
     public string FullPath { get; }
     public bool IsPlaceholder { get; }
+
+    /// <summary>フォルダのアイコン(通常は共通のフォルダのアイコン。ドライブ・デスクトップなどは固有のもの)。ダミーの子には無い。</summary>
+    public ImageSource? Icon => IsPlaceholder ? null : ShellIconService.GetIcon(FullPath, isDirectory: true);
+
+    private OverlayLoader? _overlayLoader;
+    private OverlayLoader Overlay => _overlayLoader ??= new OverlayLoader(() => FullPath, () => OnPropertyChanged(nameof(OverlayIcon)));
+
+    /// <summary>アイコンに重ねるオーバーレイ(OneDrive・SVN などの状態)。表示されたとき、バックグラウンドで調べる。</summary>
+    public ImageSource? OverlayIcon => IsPlaceholder ? null : Overlay.Small;
+
+    /// <summary>オーバーレイを、いったん消して調べ直す(「オーバーレイを表示」の切り替え。展開済みの子も含む)。</summary>
+    public void ResetOverlay()
+    {
+        _overlayLoader?.Reset();
+        foreach (var child in Children) child.ResetOverlay();
+    }
     public ObservableCollection<TreeNodeViewModel> Children { get; } = new();
 
     partial void OnIsExpandedChanged(bool value)
@@ -109,7 +127,11 @@ public partial class TreeNodeViewModel : ObservableObject
             if (i < Children.Count && string.Equals(Children[i].FullPath, dirs[i].FullName, StringComparison.Ordinal)) continue;
             Children.Insert(i, new TreeNodeViewModel(dirs[i].Name, dirs[i].FullName, _onSelected));
         }
-        foreach (var child in Children) child.RefreshChildren();
+        foreach (var child in Children)
+        {
+            child.RefreshChildren();
+            child._overlayLoader?.Refresh(); // 状態が変わったかもしれない
+        }
     }
 
     /// <summary>target までのノードを展開し、最後のノードを返す。</summary>
