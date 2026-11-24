@@ -80,6 +80,22 @@ try {
     [KtWin]::mouse_event(8, 0, 0, 0, [UIntPtr]::Zero); [KtWin]::mouse_event(16, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 1200
     Check '9) a plain right click still opens the context menu' ([bool](Find-AppMenuItem '貼り付け'))
     Send-Keys '{ESC}' 500
+
+    # ── 10) ロッカー: 右ボタンを押したまま左クリック = いまのタブを閉じる。右ボタンを離しても、メニューは出ない
+    function Tab-Count { @(Find-All 'ListItem' | Where-Object { $_.Current.Name -like '*FolderTab*' }).Count }
+    $before = Tab-Count
+    Assert-AppForeground
+    [void][KtWin]::SetCursorPos([int]($r.X + $r.Width * 0.6), [int]($r.Y + $r.Height * 0.6)); Start-Sleep -Milliseconds 500
+    [KtWin]::mouse_event(8, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 300       # 右ボタンを押す
+    [KtWin]::mouse_event(2, 0, 0, 0, [UIntPtr]::Zero); [KtWin]::mouse_event(4, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 700   # 左クリック
+    [KtWin]::mouse_event(16, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 1200     # 右ボタンを離す
+    Check "10) right button held + left click closes the current tab ($before -> $(Tab-Count))" ((Tab-Count) -eq $before - 1)
+    Check '10) the context menu did not open after releasing the right button' (-not (Find-AppMenuItem '貼り付け'))
+
+    # ── 11) 右ボタンを押さない左クリックは、タブを閉じない
+    $before = Tab-Count
+    [KtWin]::mouse_event(2, 0, 0, 0, [UIntPtr]::Zero); [KtWin]::mouse_event(4, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 900
+    Check "11) a plain left click does not close a tab ($before -> $(Tab-Count))" ((Tab-Count) -eq $before)
 }
 finally {
     Stop-KtApp

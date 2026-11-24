@@ -33,6 +33,17 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void TogglePreview() => ShowPreview = !ShowPreview;
 
+    /// <summary>一覧のアイコンに、シェルのオーバーレイ(OneDrive・SVN などの状態)を重ねる。</summary>
+    [ObservableProperty] private bool _showOverlayIcons = true;
+
+    partial void OnShowOverlayIconsChanged(bool value)
+    {
+        OverlayIconService.Enabled = value;
+        // 切り替えたら、開いている一覧のオーバーレイを、出し直す(オフなら消え、オンなら調べ直す)
+        foreach (var f in AllFolders().ToList())
+            foreach (var item in f.Items) item.ResetOverlay();
+    }
+
     /// <summary>操作中の一覧の表示を切り替える(Ctrl+Shift+1 詳細 / 2 アイコン / 3 一覧)。</summary>
     [RelayCommand]
     private void SetViewMode(string? mode)
@@ -208,6 +219,7 @@ public partial class MainViewModel : ObservableObject
         ViewSettings.LoadColumns(state.ExtraColumns);
         AutoFolderSize = state.AutoFolderSize;
         ShowPreview = state.ShowPreview;
+        ShowOverlayIcons = state.ShowOverlayIcons;
         foreach (var fs in state.Favorites)
         {
             var fav = FavoriteFromState(fs);
@@ -228,11 +240,13 @@ public partial class MainViewModel : ObservableObject
             for (int k = 0; k < gs.TabPaths.Count; k++)
             {
                 if (!Directory.Exists(gs.TabPaths[k])) continue;
-                var tab = new FolderTabViewModel(gs.TabPaths[k]);
+                var tab = NewFolderTab(gs.TabPaths[k]);
                 if (k < gs.TabSorts.Count)
                 {
                     tab.SetSort(gs.TabSorts[k].Column, gs.TabSorts[k].Descending); // タブごとの並び順を復元
                     tab.SetViewMode(gs.TabSorts[k].ViewMode, remember: false);      // タブごとの表示(詳細・アイコン・一覧)を復元
+                    tab.IsPinned = gs.TabSorts[k].IsPinned;                          // ピン留めと色を復元
+                    tab.TabColor = TabColors.Normalize(gs.TabSorts[k].Color);
                 }
                 group.Tabs.Add(tab);
             }
@@ -240,7 +254,7 @@ public partial class MainViewModel : ObservableObject
                 group.LastSelected = group.Tabs[Math.Clamp(gs.SelectedIndex, 0, group.Tabs.Count - 1)];
             Groups.Add(group);
         }
-        if (Groups.Sum(g => g.Tabs.Count) == 0) Groups[0].Tabs.Add(new FolderTabViewModel(profile));
+        if (Groups.Sum(g => g.Tabs.Count) == 0) Groups[0].Tabs.Add(NewFolderTab(profile));
 
         SelectGroup(Groups[Math.Clamp(state.SelectedGroupIndex, 0, Groups.Count - 1)]);
     }
@@ -355,9 +369,37 @@ public partial class MainViewModel : ObservableObject
 
     private string DefaultPath => CurrentFolder?.Path ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
-    private FolderTabViewModel AddTab(string path, bool select = false)
+    /// <summary>フォルダタブを作る。ピン留めされたときの「移動先を新しいタブで開く」要求を受けられるようにする。</summary>
+    private FolderTabViewModel NewFolderTab(string path)
     {
         var tab = new FolderTabViewModel(path);
+        tab.NewTabRequested += OnPinnedNewTabRequested;
+        return tab;
+    }
+
+    /// <summary>ピン留めされたタブから別のフォルダへ移動しようとした: そのタブの右隣に、移動先の新しいタブを開いて選択する。</summary>
+    private void OnPinnedNewTabRequested(FolderTabViewModel source, string path)
+    {
+        var group = Groups.FirstOrDefault(g => g.Tabs.Contains(source)) ?? _selectedGroup;
+        var tab = NewFolderTab(path);
+        group.Tabs.Insert(Math.Min(group.Tabs.IndexOf(source) + 1, group.Tabs.Count), tab);
+        if (group != _selectedGroup) SelectGroup(group);
+        Select(tab);
+        FolderHistory.Record(path); // 新しいタブで開いた場所も、開いた履歴に残す
+    }
+
+    /// <summary>ピン留めを切り替える(フォルダタブのみ。ペインタブは対象外)。</summary>
+    public void TogglePin(TabBase tab)
+    {
+        if (tab is FolderTabViewModel f) f.IsPinned = !f.IsPinned;
+    }
+
+    /// <summary>タブの色を変える。null か、パレットにない色は、色なしにする。</summary>
+    public void SetTabColor(TabBase tab, string? hex) => tab.TabColor = TabColors.Normalize(hex);
+
+    private FolderTabViewModel AddTab(string path, bool select = false)
+    {
+        var tab = NewFolderTab(path);
         _selectedGroup.Tabs.Add(tab);
         if (select) Select(tab);
         return tab;
@@ -375,7 +417,7 @@ public partial class MainViewModel : ObservableObject
     }
 
     // 閉じたフォルダタブの履歴(新しいものが末尾)。ペインタブは対象外
-    private sealed record ClosedTab(string Path, TabGroupViewModel Group, int Index);
+    private sealed record ClosedTab(string Path, TabGroupViewModel Group, int Index, bool IsPinned, string? Color);
     private readonly List<ClosedTab> _closedTabs = new();
     private const int ClosedTabLimit = 20;
 
@@ -393,7 +435,9 @@ public partial class MainViewModel : ObservableObject
 
             var group = Groups.Contains(closed.Group) ? closed.Group : _selectedGroup;
             if (group != _selectedGroup) SelectGroup(group);
-            var tab = new FolderTabViewModel(closed.Path);
+            var tab = NewFolderTab(closed.Path);
+            tab.IsPinned = closed.IsPinned;
+            tab.TabColor = closed.Color;
             group.Tabs.Insert(Math.Min(closed.Index, group.Tabs.Count), tab);
             Select(tab);
             return;
@@ -409,7 +453,8 @@ public partial class MainViewModel : ObservableObject
 
         if (tab is FolderTabViewModel folder)
         {
-            var copy = new FolderTabViewModel(folder.Path);
+            var copy = NewFolderTab(folder.Path);
+            copy.TabColor = folder.TabColor; // 色は引き継ぐ。ピン留めは引き継がない(複製は、そこから動かして使うことが多いため)
             group.Tabs.Insert(group.Tabs.IndexOf(tab) + 1, copy);
             Select(copy);
         }
@@ -431,7 +476,7 @@ public partial class MainViewModel : ObservableObject
         int index = group.Tabs.IndexOf(tab);
         if (tab is FolderTabViewModel closedFolder)
         {
-            _closedTabs.Add(new ClosedTab(closedFolder.Path, group, index));
+            _closedTabs.Add(new ClosedTab(closedFolder.Path, group, index, closedFolder.IsPinned, closedFolder.TabColor));
             if (_closedTabs.Count > ClosedTabLimit) _closedTabs.RemoveAt(0);
         }
         group.Tabs.Remove(tab);
@@ -453,7 +498,7 @@ public partial class MainViewModel : ObservableObject
     public void AddGroup(string name)
     {
         var group = new TabGroupViewModel(name.Trim());
-        group.Tabs.Add(new FolderTabViewModel(DefaultPath));
+        group.Tabs.Add(NewFolderTab(DefaultPath));
         Groups.Add(group);
         SelectGroup(group);
     }
@@ -481,7 +526,7 @@ public partial class MainViewModel : ObservableObject
         SelectGroup(Groups[(i + direction + Groups.Count) % Groups.Count]);
     }
 
-    /// <summary>タブを別のグループへ移動する。表示中のグループは変えない。</summary>
+    /// <summary>タブ(フォルダタブ・ペインタブ)を別のグループへ移動し、移動先のグループを表示して、移したタブをアクティブにする。</summary>
     public void MoveTabToGroup(TabBase tab, TabGroupViewModel target)
     {
         var source = Groups.FirstOrDefault(g => g.Tabs.Contains(tab));
@@ -490,10 +535,15 @@ public partial class MainViewModel : ObservableObject
         int index = source.Tabs.IndexOf(tab);
         source.Tabs.Remove(tab);
         target.Tabs.Add(tab);
-        target.LastSelected ??= tab;
 
-        if (source == _selectedGroup && ReferenceEquals(tab, _selectedTab))
-            Select(source.Tabs.Count > 0 ? source.Tabs[Math.Min(index, source.Tabs.Count - 1)] : null);
+        // 元のグループでは、移したタブの隣を選んだ状態にしておく(あとでそのグループへ戻ったとき)
+        var neighbor = source.Tabs.Count > 0 ? source.Tabs[Math.Min(index, source.Tabs.Count - 1)] : null;
+        if (ReferenceEquals(source.LastSelected, tab)) source.LastSelected = neighbor;
+        if (source == _selectedGroup && ReferenceEquals(tab, _selectedTab)) Select(neighbor);
+
+        // 移動先のグループを表示して、移したタブをアクティブにする
+        target.LastSelected = tab;
+        SelectGroup(target);
     }
 
     /// <summary>同じグループ内でタブの並び順を変える。tab を target の位置へ移す(選択は変えない)。</summary>
@@ -558,7 +608,7 @@ public partial class MainViewModel : ObservableObject
         pane.Dispose();
 
         if (Groups.Sum(g => g.Tabs.Count) == 0)
-            group.Tabs.Add(new FolderTabViewModel(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
+            group.Tabs.Add(NewFolderTab(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
 
         if (ReferenceEquals(pane, _selectedTab) && group == _selectedGroup)
             Select(group.Tabs.Count > 0 ? group.Tabs[Math.Max(index - 1, 0)] : null);
@@ -640,7 +690,7 @@ public partial class MainViewModel : ObservableObject
                       .FirstOrDefault(t => string.Equals(t.Path, p, StringComparison.OrdinalIgnoreCase));
         if (tab == null)
         {
-            tab = new FolderTabViewModel(p);
+            tab = NewFolderTab(p);
             def.Tabs.Add(tab);
         }
         if (_selectedGroup != def) SelectGroup(def);
@@ -690,6 +740,7 @@ public partial class MainViewModel : ObservableObject
             ExtraColumns = ViewSettings.ExtraColumns.ToList(),
             AutoFolderSize = AutoFolderSize,
             ShowPreview = ShowPreview,
+            ShowOverlayIcons = ShowOverlayIcons,
             SelectedGroupIndex = Groups.IndexOf(_selectedGroup),
         };
         foreach (var f in Favorites) state.Favorites.Add(FavoriteToState(f));
@@ -704,7 +755,7 @@ public partial class MainViewModel : ObservableObject
                 if (t is FolderTabViewModel f)
                 {
                     folderTabs.Add(f.Path);
-                    tabSorts.Add(new TabSortState { Column = f.SortColumn, Descending = f.SortDescending, ViewMode = f.ViewMode });
+                    tabSorts.Add(new TabSortState { Column = f.SortColumn, Descending = f.SortDescending, ViewMode = f.ViewMode, IsPinned = f.IsPinned, Color = f.TabColor });
                 }
                 if (ReferenceEquals(t, selected)) selectedIndex = Math.Max(folderTabs.Count - 1, 0);
             }

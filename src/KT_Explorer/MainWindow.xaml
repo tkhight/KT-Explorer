@@ -101,11 +101,16 @@
             <Grid>
                 <TextBox x:Name="PathBox" VerticalContentAlignment="Center"
                          Text="{Binding CurrentFolder.Path, Mode=OneWay}" PreviewKeyDown="PathBox_PreviewKeyDown" KeyDown="PathBox_KeyDown"
-                         TextChanged="PathBox_TextChanged" LostKeyboardFocus="PathBox_FocusChanged" GotKeyboardFocus="PathBox_FocusChanged"/>
+                         ContextMenuOpening="PathBox_ContextMenuOpening"
+                         TextChanged="PathBox_TextChanged" LostKeyboardFocus="PathBox_FocusChanged" GotKeyboardFocus="PathBox_FocusChanged">
+                    <!-- 空のメニューを持たせておく(TextBox は、メニューが無いと、自分の標準メニューを先に開いてしまう)。中身は開くたびに組み立てる -->
+                    <TextBox.ContextMenu><ContextMenu/></TextBox.ContextMenu>
+                </TextBox>
                 <!-- パンくず: パス欄に入力していない間、パス欄の上に重ねて表示する。各階層をクリックで移動、▸ でその中のフォルダ -->
                 <Border x:Name="Breadcrumb" Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}"
                         BorderBrush="{DynamicResource {x:Static SystemColors.ControlDarkBrushKey}}" BorderThickness="1"
-                        MouseLeftButtonDown="Breadcrumb_MouseLeftButtonDown" ToolTip="空いているところをクリックすると、パスを入力できます (Ctrl+L)">
+                        MouseLeftButtonDown="Breadcrumb_MouseLeftButtonDown" ContextMenuOpening="Breadcrumb_ContextMenuOpening"
+                        ToolTip="空いているところをクリックすると、パスを入力できます (Ctrl+L)&#10;右クリックで、パスをコピーできます">
                     <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" Focusable="False">
                         <StackPanel x:Name="BreadcrumbPanel" Orientation="Horizontal" VerticalAlignment="Center"/>
                     </ScrollViewer>
@@ -318,12 +323,28 @@
                         </ListBox.ItemsPanel>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Orientation="Horizontal" ToolTip="{Binding ToolTipText}" AllowDrop="True"
-                                            ContextMenuOpening="TabItem_ContextMenuOpening"
-                                            DragOver="TabItem_DragOver" Drop="TabItem_Drop">
-                                    <TextBlock Text="{Binding Title}" MaxWidth="200" TextTrimming="CharacterEllipsis"
-                                               Margin="2,0" VerticalAlignment="Center"/>
-                                </StackPanel>
+                                <!-- 色: 下に太い線 + 薄い背景。ピン留め: 先頭に 📌 -->
+                                <Border ToolTip="{Binding ToolTipText}" AllowDrop="True" Padding="4,1"
+                                        BorderThickness="0,0,0,3" BorderBrush="{Binding TabColorBrush}" Background="{Binding TabTintBrush}"
+                                        ContextMenuOpening="TabItem_ContextMenuOpening"
+                                        DragOver="TabItem_DragOver" Drop="TabItem_Drop">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="📌" FontSize="10" Margin="0,0,2,0" VerticalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsPinned}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                        <TextBlock Text="{Binding Title}" MaxWidth="200" TextTrimming="CharacterEllipsis"
+                                                   Margin="2,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>

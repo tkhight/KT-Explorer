@@ -23,9 +23,11 @@
         <!-- アイコン: 大きなアイコン(画像・動画などはサムネイル)の下に、名前 -->
         <DataTemplate x:Key="IconItemTemplate">
             <StackPanel Width="{DynamicResource IconItemWidth}" Margin="2" ToolTip="{Binding Name}">
-                <Image Source="{Binding Thumbnail}" Width="{DynamicResource IconImageSize}" Height="{DynamicResource IconImageSize}"
-                       Stretch="Uniform" HorizontalAlignment="Center"
-                       RenderOptions.BitmapScalingMode="HighQuality"/>
+                <!-- 大きなアイコンに、オーバーレイ(OneDrive・SVN などの状態)を重ねる -->
+                <Grid Width="{DynamicResource IconImageSize}" Height="{DynamicResource IconImageSize}" HorizontalAlignment="Center">
+                    <Image Source="{Binding Thumbnail}" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
+                    <Image Source="{Binding OverlayIconLarge}" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" IsHitTestVisible="False"/>
+                </Grid>
                 <TextBlock Text="{Binding Name}" Tag="NameText" Style="{StaticResource NameTextStyle}" Margin="0,2,0,0"
                            TextAlignment="Center" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="34"/>
                 <TextBox Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource EditBoxStyle}"
@@ -38,7 +40,10 @@
         <!-- 一覧: 小さなアイコンと名前 -->
         <DataTemplate x:Key="ListItemTemplate">
             <StackPanel Orientation="Horizontal" Width="220" ToolTip="{Binding Name}">
-                <Image Source="{Binding Icon}" Width="16" Height="16" Margin="0,0,6,0"/>
+                <Grid Width="16" Height="16" Margin="0,0,6,0">
+                    <Image Source="{Binding Icon}"/>
+                    <Image Source="{Binding OverlayIcon}" IsHitTestVisible="False"/>
+                </Grid>
                 <TextBlock Text="{Binding Name}" Tag="NameText" Style="{StaticResource NameTextStyle}"
                            TextTrimming="CharacterEllipsis" MaxWidth="190"/>
                 <TextBox Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource EditBoxStyle}"
@@ -83,7 +88,10 @@
                         <GridViewColumn.CellTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal">
-                                    <Image Source="{Binding Icon}" Width="16" Height="16" Margin="0,0,6,0"/>
+                                    <Grid Width="16" Height="16" Margin="0,0,6,0">
+                                        <Image Source="{Binding Icon}"/>
+                                        <Image Source="{Binding OverlayIcon}" IsHitTestVisible="False"/>
+                                    </Grid>
                                     <!-- 通常表示(ゆっくり2回クリックで名前の変更を始める対象なので Tag で見分ける) -->
                                     <TextBlock Text="{Binding Name}" Tag="NameText">
                                         <TextBlock.Style>

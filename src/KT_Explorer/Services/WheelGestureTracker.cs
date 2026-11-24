@@ -42,6 +42,22 @@ public sealed class WheelGestureTracker
         return delta > 0 ? WheelAction.PreviousTab : WheelAction.NextTab;
     }
 
+    /// <summary>
+    /// 左ボタンを押した(ロッカー: 右ボタンを押したまま、左クリック)。右ボタンを追跡中で、本当にまだ右ボタンが押されている
+    /// (rightStillPressed。離しを見逃していない)ときだけ true を返し(タブを閉じる)、右ボタンを離したときのメニューを出さない。
+    /// そうでなければ、追跡をやめて false を返す(離しを見逃したあとの左クリックを、ロッカーと取り違えないため)。
+    /// </summary>
+    public bool Rocker(bool rightStillPressed)
+    {
+        if (IsHeld && rightStillPressed)
+        {
+            Used = true;
+            return true;
+        }
+        Cancel();
+        return false;
+    }
+
     /// <summary>右ボタンを離した。戻り値: ホイールのジェスチャを使ったので、右クリックのメニューを出さない。</summary>
     public bool RightUp()
     {

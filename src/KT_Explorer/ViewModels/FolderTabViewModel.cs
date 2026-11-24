@@ -303,10 +303,22 @@ public partial class FolderTabViewModel : TabBase
         CancelSearch();
     }
 
+    /// <summary>ピン留めされたタブが、別のフォルダへの移動を頼まれた。移動はせず、移動先を新しいタブで開いてもらう(引数: 移動先)。</summary>
+    public event Action<FolderTabViewModel, string>? NewTabRequested;
+
+    /// <summary>
+    /// フォルダへ移動する。ピン留めされたタブでは、ユーザーの操作による別のフォルダへの移動(recordHistory が true)は、
+    /// このタブを動かさず、移動先を新しいタブで開く。名前の変更への追従などの内部の移動(recordHistory が false)は、そのまま移動する。
+    /// </summary>
     public void NavigateTo(string path, bool recordHistory = true)
     {
         string normalized = Normalize(path);
         if (string.Equals(normalized, Path, StringComparison.OrdinalIgnoreCase)) { Reload(); return; }
+        if (IsPinned && recordHistory && NewTabRequested != null)
+        {
+            NewTabRequested.Invoke(this, normalized);
+            return;
+        }
 
         if (recordHistory && !string.IsNullOrEmpty(Path))
         {
@@ -611,10 +623,15 @@ public partial class FolderTabViewModel : TabBase
                 // フォルダは、更新日時だけが変わっても、項目を作り直さない。サイズを計算すると(中を開くと)、
                 // NTFS がフォルダの更新日時を少し遅れて更新するため、作り直すと、計算したサイズが消えてしまう。
                 if (f.Modified != old.Modified) old.Modified = f.Modified;
+                old.RefreshOverlay();
             }
             else if (f.Modified != old.Modified || f.Size != old.Size)
             {
                 Items.RemoveAt(i);
+            }
+            else
+            {
+                old.RefreshOverlay(); // 変わっていないファイルも、同期の状態などは変わっているかもしれない
             }
         }
 

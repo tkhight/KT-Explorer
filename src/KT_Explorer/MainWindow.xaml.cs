@@ -411,7 +411,18 @@ public partial class MainWindow : Window
             && !(e.OriginalSource is DependencyObject src && FindAncestor<TextBox>(src) is { } tb && ReferenceEquals(tb.DataContext, editing)))
             CommitTreeRename(editing);
 
-        if (e.ChangedButton == MouseButton.Left) EndGestureTracking(); // 右ボタンの離しを見逃したときの保険
+        if (e.ChangedButton == MouseButton.Left)
+        {
+            // ロッカージェスチャ: 右ボタンを押したまま左クリック = いまのタブを閉じる(最後の1枚は閉じない)。
+            // 右ボタンがまだ押されているか(離しを見逃していないか)を確かめ、そうでなければ追跡をやめる(保険)
+            if (_wheelGesture.Rocker(e.RightButton == MouseButtonState.Pressed))
+            {
+                _vm.CloseTabCommand.Execute(null);
+                e.Handled = true; // 左クリック本来の動き(選択など)はさせない
+                return;
+            }
+            EndGestureTracking();
+        }
         if (e.ChangedButton == MouseButton.XButton1) { _vm.BackCommand.Execute(null); e.Handled = true; }
         else if (e.ChangedButton == MouseButton.XButton2) { _vm.ForwardCommand.Execute(null); e.Handled = true; }
     }
@@ -521,7 +532,7 @@ public partial class MainWindow : Window
         return item;
     }
 
-    /// <summary>「表示」メニューの設定: ツリーをタブに連動 / プレビューを表示 / フォルダーを先頭にまとめる。</summary>
+    /// <summary>「表示」メニューの設定: ツリーをタブに連動 / プレビューを表示 / フォルダーを先頭にまとめる / オーバーレイアイコンを表示。</summary>
     private void AddViewSettings(ItemCollection items)
     {
         items.Add(new Separator());
@@ -536,6 +547,8 @@ public partial class MainWindow : Window
         };
         foldersFirst.Click += (_, _) => SortSettings.Instance.SetFoldersFirst(foldersFirst.IsChecked);
         items.Add(foldersFirst);
+        items.Add(SettingCheck("オーバーレイアイコンを表示", nameof(MainViewModel.ShowOverlayIcons),
+            "アイコンに、OneDrive の同期状態・SVN の状態・ショートカットの矢印などを重ねます(エクスプローラーと同じ)。重いときは、オフにしてください"));
     }
 
     /// <summary>「ツール」メニュー: マウスジェスチャ / 開いた Explorer を取り込む / 閉じるボタンでトレイに常駐 / フォルダーのサイズを自動計算 / Windows 起動時に自動起動。</summary>
@@ -545,7 +558,7 @@ public partial class MainWindow : Window
         var menu = (MenuItem)sender;
         menu.Items.Clear();
 
-        menu.Items.Add(SettingCheck("マウスジェスチャ(右ドラッグ)", nameof(MainViewModel.EnableGestures), "左=戻る / 右=進む / 上=一つ上の階層へ / 右ボタン+ホイール: 上=左のタブ・下=右のタブ / Ctrl も押すと、前・次のタブグループ"));
+        menu.Items.Add(SettingCheck("マウスジェスチャ(右ドラッグ)", nameof(MainViewModel.EnableGestures), "左=戻る / 右=進む / 上=一つ上の階層へ / 右ボタン+ホイール: 上=左のタブ・下=右のタブ / Ctrl も押すと、前・次のタブグループ / 右ボタンを押したまま左クリック: いまのタブを閉じる"));
         menu.Items.Add(SettingCheck("開いた Explorer を取り込む", nameof(MainViewModel.CaptureExplorer),
             "デスクトップ等から開いた Explorer をデフォルトグループのタブへ取り込みます"));
         menu.Items.Add(SettingCheck("閉じるボタンでトレイに常駐", nameof(MainViewModel.CloseToTray),
@@ -788,7 +801,7 @@ public partial class MainWindow : Window
             var crumb = new Button
             {
                 Content = new TextBlock { Text = seg.Name }, /* 文字列のままだと、名前の「_」がアクセスキー扱いで消える */ Padding = new Thickness(2, 0, 2, 0), Margin = new Thickness(0), MinWidth = 0,
-                Background = Brushes.Transparent, BorderThickness = new Thickness(0), Focusable = false, ToolTip = seg.FullPath,
+                Background = Brushes.Transparent, BorderThickness = new Thickness(0), Focusable = false, ToolTip = seg.FullPath, Tag = seg.FullPath,
             };
             crumb.Click += (_, _) =>
             {
@@ -801,7 +814,7 @@ public partial class MainWindow : Window
             var arrow = new Button
             {
                 Content = ">", Padding = new Thickness(0), Margin = new Thickness(0), MinWidth = 0, Background = Brushes.Transparent, BorderThickness = new Thickness(0),
-                Focusable = false, Foreground = Brushes.Gray, ToolTip = "この中のフォルダ",
+                Focusable = false, Foreground = Brushes.Gray, ToolTip = "この中のフォルダ", Tag = seg.FullPath,
             };
             arrow.Click += (_, _) => ShowCrumbChildren(arrow, seg.FullPath);
             BreadcrumbPanel.Children.Add(arrow);
@@ -824,6 +837,54 @@ public partial class MainWindow : Window
         }
         if (menu.Items.Count == 0) menu.Items.Add(new MenuItem { Header = "(フォルダはありません)", IsEnabled = false });
         menu.IsOpen = true;
+    }
+
+    // ───────── パスのコピー(パス欄が狭くて、全体を選べないとき用) ─────────
+
+    private static void OpenMenuAt(ContextMenu menu, FrameworkElement target, ContextMenuEventArgs e)
+    {
+        // WPF に開かせると古いメニューが出ることがあるため、タブのメニューと同じく、自分で開く
+        e.Handled = true;
+        menu.PlacementTarget = target;
+        menu.Placement = e.CursorLeft < 0
+            ? System.Windows.Controls.Primitives.PlacementMode.Bottom
+            : System.Windows.Controls.Primitives.PlacementMode.MousePoint;
+        menu.IsOpen = true;
+    }
+
+    private static MenuItem CopyPathItem(string header, string text)
+    {
+        var item = new MenuItem { Header = header, IsEnabled = !string.IsNullOrEmpty(text) };
+        item.Click += (_, _) => FolderActions.CopyPathText(new[] { text });
+        return item;
+    }
+
+    /// <summary>パンくずの右クリック: 現在のフォルダのパス全体をコピー。階層の上なら、その階層までのパスもコピーできる。</summary>
+    private void Breadcrumb_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+    {
+        var menu = new ContextMenu();
+        if ((e.OriginalSource as DependencyObject) is { } d && FindAncestor<Button>(d) is { Tag: string crumbPath } &&
+            !string.Equals(crumbPath, _vm.CurrentFolder?.Path, StringComparison.OrdinalIgnoreCase))
+            menu.Items.Add(CopyPathItem($"この階層のパスをコピー: {crumbPath}", crumbPath));
+        menu.Items.Add(CopyPathItem("パスをコピー", _vm.CurrentFolder?.Path ?? ""));
+        menu.Items.Add(new Separator());
+        var edit = new MenuItem { Header = "パスを入力する", InputGestureText = "Ctrl+L" };
+        edit.Click += (_, _) => { PathBox.Focus(); PathBox.SelectAll(); };
+        menu.Items.Add(edit);
+        OpenMenuAt(menu, Breadcrumb, e);
+    }
+
+    /// <summary>パス欄の右クリック: ふつうの編集メニューに、パス全体をコピーする項目を足す。</summary>
+    private void PathBox_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+    {
+        var menu = PathBox.ContextMenu!;   // XAML で持たせた空のメニュー。ここで中身を入れて、WPF に開かせる
+        menu.Items.Clear();
+        menu.Items.Add(CopyPathItem("パス全体をコピー", PathBox.Text));
+        menu.Items.Add(new Separator());
+        menu.Items.Add(new MenuItem { Header = "切り取り", Command = ApplicationCommands.Cut, CommandTarget = PathBox });
+        menu.Items.Add(new MenuItem { Header = "コピー", Command = ApplicationCommands.Copy, CommandTarget = PathBox });
+        menu.Items.Add(new MenuItem { Header = "貼り付け", Command = ApplicationCommands.Paste, CommandTarget = PathBox });
+        menu.Items.Add(new MenuItem { Header = "すべて選択", Command = ApplicationCommands.SelectAll, CommandTarget = PathBox });
     }
 
     /// <summary>パンくずの空いているところをクリックすると、パスの入力に切り替える。</summary>
@@ -922,8 +983,36 @@ public partial class MainWindow : Window
         var duplicate = new MenuItem { Header = "タブを複製" };
         duplicate.Click += (_, _) => _vm.DuplicateTab(tab);
         menu.Items.Add(duplicate);
+        string? tabPath = tab switch { FolderTabViewModel f => f.Path, PaneTabViewModel p => p.ActivePane?.Path, _ => null };
+        menu.Items.Add(CopyPathItem("パスをコピー", tabPath ?? ""));
         menu.Items.Add(new Separator());
-        var close = new MenuItem { Header = "タブを閉じる", InputGestureText = "Ctrl+W" };
+
+        // ピン留め(フォルダタブのみ): 留めたタブから別のフォルダへ移ると、移動先を新しいタブで開く
+        bool pinned = tab.IsPinned;
+        var pin = new MenuItem { Header = pinned ? "ピン留めを外す" : "タブをピン留め", IsEnabled = tab is FolderTabViewModel };
+        pin.Click += (_, _) => _vm.TogglePin(tab);
+        menu.Items.Add(pin);
+
+        // タブの色: 色の見本つき。いまの色にチェック
+        var colorMenu = new MenuItem { Header = "タブの色" };
+        var none = new MenuItem { Header = "色なし", IsCheckable = false, IsChecked = tab.TabColor == null };
+        none.Click += (_, _) => _vm.SetTabColor(tab, null);
+        colorMenu.Items.Add(none);
+        foreach (var (name, hex) in TabColors.Palette)
+        {
+            string h = hex;
+            var item = new MenuItem
+            {
+                Header = name,
+                IsChecked = string.Equals(tab.TabColor, h, StringComparison.OrdinalIgnoreCase),
+                Icon = new System.Windows.Shapes.Rectangle { Width = 12, Height = 12, Fill = TabColors.Brush(h) },
+            };
+            item.Click += (_, _) => _vm.SetTabColor(tab, h);
+            colorMenu.Items.Add(item);
+        }
+        menu.Items.Add(colorMenu);
+        menu.Items.Add(new Separator());
+        var close =new MenuItem { Header = "タブを閉じる", InputGestureText = "Ctrl+W" };
         close.Click += (_, _) => _vm.CloseTabCommand.Execute(tab);
         menu.Items.Add(close);
         var reopen = new MenuItem { Header = "閉じたタブを開き直す", InputGestureText = "Ctrl+Shift+T", IsEnabled = _vm.CanReopenClosedTab };

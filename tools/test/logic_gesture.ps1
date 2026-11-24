@@ -51,4 +51,22 @@ Check 'Ctrl + right button + wheel up = PreviousGroup, down = NextGroup' (($up -
 Check 'releasing after a Ctrl wheel also suppresses the context menu' ($t.RightUp() -eq $true)
 $t = New-Tracker
 Check 'Ctrl + wheel without the right button does nothing' ("$($t.Wheel(120, $true))" -eq 'None')
+
+# ── ロッカー(右ボタンを押したまま左クリック = タブを閉じる)
+$t = New-Tracker
+$t.RightDown($true)
+Check 'rocker: left click while the right button is held -> true (close the tab)' ($t.Rocker($true) -eq $true)
+Check 'rocker: releasing the right button afterwards suppresses the context menu' ($t.RightUp() -eq $true)
+$t = New-Tracker
+$t.RightDown($true)
+Check 'rocker: left click when the right button is no longer pressed (a missed release) -> false' ($t.Rocker($false) -eq $false)
+Check 'rocker: a missed release cancels tracking (no menu suppression, not held)' (($t.RightUp() -eq $false) -and (-not $t.IsHeld))
+$t = New-Tracker
+Check 'rocker: left click without the right button does nothing' (($t.Rocker($true) -eq $false) -and (-not $t.IsHeld))
+$t = New-Tracker
+$t.RightDown($false)
+Check 'rocker: gestures switched off -> never closes a tab' ($t.Rocker($true) -eq $false)
+$t = New-Tracker
+$t.RightDown($true)
+Check 'rocker: several left clicks in one press each close a tab' (($t.Rocker($true) -eq $true) -and ($t.Rocker($true) -eq $true))
 Show-Result
