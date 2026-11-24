@@ -41,7 +41,11 @@ public partial class MainViewModel : ObservableObject
         OverlayIconService.Enabled = value;
         // 切り替えたら、開いている一覧のオーバーレイを、出し直す(オフなら消え、オンなら調べ直す)
         foreach (var f in AllFolders().ToList())
+        {
+            f.ResetTabOverlay();
             foreach (var item in f.Items) item.ResetOverlay();
+        }
+        foreach (var root in TreeRoots) root.ResetOverlay();   // ツリーも
     }
 
     /// <summary>操作中の一覧の表示を切り替える(Ctrl+Shift+1 詳細 / 2 アイコン / 3 一覧)。</summary>
@@ -469,7 +473,7 @@ public partial class MainViewModel : ObservableObject
     private void CloseTab(TabBase? tab)
     {
         tab ??= _selectedTab;
-        if (tab == null) return;
+        if (tab == null || tab.IsPinned) return; // ピン留めされたタブは閉じない(右クリック・中クリック・Ctrl+W・ロッカーのすべて、ここを通る)
         var group = Groups.FirstOrDefault(g => g.Tabs.Contains(tab));
         if (group == null || Groups.Sum(g => g.Tabs.Count) <= 1) return; // 最後の1枚は閉じない
 
@@ -508,10 +512,10 @@ public partial class MainViewModel : ObservableObject
         if (!string.IsNullOrWhiteSpace(name)) group.Name = name.Trim();
     }
 
-    /// <summary>グループを削除する(中のタブも閉じる)。デフォルトグループは削除できない。</summary>
+    /// <summary>グループを削除する(中のタブも閉じる)。デフォルトグループと、ピン留めされたタブを含むグループは削除できない。</summary>
     public bool DeleteGroup(TabGroupViewModel group)
     {
-        if (group.IsDefault || !Groups.Contains(group)) return false;
+        if (group.IsDefault || !Groups.Contains(group) || group.Tabs.Any(t => t.IsPinned)) return false;
         bool wasSelected = group == _selectedGroup;
         Groups.Remove(group);
         foreach (var tab in group.Tabs) tab.Dispose();

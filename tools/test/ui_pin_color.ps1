@@ -58,6 +58,8 @@ try {
     Invoke-Item 'タブをピン留め'
     Open-TabMenu (Get-SelectedTab)
     Check '2) after pinning, the menu offers "ピン留めを外す"' ([bool](Find-AppMenuItem 'ピン留めを外す'))
+    $closeItem = Find-AppMenuItem 'タブを閉じる'
+    Check '2) a pinned tab cannot be closed: "タブを閉じる" is disabled' (($null -ne $closeItem) -and (-not $closeItem.Current.IsEnabled))
     Send-Keys '{ESC}' 600
 
     # ── 3) ピン留めしたタブから別のフォルダへ → 新しいタブができて、それが前面に出る

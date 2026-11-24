@@ -24,6 +24,12 @@ public abstract partial class TabBase : ObservableObject, IDisposable
     /// <summary>タブの背景の薄い色(色なしは透明)。</summary>
     public Brush TabTintBrush => TabColors.Brush(TabColor, 60);
 
+    /// <summary>タブの左に出すアイコン(フォルダタブはフォルダのアイコン。ペインタブは、タイトルの ▥ で表すので無し)。</summary>
+    public virtual ImageSource? Icon => null;
+
+    /// <summary>アイコンに重ねるオーバーレイ(OneDrive・SVN などの状態)。</summary>
+    public virtual ImageSource? OverlayIcon => null;
+
     /// <summary>タブを閉じるとき、ファイル監視などの資源を解放する。</summary>
     public virtual void Dispose() { }
 

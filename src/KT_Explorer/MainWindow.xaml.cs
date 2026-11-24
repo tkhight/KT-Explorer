@@ -1012,7 +1012,8 @@ public partial class MainWindow : Window
         }
         menu.Items.Add(colorMenu);
         menu.Items.Add(new Separator());
-        var close =new MenuItem { Header = "タブを閉じる", InputGestureText = "Ctrl+W" };
+        var close = new MenuItem { Header = "タブを閉じる", InputGestureText = "Ctrl+W", IsEnabled = !tab.IsPinned,
+            ToolTip = tab.IsPinned ? "ピン留めされたタブは閉じられません(ピン留めを外してください)" : null };
         close.Click += (_, _) => _vm.CloseTabCommand.Execute(tab);
         menu.Items.Add(close);
         var reopen = new MenuItem { Header = "閉じたタブを開き直す", InputGestureText = "Ctrl+Shift+T", IsEnabled = _vm.CanReopenClosedTab };
@@ -1100,6 +1101,11 @@ public partial class MainWindow : Window
         if (group.IsDefault)
         {
             MessageBox.Show("デフォルトグループは削除できません。", "KT_Explorer");
+            return;
+        }
+        if (group.Tabs.Any(t => t.IsPinned))
+        {
+            MessageBox.Show("ピン留めされたタブがあるため、このグループは削除できません。\nピン留めを外すか、タブを別のグループへ移してください。", "KT_Explorer");
             return;
         }
         var r = MessageBox.Show($"グループ「{group.Name}」と、中の {group.Tabs.Count} 個のタブを閉じます。よろしいですか?",

@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows.Data;
+using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using KT_Explorer.Models;
 using KT_Explorer.Services;
@@ -194,6 +195,18 @@ public partial class FolderTabViewModel : TabBase
             System.Windows.MessageBox.Show(ex.Message, "KT_Explorer");
         }
     }
+
+    private OverlayLoader? _overlayLoader;
+    private OverlayLoader TabOverlay => _overlayLoader ??= new OverlayLoader(() => Path, () => OnPropertyChanged(nameof(OverlayIcon)));
+
+    /// <summary>タブの左に出す、フォルダのアイコン(通常は共通のフォルダのアイコン。ドライブ・デスクトップなどは固有のもの)。</summary>
+    public override ImageSource? Icon => string.IsNullOrEmpty(Path) ? null : ShellIconService.GetIcon(Path, isDirectory: true);
+
+    /// <summary>フォルダのオーバーレイ(OneDrive・SVN などの状態)。表示されたとき、バックグラウンドで調べる。</summary>
+    public override ImageSource? OverlayIcon => string.IsNullOrEmpty(Path) ? null : TabOverlay.Small;
+
+    /// <summary>オーバーレイをいったん消して、調べ直す(「オーバーレイを表示」の切り替え)。</summary>
+    public void ResetTabOverlay() => _overlayLoader?.Reset();
 
     public FolderTabViewModel(string path)
     {
@@ -479,7 +492,9 @@ public partial class FolderTabViewModel : TabBase
         SearchText = "";
         FilterText = "";
         Path = path;
-        string leaf = System.IO.Path.GetFileName(path.TrimEnd('\\', '/'));
+        OnPropertyChanged(nameof(Icon));
+        _overlayLoader?.Reset(); // 別のフォルダになったので、オーバーレイも調べ直す
+        string leaf =System.IO.Path.GetFileName(path.TrimEnd('\\', '/'));
         Title = string.IsNullOrEmpty(leaf) ? path : leaf;
         CanGoBack = _back.Count > 0;
         CanGoForward = _forward.Count > 0;
@@ -510,6 +525,7 @@ public partial class FolderTabViewModel : TabBase
         if (_itemsPath != null && string.Equals(_itemsPath, path, StringComparison.OrdinalIgnoreCase))
         {
             SyncItems(entries); // 同じフォルダの再読み込みは差分だけ反映(選択状態を保つ)
+            _overlayLoader?.Refresh(); // このフォルダ自身の状態(タブのオーバーレイ)も調べ直す
         }
         else
         {

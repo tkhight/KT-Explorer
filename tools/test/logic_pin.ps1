@@ -70,6 +70,25 @@ try {
     Check '6) after unpinning, navigating moves the same tab' (($pinTab.Path -eq "$d\other") -and ((Tabs).Count -eq $c))
     $pinTab.NavigateTo("$d\home")
 
+    # ── 6b) ピン留めしたタブは閉じられない(右クリック・中クリック・Ctrl+W・ロッカーは、すべて CloseTab を通る)
+    $vm.TogglePin($pinTab)
+    $c = (Tabs).Count
+    $vm.CloseTabCommand.Execute($pinTab)
+    Check '6b) a pinned tab is not closed (explicit target: right-click menu / middle click)' (((Tabs).Count -eq $c) -and ((Paths) -contains "$d\home"))
+    $vm.SelectedTab = $pinTab
+    $vm.CloseTabCommand.Execute($null)
+    Check '6b) a pinned selected tab is not closed (Ctrl+W / rocker gesture)' (((Tabs).Count -eq $c) -and ($vm.SelectedTab -eq $pinTab))
+    Check '6b) nothing was added to the reopen history' (-not $vm.CanReopenClosedTab)
+    $vm.AddGroup('GP'); $gp = $vm.SelectedGroup
+    $vm.SelectedGroup = $vm.Groups[0]
+    $vm.MoveTabToGroup($pinTab, $gp)
+    Check '6b) a group that contains a pinned tab cannot be deleted' (($vm.DeleteGroup($gp) -eq $false) -and ($vm.Groups -contains $gp))
+    $vm.TogglePin($pinTab)
+    Check '6b) after unpinning, the tab can be closed' (($vm.CloseTabCommand.Execute($pinTab) -eq $null) -and (-not ($gp.Tabs -contains $pinTab)))
+    Check '6b) and then the group (now with no pinned tab) can be deleted' (($vm.DeleteGroup($gp) -eq $true) -and (-not ($vm.Groups -contains $gp)))
+    $vm.SelectedGroup = $vm.Groups[0]
+    $vm.OpenInNewTab("$d\home"); $pinTab = $vm.SelectedTab
+
     # ── 7) 色: 設定・取り消し・パレット以外は色なし
     $vm.SetTabColor($pinTab, '#E5484D')
     Check '7) color is set' ($pinTab.TabColor -eq '#E5484D')
@@ -89,11 +108,13 @@ try {
     Check '8) duplicate keeps the color' ($dup.TabColor -eq '#3E63DD')
     Check '8) duplicate is not pinned' ($dup.IsPinned -eq $false)
 
-    # ── 9) 閉じて開き直すと、ピン留めと色も戻る
+    # ── 9) 閉じて開き直すと、色も戻る(ピン留めしたタブは閉じられないので、ピン留めを外して閉じる。開き直したら、また留める)
+    $vm.TogglePin($pinTab)
     $vm.CloseTabCommand.Execute($pinTab)
     $vm.ReopenClosedTabCommand.Execute($null)
     $re = $vm.SelectedTab
-    Check '9) reopened tab: path, pin and color are restored' (($re.Path -eq "$d\home") -and $re.IsPinned -and ($re.TabColor -eq '#3E63DD'))
+    Check '9) reopened tab: path and color are restored (and it is not pinned)' (($re.Path -eq "$d\home") -and (-not $re.IsPinned) -and ($re.TabColor -eq '#3E63DD'))
+    $vm.TogglePin($re)
 
     # ── 10) 状態への保存と復元
     $state = $vm.ToState()

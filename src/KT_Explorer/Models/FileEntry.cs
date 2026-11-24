@@ -19,6 +19,7 @@ public sealed partial class FileEntry : ObservableObject
     {
         Name = displayName ?? info.Name;
         FullPath = info.FullName;
+        _overlayLoader = new OverlayLoader(() => FullPath, OnOverlayChanged);
         IsDirectory = info is DirectoryInfo;
         Modified = info.LastWriteTime;
         Created = info.CreationTime;
@@ -123,55 +124,28 @@ public sealed partial class FileEntry : ObservableObject
 
     // ───────── オーバーレイアイコン(OneDrive・SVN などの状態。項目ごとに、最初に表示されたとき、バックグラウンドで調べる) ─────────
 
-    private OverlayIcons? _overlay;
-    private bool _overlayRequested;
+    private readonly OverlayLoader _overlayLoader;
 
-    /// <summary>アイコンに重ねる小さなオーバーレイ(16px 用)。無い・調べている間は null。</summary>
-    public ImageSource? OverlayIcon
+    private void OnOverlayChanged()
     {
-        get { EnsureOverlay(); return _overlay?.Small; }
-    }
-
-    /// <summary>アイコン表示で、大きなアイコンに重ねるオーバーレイ。</summary>
-    public ImageSource? OverlayIconLarge
-    {
-        get { EnsureOverlay(); return _overlay?.Large; }
-    }
-
-    private void EnsureOverlay()
-    {
-        if (_overlayRequested || !OverlayIconService.Enabled) return;
-        _overlayRequested = true;
-        _ = LoadOverlayAsync();
-    }
-
-    private async Task LoadOverlayAsync()
-    {
-        var overlay = await OverlayIconService.GetAsync(FullPath);
-        if (ReferenceEquals(overlay, _overlay)) return;
-        _overlay = overlay;
         OnPropertyChanged(nameof(OverlayIcon));
         OnPropertyChanged(nameof(OverlayIconLarge));
     }
+
+    /// <summary>アイコンに重ねる小さなオーバーレイ(16px 用)。無い・調べている間は null。</summary>
+    public ImageSource? OverlayIcon => _overlayLoader.Small;
+
+    /// <summary>アイコン表示で、大きなアイコンに重ねるオーバーレイ。</summary>
+    public ImageSource? OverlayIconLarge => _overlayLoader.Large;
 
     /// <summary>
     /// 状態が変わったかもしれないので、オーバーレイを調べ直す(一覧の再読み込みのとき)。
     /// いまのオーバーレイは、新しい結果が来るまで、そのまま出しておく(ちらつかせない)。まだ一度も表示していない項目は、何もしない。
     /// </summary>
-    public void RefreshOverlay()
-    {
-        if (!_overlayRequested || !OverlayIconService.Enabled) return;
-        _ = LoadOverlayAsync();
-    }
+    public void RefreshOverlay() => _overlayLoader.Refresh();
 
     /// <summary>オーバーレイをいったん消して、次に表示するときに調べ直す(「オーバーレイを表示」の切り替えのとき)。</summary>
-    public void ResetOverlay()
-    {
-        _overlay = null;
-        _overlayRequested = false;
-        OnPropertyChanged(nameof(OverlayIcon));
-        OnPropertyChanged(nameof(OverlayIconLarge));
-    }
+    public void ResetOverlay() => _overlayLoader.Reset();
 
     private ImageSource? _thumbnail;
     private int _thumbnailSize;

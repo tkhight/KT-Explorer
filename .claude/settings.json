@@ -48,7 +48,9 @@
       "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_pin_color.ps1')",
       "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_copy_path.ps1')",
       "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\logic_overlay.ps1')",
-      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_overlay.ps1')"
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_overlay.ps1')",
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\logic_navicon.ps1')",
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_navicon.ps1')"
     ]
   }
 }

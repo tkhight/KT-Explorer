@@ -264,6 +264,12 @@
                 </TreeView.ItemContainerStyle>
                 <TreeView.ItemTemplate>
                     <HierarchicalDataTemplate DataType="{x:Type vm:TreeNodeViewModel}" ItemsSource="{Binding Children}">
+                        <StackPanel Orientation="Horizontal">
+                        <!-- フォルダのアイコン(OneDrive・SVN などのオーバーレイつき) -->
+                        <Grid Width="16" Height="16" Margin="0,0,4,0" VerticalAlignment="Center">
+                            <Image Source="{Binding Icon}"/>
+                            <Image Source="{Binding OverlayIcon}" IsHitTestVisible="False"/>
+                        </Grid>
                         <Grid>
                             <TextBlock Text="{Binding Name}">
                                 <TextBlock.Style>
@@ -292,6 +298,7 @@
                                 </TextBox.Style>
                             </TextBox>
                         </Grid>
+                        </StackPanel>
                     </HierarchicalDataTemplate>
                 </TreeView.ItemTemplate>
             </TreeView>
@@ -341,6 +348,10 @@
                                                 </Style>
                                             </TextBlock.Style>
                                         </TextBlock>
+                                        <Grid Width="16" Height="16" Margin="0,0,2,0" VerticalAlignment="Center">
+                                            <Image Source="{Binding Icon}"/>
+                                            <Image Source="{Binding OverlayIcon}" IsHitTestVisible="False"/>
+                                        </Grid>
                                         <TextBlock Text="{Binding Title}" MaxWidth="200" TextTrimming="CharacterEllipsis"
                                                    Margin="2,0" VerticalAlignment="Center"/>
                                     </StackPanel>
