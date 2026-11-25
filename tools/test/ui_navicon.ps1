@@ -64,8 +64,10 @@ try {
     Check '1) the tab shows a folder icon (yellow pixels at its left)' (Has-Yellow $tabIcon)
 
     # ── 2) ツリーのノードの左に、アイコンが出ている(画面に見えている最初のノード=デスクトップなどのルート。展開の矢印とアイコンの範囲に、色のついた画素がある)
-    $win = $global:Kt.Win.Current.BoundingRectangle
-    $node = Find-All 'TreeItem' | Where-Object { $r = $_.Current.BoundingRectangle; $r.Y -gt $win.Y -and $r.Y -lt ($win.Y + $win.Height) } | Select-Object -First 1
+    # (ツリーは、見えているノードだけを作る(仮想化)。画面の外に作ってある余分なノードもあるので、ツリーの表示範囲の中にあるものを選ぶ)
+    $treeEl = Find-All 'Tree' | Select-Object -First 1
+    $tr = $treeEl.Current.BoundingRectangle
+    $node = Find-All 'TreeItem' | Where-Object { $r = $_.Current.BoundingRectangle; $r.Y -ge $tr.Y -and ($r.Y + $r.Height) -le ($tr.Y + $tr.Height) } | Select-Object -First 1
     if (-not $node) { Stop-Test 'a visible tree node was not found' }
     $nr = $node.Current.BoundingRectangle
     $treeRegion = Grab ([int]$nr.X) ([int]$nr.Y) 38 ([int][Math]::Min($nr.Height, 22))

@@ -167,7 +167,10 @@
 
             <!-- 左端: ツリー(グループタブの行の下) -->
             <Grid Grid.Row="1" Grid.Column="0">
+            <!-- 見えているノードだけを作る(仮想化)。フォルダが数千あっても、画面と操作が重くならない。Standard: 使い回さない(IsExpanded・IsSelected の双方向バインドが、使い回しで混ざるのを避ける) -->
             <TreeView x:Name="FolderTree" ItemsSource="{Binding TreeRoots}"
+                      VirtualizingStackPanel.IsVirtualizing="True" VirtualizingStackPanel.VirtualizationMode="Standard"
+                      ScrollViewer.CanContentScroll="True"
                       PreviewMouseRightButtonDown="FolderTree_PreviewMouseRightButtonDown"
                       ContextMenuOpening="FolderTree_ContextMenuOpening"
                       KeyDown="FolderTree_KeyDown">
@@ -203,6 +206,8 @@
                     <Style TargetType="TreeViewItem">
                         <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
                         <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
+                        <Setter Property="VirtualizingStackPanel.IsVirtualizing" Value="True"/>
+                        <Setter Property="VirtualizingStackPanel.VirtualizationMode" Value="Standard"/>
                         <!-- 強調表示とクリックの範囲を、名前の文字の幅だけでなく、行の右端まで広げる(Background が無いとクリックを受けない) -->
                         <Setter Property="Background" Value="Transparent"/>
                         <Setter Property="Padding" Value="2,1"/>

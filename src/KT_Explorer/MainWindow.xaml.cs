@@ -50,6 +50,48 @@ public partial class MainWindow : Window
         {
             if (args.PropertyName == nameof(MainViewModel.ShowPreview)) ApplyPreviewColumns();
         };
+
+        // ツリーは、見えているノードだけを作る(仮想化)ので、選択したノードが見える位置へ、スクロールする
+        _vm.TreeNodeSynced += node => Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, () => ScrollTreeTo(node));
+        Loaded += (_, _) =>
+        {
+            if (_vm.LastSyncedTreeNode is { } n) Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, () => ScrollTreeTo(n));
+        };
+    }
+
+    // ───────── ツリーのスクロール(仮想化) ─────────
+
+    private static readonly System.Reflection.PropertyInfo? ItemsHostProperty =
+        typeof(ItemsControl).GetProperty("ItemsHost", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+    /// <summary>
+    /// ツリーを、target のノードが見える位置へスクロールする。仮想化しているため、見えていないノードは、画面の要素が作られていない。
+    /// ルートから target まで、親を順にたどり、各階層で、そのノードの位置を表示させて(要素を作らせて)から、次の階層へ進む。
+    /// </summary>
+    private void ScrollTreeTo(TreeNodeViewModel target)
+    {
+        var chain = new List<TreeNodeViewModel>();
+        for (var n = target; n != null; n = n.Parent) chain.Insert(0, n);
+
+        ItemsControl parent = FolderTree;
+        foreach (var node in chain)
+        {
+            var container = parent.ItemContainerGenerator.ContainerFromItem(node) as TreeViewItem;
+            if (container == null)
+            {
+                parent.UpdateLayout();
+                int index = parent.Items.IndexOf(node);
+                if (index < 0) return;
+                (ItemsHostProperty?.GetValue(parent) as VirtualizingPanel)?.BringIndexIntoViewPublic(index);
+                parent.UpdateLayout();
+                container = parent.ItemContainerGenerator.ContainerFromItem(node) as TreeViewItem;
+            }
+            if (container == null) return;
+            if (ReferenceEquals(node, target)) { container.BringIntoView(); return; }
+            if (!container.IsExpanded) container.IsExpanded = true;
+            container.ApplyTemplate();
+            parent = container;
+        }
     }
 
     // ───────── メニューバー: 編集 ─────────
@@ -1173,6 +1215,7 @@ public partial class MainWindow : Window
     private void TreeRename(TreeNodeViewModel node)
     {
         if (node.IsPlaceholder || node.IsEditing) return;
+        ScrollTreeTo(node); // 仮想化しているので、見えていないノードは、先に、画面の要素を作らせる(入力欄を出すため)
         _editingTreeNode = node;
         node.EditName = node.Name;
         node.IsEditing = true; // 入力欄が表示され、IsVisibleChanged でフォーカス・全選択される

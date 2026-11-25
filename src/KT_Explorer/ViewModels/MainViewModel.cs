@@ -344,6 +344,12 @@ public partial class MainViewModel : ObservableObject
         CurrentFolder?.NavigateTo(node.FullPath);
     }
 
+    /// <summary>ツリーの選択を、アクティブなフォルダに合わせた(画面が、そのノードを見える位置へスクロールする)。</summary>
+    public event Action<TreeNodeViewModel>? TreeNodeSynced;
+
+    /// <summary>最後に、フォルダに合わせて選択したツリーのノード(起動直後は、画面ができる前に選ぶので、画面ができたあとに、そこまでスクロールする)。</summary>
+    public TreeNodeViewModel? LastSyncedTreeNode { get; private set; }
+
     /// <summary>アクティブなフォルダへツリーの選択位置を合わせる(オプション)。</summary>
     private void SyncTreeTo(string path)
     {
@@ -361,7 +367,12 @@ public partial class MainViewModel : ObservableObject
                 if (match && rp.Length > bestRoot.Length) { best = root; bestRoot = rp; }
             }
             var node = best?.ExpandTo(path);
-            if (node != null) node.IsSelected = true;
+            if (node != null)
+            {
+                node.IsSelected = true;
+                LastSyncedTreeNode = node;
+                TreeNodeSynced?.Invoke(node); // ツリーを仮想化しているので、画面側で、そのノードまでスクロールする
+            }
         }
         finally
         {

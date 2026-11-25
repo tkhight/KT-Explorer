@@ -49,6 +49,7 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 | 指定ペインの作成ダイアログの画面テスト(既存タブにチェックを付けて作成、フォルダを 2〜3 個指定して作成、キャンセル) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_pane_create.ps1'` |
 | メニューバー「編集」の画面テスト(元に戻す・やり直し・切り取り・コピー・貼り付け・削除・全て選択。ファイルへの操作と、入力欄の文字への操作)。クリップボードを書き換える | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_edit.ps1'` |
 | アプリのアイコン(app.ico の大きさの種類、exe のアイコン、トレイのアイコンの読み込み)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_icon.ps1'` |
+| ツリーの仮想化の画面テスト(サブフォルダ 300 個でも、画面の要素は見えている分だけ。選択したノードが表示範囲へスクロールされる。列挙が速い) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_tree_virtual.ps1'` |
 | ツリーとタブのアイコン(固有のアイコンを持つフォルダ・共通アイコンの使い回し・ツリーのノードとタブのアイコンとオーバーレイ・パスが変わったときの付け替え・ペインタブは無し・設定のオフ/オン)のロジック。画面は出ない。ジャンクションを作る(テスト用フォルダの中だけ) | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_navicon.ps1'` |
 | ツリーとタブのアイコンの画面テスト(タブとツリーに、フォルダのアイコンが出る。ジャンクションのタブに、リンクの矢印が重なり、「表示」メニューのオフ/オンで消える・戻る) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_navicon.ps1'` |
 | オーバーレイアイコン(シェルのオーバーレイの取得・ショートカットの矢印・項目への反映・オフ/オン・既定はオン)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_overlay.ps1'` |
@@ -60,7 +61,7 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 | 中断したテストの後片付け(`%TEMP%\kt_test_*` を消す) | `& 'E:\KT_Applications\KT_Explorer\tools\test\cleanup.ps1'` |
 
 - 実行前に、上のビルドを行う。結果は `OK` / `NG` の行と、最後の `RESULT: ok=… ng=…`。
-- 画面テストは時間がかかる(`ui_tree_rename.ps1` は 2〜3 分)。ツリーの画面要素の列挙が重いため。PowerShell ツールの `timeout` を長め(例: 300000)にするか、バックグラウンドで実行して、完了の通知を待つ。
+- 画面テストの時間は、1 本 20 秒〜2 分ほど(`ui_menu_edit.ps1` が最長で約 2 分)。以前は 1〜5 分かかっていた。原因は、`%TEMP%` の数千のサブフォルダでツリーが膨らみ、ウィンドウの画面要素が 3 万個を超えて、全体の列挙(`Find-All`)が 1 回約 9 秒かかったため。ツリーを仮想化して(見えているノードだけを作る)、要素は約 500 個、列挙は約 0.15 秒になった。テストを足すときは、**ツリーの要素(`TreeItem`)は、表示範囲の外にも、余分に作られる**ので、位置で選ぶときは、ツリーの表示範囲の中にあるものだけを選ぶ。PowerShell ツールの `timeout` は、念のため長め(例: 300000)にする。
 - **ユーザーの指示**: KT_Explorer が起動していても、確認のために閉じてよい(ユーザーに閉じてもらうのを待たない)。画面テストは(`ui_pane_width.ps1` を除き)、起動中のアプリがあれば、先にウィンドウを閉じる操作(終了時の状態保存が走る)をしてから、残っていれば強制終了して、テストを続ける。閉じるのは、名前が `KT_Explorer` のプロセスだけ。テストのあと、ユーザーのアプリは自動では起動し直さないので、作業の報告で、閉じたことを伝え、再起動はユーザーに任せる。
 - テストを足す・変えるときは、`tools/test/common.ps1` の決まりを守る。
   - 操作するフォルダは `%TEMP%\kt_test_*` の中だけ。
