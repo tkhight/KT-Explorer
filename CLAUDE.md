@@ -49,6 +49,7 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 | 指定ペインの作成ダイアログの画面テスト(既存タブにチェックを付けて作成、フォルダを 2〜3 個指定して作成、キャンセル) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_pane_create.ps1'` |
 | メニューバー「編集」の画面テスト(元に戻す・やり直し・切り取り・コピー・貼り付け・削除・全て選択。ファイルへの操作と、入力欄の文字への操作)。クリップボードを書き換える | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_edit.ps1'` |
 | アプリのアイコン(app.ico の大きさの種類、exe のアイコン、トレイのアイコンの読み込み)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_icon.ps1'` |
+| コピー・貼り付けの対象と、ツリーの Ctrl+クリックの画面テスト(タブ A でコピー → タブ B をクリックした直後に Ctrl+V が、タブ B に貼り付く / ペイン A でコピー → ペイン B のヘッダーをクリックして Ctrl+V が、ペイン B に貼り付く / ツリーのフォルダの Ctrl+クリックで新しいタブ)。クリップボードを書き換える。マウスを実際に動かす | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_paste_target.ps1'` |
 | メニューのフラットなデザインの画面テスト(メニューバーのホバー・開いている見出しの色、開いたメニューのホバー・使えない項目の灰色・チェックの青いマークを、画素で確かめる)。マウスを実際に動かす。メニューの見た目は、`src/KT_Explorer/Resources/FlatMenu.xaml`(アプリ全体のリソース) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_flat_menu.ps1'` |
 | 統一したフラットなデザインの画面テスト(枠なし・ホバーの水色・プレビューのオンの色・選択中のグループタブとフォルダタブの色・一覧の列見出しのホバー・入力欄の枠と入力中の青い線・ペインタブの図柄を、画素で確かめる。ペインのボタンでペインタブができる)。ボタンの `AutomationId` は `Panes2Button` `Panes3Button` `SpecifyPaneButton` `PreviewToggle` `AddGroupButton` など。マウスを実際に動かす | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_flat_style.ps1'` |
 | ツールバーのアイコンボタン(戻る・進む・一つ上・更新・元に戻す・やり直し・新しいタブ)の画面テスト(名前つきで存在する・アイコンが描かれている・使えないときは灰色・押すと操作が働く)。ボタンの `AutomationId` は `BackButton` `ForwardButton` `UpButton` `RefreshButton` `UndoButton` `RedoButton` `NewTabButton` | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_toolbar_icons.ps1'` |
@@ -66,6 +67,29 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 
 - 実行前に、上のビルドを行う。結果は `OK` / `NG` の行と、最後の `RESULT: ok=… ng=…`。
 - 画面テストの時間は、1 本 10〜45 秒ほど(全 22 本で約 9 分)。以前は 1 本 1〜5 分かかっていた。待ち時間は、固定の `Start-Sleep` ではなく、`common.ps1` の `Wait-Until { 条件 } 最大ミリ秒`(条件が成り立つまで 0.1 秒ごとに確かめる)で書く。`Move-To`・`Set-Foreground`・`Start-KtApp`・`Find-AppMenuItem`(このアプリのウィンドウの中だけを探す)も、そうなっている。以前の遅さの原因:原因は、`%TEMP%` の数千のサブフォルダでツリーが膨らみ、ウィンドウの画面要素が 3 万個を超えて、全体の列挙(`Find-All`)が 1 回約 9 秒かかったため。ツリーを仮想化して(見えているノードだけを作る)、要素は約 500 個、列挙は約 0.15 秒になった。テストを足すときは、**ツリーの要素(`TreeItem`)は、表示範囲の外にも、余分に作られる**ので、位置で選ぶときは、ツリーの表示範囲の中にあるものだけを選ぶ。PowerShell ツールの `timeout` は、念のため長め(例: 300000)にする。
+- **実行するテストは、変更に関係するものだけにする(ユーザーの指示)。** 画面テストは、実際のマウスとキーボードを使うので、実行中は、ユーザーが PC を使えない。関係のないテストまで、習慣で通し直さない。
+  - **必ず実行する**: 新しい機能・修正のテストと、修正前のコードで失敗することの確認(不具合の修正のとき)。
+  - **変更に合うものを選ぶ**。選んだ理由を、報告に一言で書く。下の表は、目安。
+  - **全本の通しは、次のときだけ**: `common.ps1`、アプリ全体のリソース(`FlatMenu.xaml` など)、全体に効く処理(`Window_PreviewKeyDown` の全体など)を変えたとき。または、ユーザーが頼んだとき。
+  - 揺れることがあるテスト(`ui_toolbar_icons` など)は、関係がなければ、実行しない。揺れて落ちたときは、原因を調べて直す(再実行で通ったから終わり、にしない)。
+
+  | 変更した場所 | 実行するテスト(目安) |
+  |---|---|
+  | キー処理(`Ctrl+C/X/V`・`Window_PreviewKeyDown`) | `ui_paste_target` `ui_menu_edit` `ui_list_rename` `ui_tree_rename` |
+  | ツリー | `ui_tree_click` `ui_tree_rename` `ui_tree_virtual` |
+  | タブ・グループ | `logic_tabs` `logic_pin` `ui_pin_color` `ui_multirow_tabs` `ui_typeahead_tabs` `ui_sort_tabs` |
+  | ペイン | `ui_pane_create` `ui_pane_width` `logic_panecreate` `ui_paste_target` |
+  | 一覧の表示・列・並べ替え | `logic_viewmode` `ui_viewmode` `logic_columns` `ui_sort_tabs` |
+  | 絞込・検索 | `logic_filter` `ui_filter` `logic_search` |
+  | お気に入り・履歴 | `logic_favorites` `ui_favorites` `logic_history` |
+  | プレビュー | `logic_preview` `ui_preview` |
+  | メニュー | `ui_menu_file` `ui_menu_edit` `ui_menu_settings` `ui_flat_menu` |
+  | マウスジェスチャ | `logic_gesture` `ui_gesture_wheel` |
+  | アイコン・オーバーレイ | `logic_navicon` `ui_navicon` `logic_overlay` `ui_overlay` `ui_toolbar_icons` |
+  | 見た目(フラットなデザイン) | `ui_flat_style` `ui_flat_menu` `ui_toolbar_icons` |
+  | フォルダのサイズ・記憶 | `ui_folder_size` `logic_cache` |
+  | ショートカット(.lnk) | `logic_shortcut` `ui_shortcut` |
+  | パス欄・パンくず・コピー | `logic_pathbar` `ui_copy_path` |
 - **ユーザーの指示**: KT_Explorer が起動していても、確認のために閉じてよい(ユーザーに閉じてもらうのを待たない)。画面テストは(`ui_pane_width.ps1` を除き)、起動中のアプリがあれば、先にウィンドウを閉じる操作(終了時の状態保存が走る)をしてから、残っていれば強制終了して、テストを続ける。閉じるのは、名前が `KT_Explorer` のプロセスだけ。テストのあと、ユーザーのアプリは自動では起動し直さないので、作業の報告で、閉じたことを伝え、再起動はユーザーに任せる。
 - **自動操作でメニューの項目を押した(`Invoke`)あとは、メニューのキー操作の状態が残って、最初のキー入力が吸われることがある**(`ui_viewmode` の手順 6 が、まれに落ちていた原因)。そのあとにキーで操作するテストは、項目が消えるまで待ち、期待する結果になるまで、キーを(最大 3 回)送り直す(`Wait-Until`)。`Esc` で抜けるのは、名前の入力中の編集を取り消してしまうことがあるので、避ける。
 - テストを足す・変えるときは、`tools/test/common.ps1` の決まりを守る。

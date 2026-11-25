@@ -499,6 +499,15 @@ public partial class MainWindow : Window
         }
         else if (e.Key == Key.F) { FilterBox.Focus(); FilterBox.SelectAll(); e.Handled = true; }
         else if (e.Key == Key.L) { PathBox.Focus(); PathBox.SelectAll(); e.Handled = true; }
+        else if ((e.Key == Key.C || e.Key == Key.X || e.Key == Key.V) && (Keyboard.Modifiers & (ModifierKeys.Shift | ModifierKeys.Alt)) == 0
+                 && !IsTextEditing() && !IsFocusInTree() && _vm.CurrentFolder is { } active)
+        {
+            // コピー・切り取り・貼り付けは、キーボードフォーカスのある一覧ではなく、「操作中のタブ・ペイン」へ送る。
+            // タブバーやペインの枠(ヘッダー)をクリックしても、キーボードフォーカスは前の一覧に残るため、
+            // 一覧の KeyDown に任せると、前のタブ・ペインに貼り付けてしまう。
+            active.RequestEdit(e.Key == Key.C ? EditCommand.Copy : e.Key == Key.X ? EditCommand.Cut : EditCommand.Paste);
+            e.Handled = true;
+        }
         else if (e.Key == Key.Z && (Keyboard.Modifiers & ModifierKeys.Shift) == 0 && !IsTextEditing()) { Undo(); e.Handled = true; }
         else if ((e.Key == Key.Y || (e.Key == Key.Z && (Keyboard.Modifiers & ModifierKeys.Shift) != 0)) && !IsTextEditing())
         {
@@ -511,6 +520,9 @@ public partial class MainWindow : Window
 
     /// <summary>文字を入力中(パス欄・絞込欄・名前の編集など)は、文字の入力側の「元に戻す」に任せる。</summary>
     private static bool IsTextEditing() => Keyboard.FocusedElement is System.Windows.Controls.Primitives.TextBoxBase;
+
+    /// <summary>キーボードフォーカスが、ツリーの中にあるか(ツリーでの操作は、一覧のコピー・貼り付けとは別)。</summary>
+    private static bool IsFocusInTree() => Keyboard.FocusedElement is DependencyObject d && FindAncestor<TreeView>(d) != null;
 
     private void Undo() => ShowUndoResult(_vm.Undo(WindowHandle), "元に戻す");
 
@@ -1211,6 +1223,16 @@ public partial class MainWindow : Window
     }
 
     // ───────── ツリー ─────────
+
+    /// <summary>ツリーのフォルダを Ctrl+クリックすると、そのフォルダを新しいタブで開く(いまのタブは動かさない)。展開の矢印のクリックは、いままでどおり。</summary>
+    private void FolderTree_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if ((Keyboard.Modifiers & ModifierKeys.Control) == 0 || e.OriginalSource is not DependencyObject d) return;
+        if (FindAncestor<System.Windows.Controls.Primitives.ToggleButton>(d) != null) return; // 展開の矢印
+        if (FindAncestor<TreeViewItem>(d)?.DataContext is not TreeNodeViewModel { IsPlaceholder: false } node) return;
+        _vm.OpenInNewTab(node.FullPath);
+        e.Handled = true; // ツリーの選択(=いまのタブの移動)はさせない
+    }
 
     // 右クリック: クリックしたノードを対象にする(選択移動によるナビゲートはさせない)
     private TreeNodeViewModel? _contextNode;

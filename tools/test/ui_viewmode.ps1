@@ -145,7 +145,8 @@ try {
         Send-Keys '^+1' 600
         if (Wait-Until { (Header-Names) -contains '名前 ▼' } 2500 150) { break }
     }
-    Start-Sleep -Milliseconds 500
+    [void](Wait-Until { (Row-Count) -ge 15 } 3000 150)   # 詳細に戻ったあと、行が並ぶまで待つ
+    Start-Sleep -Milliseconds 300
     $h = Header-Names
     Check "6) back to details: the column headers return with the sort arrow (headers: $($h -join ' / '))" (($h -contains '名前 ▼') -and ((Row-Count) -ge 15))
     # 降順の先頭: 手順3で名前を変えた renamed.txt(r は p より後ろ)
