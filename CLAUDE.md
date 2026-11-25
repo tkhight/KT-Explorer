@@ -44,7 +44,7 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 | メニューバー「ファイル」のロジック(WinMerge の引数の組み立て・見つけ方)。画面は出ない。WinMerge は起動しない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_menu_file.ps1'` |
 | メニューバー「ファイル」の画面テスト(項目の有無、新規作成でフォルダー・テキストが作られる)。ターミナル・WinMerge・終了は押さない | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_file.ps1'` |
 | マウスジェスチャ「右ボタン+ホイール」(上=左のタブ・下=右のタブ。Ctrl つきは前・次のタブグループ)と、ロッカー(右ボタンを押したまま左クリック=タブを閉じる)の判定のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_gesture.ps1'` |
-| 同じジェスチャとロッカーの画面テスト(実際のマウス入力)。**StrokesPlus などのマウスジェスチャの常駐ツールが有効だと、合成した右ボタンが横取りされて失敗する**(無効にして実行する) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_gesture_wheel.ps1'` |
+| 同じジェスチャとロッカーの画面テスト(実際のマウス入力)。**StrokesPlus などのマウスジェスチャの常駐ツールが、KT_Explorer を除外していないと、合成した右ボタンが横取りされて失敗する**(ツールで KT_Explorer を除外するか、無効にして実行する。除外していれば、有効なままで通る: 2026-11-26 に確認、13 件 OK・約 45 秒) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_gesture_wheel.ps1'` |
 | 指定ペインの作成(2〜3 個の条件、フォルダ入力の整理、`MainViewModel.CreatePanes`)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_panecreate.ps1'` |
 | 指定ペインの作成ダイアログの画面テスト(既存タブにチェックを付けて作成、フォルダを 2〜3 個指定して作成、キャンセル) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_pane_create.ps1'` |
 | メニューバー「編集」の画面テスト(元に戻す・やり直し・切り取り・コピー・貼り付け・削除・全て選択。ファイルへの操作と、入力欄の文字への操作)。クリップボードを書き換える | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_edit.ps1'` |
@@ -61,7 +61,7 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 | 中断したテストの後片付け(`%TEMP%\kt_test_*` を消す) | `& 'E:\KT_Applications\KT_Explorer\tools\test\cleanup.ps1'` |
 
 - 実行前に、上のビルドを行う。結果は `OK` / `NG` の行と、最後の `RESULT: ok=… ng=…`。
-- 画面テストの時間は、1 本 20 秒〜2 分ほど(`ui_menu_edit.ps1` が最長で約 2 分)。以前は 1〜5 分かかっていた。原因は、`%TEMP%` の数千のサブフォルダでツリーが膨らみ、ウィンドウの画面要素が 3 万個を超えて、全体の列挙(`Find-All`)が 1 回約 9 秒かかったため。ツリーを仮想化して(見えているノードだけを作る)、要素は約 500 個、列挙は約 0.15 秒になった。テストを足すときは、**ツリーの要素(`TreeItem`)は、表示範囲の外にも、余分に作られる**ので、位置で選ぶときは、ツリーの表示範囲の中にあるものだけを選ぶ。PowerShell ツールの `timeout` は、念のため長め(例: 300000)にする。
+- 画面テストの時間は、1 本 10〜45 秒ほど(全 22 本で約 9 分)。以前は 1 本 1〜5 分かかっていた。待ち時間は、固定の `Start-Sleep` ではなく、`common.ps1` の `Wait-Until { 条件 } 最大ミリ秒`(条件が成り立つまで 0.1 秒ごとに確かめる)で書く。`Move-To`・`Set-Foreground`・`Start-KtApp`・`Find-AppMenuItem`(このアプリのウィンドウの中だけを探す)も、そうなっている。以前の遅さの原因:原因は、`%TEMP%` の数千のサブフォルダでツリーが膨らみ、ウィンドウの画面要素が 3 万個を超えて、全体の列挙(`Find-All`)が 1 回約 9 秒かかったため。ツリーを仮想化して(見えているノードだけを作る)、要素は約 500 個、列挙は約 0.15 秒になった。テストを足すときは、**ツリーの要素(`TreeItem`)は、表示範囲の外にも、余分に作られる**ので、位置で選ぶときは、ツリーの表示範囲の中にあるものだけを選ぶ。PowerShell ツールの `timeout` は、念のため長め(例: 300000)にする。
 - **ユーザーの指示**: KT_Explorer が起動していても、確認のために閉じてよい(ユーザーに閉じてもらうのを待たない)。画面テストは(`ui_pane_width.ps1` を除き)、起動中のアプリがあれば、先にウィンドウを閉じる操作(終了時の状態保存が走る)をしてから、残っていれば強制終了して、テストを続ける。閉じるのは、名前が `KT_Explorer` のプロセスだけ。テストのあと、ユーザーのアプリは自動では起動し直さないので、作業の報告で、閉じたことを伝え、再起動はユーザーに任せる。
 - テストを足す・変えるときは、`tools/test/common.ps1` の決まりを守る。
   - 操作するフォルダは `%TEMP%\kt_test_*` の中だけ。
