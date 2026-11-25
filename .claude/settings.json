@@ -54,7 +54,8 @@
       "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_tree_virtual.ps1')",
       "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_multirow_tabs.ps1')",
       "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_toolbar_icons.ps1')",
-      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_flat_style.ps1')"
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_flat_style.ps1')",
+      "PowerShell(& 'E:\\KT_Applications\\KT_Explorer\\tools\\test\\ui_flat_menu.ps1')"
     ]
   }
 }

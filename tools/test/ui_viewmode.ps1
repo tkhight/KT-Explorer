@@ -52,7 +52,10 @@ function Open-ViewMenu {
 function Pick-Menu([string]$name) {
     $m = Find-AppMenuItem $name
     if (-not $m) { Stop-Test "menu item '$name' not found" }
-    $m.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep -Milliseconds 1500
+    $m.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke()
+    # 項目が消える(メニューが閉じる)まで待つ。そのあと、少し置く
+    [void](Wait-Until { -not (Find-AppMenuItem $name) } 2500 100)
+    Start-Sleep -Milliseconds 1000
 }
 
 try {
@@ -136,8 +139,13 @@ try {
 
     # ── 6) Ctrl+Shift+1 で「詳細」へ戻る: 列見出しが戻り、並び順(名前 ▼、先頭が picture.png)も反映されている
     #    (アイコン・一覧では、項目の中身が画面要素に出ないため、並び順は、詳細に戻してから確かめる)
-    Set-Foreground
-    Send-Keys '^+1' 1800
+    # 自動操作でメニューの項目を押したあとは、メニューのキー操作の状態が残って、最初のキーが吸われることがある。詳細に戻るまで、最大 3 回送る
+    for ($try = 0; $try -lt 3; $try++) {
+        Set-Foreground
+        Send-Keys '^+1' 600
+        if (Wait-Until { (Header-Names) -contains '名前 ▼' } 2500 150) { break }
+    }
+    Start-Sleep -Milliseconds 500
     $h = Header-Names
     Check "6) back to details: the column headers return with the sort arrow (headers: $($h -join ' / '))" (($h -contains '名前 ▼') -and ((Row-Count) -ge 15))
     # 降順の先頭: 手順3で名前を変えた renamed.txt(r は p より後ろ)
