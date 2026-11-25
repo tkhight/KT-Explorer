@@ -60,6 +60,8 @@ public static class ShellIconService
         string trimmed = path.TrimEnd('\\');
         // ドライブのルート(C: / C:\)
         if (trimmed.Length == 2 && trimmed[1] == ':') return true;
+        // ネットワークのサーバー・共有のルート(\\server / \\server\share)は、シェルが、専用のアイコン(共有フォルダ)を返す
+        if (trimmed.StartsWith(@"\\") && trimmed.Count(c => c == '\\') <= 3) return true;
         return SpecialFolders.Value.Contains(trimmed);
     }
 
@@ -76,8 +78,12 @@ public static class ShellIconService
         var info = new SHFILEINFO();
         uint flags = SHGFI_ICON | SHGFI_SMALLICON;
         uint attr = isDirectory ? FILE_ATTRIBUTE_DIRECTORY : FILE_ATTRIBUTE_NORMAL;
+        // 項目ごとの固有のアイコンではないとき(共通のフォルダ・拡張子ごとのアイコン)は、実際のパスを渡さず、決まった名前(folder / x.拡張子)を渡す。
+        // 実際のパスを渡すと、ネットワークの共有のルート(\\server\share)などで、シェルが共有フォルダのアイコンを返し、
+        // その結果が、共通のアイコンとして記憶されて、すべてのフォルダがそのアイコンになってしまう。
+        string shellPath = perFile ? path : (isDirectory ? "folder" : "x" + Path.GetExtension(path));
         if (!perFile) flags |= SHGFI_USEFILEATTRIBUTES;
-        SHGetFileInfo(path, attr, ref info, (uint)Marshal.SizeOf<SHFILEINFO>(), flags);
+        SHGetFileInfo(shellPath, attr, ref info, (uint)Marshal.SizeOf<SHFILEINFO>(), flags);
         if (info.hIcon == IntPtr.Zero) return null;
         try
         {

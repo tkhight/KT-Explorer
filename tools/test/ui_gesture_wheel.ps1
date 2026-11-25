@@ -53,7 +53,7 @@ try {
 
     # ── 準備: タブグループを追加(作ると選択される → 2/2)
     Set-Foreground
-    $add = Find-All 'Button' | Where-Object { $_.Current.Name -like '*グループ' } | Select-Object -First 1
+    $add = Find-ById 'AddGroupButton'
     if (-not $add) { Stop-Test 'the add-group button was not found' }
     $add.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep -Milliseconds 1200
     Send-Text 'G2'; Send-Keys '{ENTER}' 1000

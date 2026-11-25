@@ -82,6 +82,34 @@ try {
     Check '5) turning the setting off removes the overlay from tabs' ($null -eq $jt.OverlayIcon)
     $vm.ShowOverlayIcons = $true
     Check '5) turning it on again brings it back' (Wait-Until { [void]$jt.OverlayIcon; $null -ne $jt.OverlayIcon })
+
+    # ── 6) ネットワークの共有のルート(\server\share)のアイコンが、すべてのフォルダのアイコンにならない
+    #     (以前は、最初に読んだフォルダが共有のルートだと、その共有フォルダのアイコンが、共通のフォルダのアイコンとして記憶されて、全フォルダに出た)
+    function HasOwn2([string]$p) { $SIS.GetMethod('HasOwnIcon').Invoke($null, [object[]]@($p)) }
+    Check '6) a UNC server and a UNC share root have their own icon' ((HasOwn2 '\\server') -and (HasOwn2 '\\server\share') -and (HasOwn2 '\\server\share\'))
+    Check '6) a folder inside a share does not' (-not (HasOwn2 '\\server\share\folder'))
+    $unc = '\\localhost\C$'
+    if (Test-Path -LiteralPath $unc) {
+        # 新しいプロセスで、共有のルートを「最初に」読んでから、通常のフォルダを読む(記憶が空の状態から)
+        $code = @"
+Add-Type -AssemblyName PresentationFramework, WindowsBase, PresentationCore
+`$asm = [Reflection.Assembly]::LoadFrom('$($global:Kt.Dll)')
+`$SI = `$asm.GetType('KT_Explorer.Services.ShellIconService')
+function IconHash(`$img) { `$w = `$img.PixelWidth; `$h = `$img.PixelHeight; `$b = New-Object byte[] (`$w * `$h * 4); `$img.CopyPixels(`$b, `$w * 4, 0); [BitConverter]::ToString([Security.Cryptography.MD5]::Create().ComputeHash(`$b)) }
+`$share = `$SI.GetMethod('GetIcon').Invoke(`$null, [object[]]@('$unc', `$true))
+`$plain = `$SI.GetMethod('GetIcon').Invoke(`$null, [object[]]@('$d\plain', `$true))
+`$other = `$SI.GetMethod('GetIcon').Invoke(`$null, [object[]]@('$d\target', `$true))
+'share=' + (IconHash `$share)
+'plain=' + (IconHash `$plain)
+'other=' + (IconHash `$other)
+"@
+        $o = & pwsh -NoProfile -Command $code
+        $h = @{}; foreach ($l in $o) { if ($l -match '^(\w+)=(.+)$') { $h[$Matches[1]] = $Matches[2] } }
+        Check '6) loaded first, the share root keeps its own (different) icon' (($h['share']) -and ($h['share'] -ne $h['plain']))
+        Check '6) and normal folders afterwards still get the normal folder icon (not the share icon)' (($h['plain']) -and ($h['plain'] -eq $h['other']))
+    } else {
+        Write-Output "   (skipped: $unc is not available on this PC)"
+    }
 }
 finally {
     $OS.GetProperty('Enabled').SetValue($null, $true)

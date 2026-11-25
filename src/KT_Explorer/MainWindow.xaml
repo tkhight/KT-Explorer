@@ -25,6 +25,124 @@
         <KeyBinding Key="T" Modifiers="Ctrl+Shift" Command="{Binding ReopenClosedTabCommand}"/>
     </Window.InputBindings>
 
+    <Window.Resources>
+        <!-- ツールバーのアイコン: Windows 標準のアイコン フォント(Windows 11 は Segoe Fluent Icons、Windows 10 は Segoe MDL2 Assets)。文字と同じく、色は、ボタンの状態(使えないときは灰色)に従う -->
+        <Style x:Key="KtIcon" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- 画面全体のデザイン: 枠なしのフラット。普通=背景なし / ホバー=淡い水色 / 押した・選択中・オン=少し濃い水色 / 使えない=薄い灰色 -->
+        <Style x:Key="KtFlatButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#FF262626"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="4,0"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="#FFE5F3FF"/></Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Bd" Property="Background" Value="#FFCCE8FF"/></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="#FFB3B3B3"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="KtFlatToggle" TargetType="ToggleButton">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#FF262626"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="4,0"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="#FFE5F3FF"/></Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FFCCE8FF"/>
+                                <Setter Property="Foreground" Value="#FF0B5CAD"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Bd" Property="Background" Value="#FFB8DCFA"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <!-- ペイン・プレビューの図柄(細い線の図形。色は、ボタンの状態に従う) -->
+        <Style x:Key="KtPaneGlyph" TargetType="Path">
+            <Setter Property="Width" Value="18"/>
+            <Setter Property="Height" Value="18"/>
+            <Setter Property="StrokeThickness" Value="1.5"/>
+            <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ButtonBase}}"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <!-- グループタブ: 選択中は薄い青の背景、ホバーは淡い灰青 -->
+        <Style x:Key="KtGroupItem" TargetType="ListBoxItem">
+            <Setter Property="Foreground" Value="#FF444444"/>
+            <Setter Property="Margin" Value="0,2,2,2"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="5" Padding="6,2">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="#FFE9EEF4"/></Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FFDCEBFA"/>
+                                <Setter Property="Foreground" Value="#FF0B3D73"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <!-- フォルダタブ: 選択中は白い背景で、上に青い細線(持ち上がって見える)。ホバーは淡い灰青 -->
+        <Style x:Key="KtTabItem" TargetType="ListBoxItem">
+            <Setter Property="Margin" Value="0,0,2,0"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" Background="Transparent" BorderBrush="Transparent" BorderThickness="0,2,0,0" CornerRadius="6,6,0,0" Padding="2,2,2,0">
+                            <ContentPresenter VerticalAlignment="Bottom"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="#FFE9EEF4"/></Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FFFFFFFF"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#FF3B82D6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <!-- ツールバーのグループの区切り -->
+        <Style x:Key="KtSeparator" TargetType="Rectangle">
+            <Setter Property="Width" Value="1"/>
+            <Setter Property="Height" Value="18"/>
+            <Setter Property="Fill" Value="#FFD4D4D4"/>
+            <Setter Property="Margin" Value="6,0"/>
+        </Style>
+    </Window.Resources>
+
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -36,9 +154,17 @@
         <DockPanel Grid.Row="0">
         <!-- メニューバーの右端: ペイン(2・3・指定) -->
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="0,1,4,1">
-            <Button Content="▥2" Width="34" ToolTip="2ペイン(現在のフォルダを右に追加)" Command="{Binding OpenPanesCommand}" CommandParameter="2"/>
-            <Button Content="▥3" Width="34" Margin="2,0,0,0" ToolTip="3ペイン(現在のフォルダを右に追加)" Command="{Binding OpenPanesCommand}" CommandParameter="3"/>
-            <Button Content="指定ペイン ▾" Margin="2,0,0,0" Padding="6,0" ToolTip="2つか3つのタブ・フォルダを選んで、ペインを作成" Click="SpecifyPane_Click"/>
+            <Button Style="{StaticResource KtFlatButton}" Width="32" Height="24" ToolTip="2ペイン(現在のフォルダを右に追加)" AutomationProperties.Name="2ペイン" AutomationProperties.AutomationId="Panes2Button"
+                    Command="{Binding OpenPanesCommand}" CommandParameter="2"><Path Style="{StaticResource KtPaneGlyph}" Data="M4,3 H14 A2,2 0 0 1 16,5 V13 A2,2 0 0 1 14,15 H4 A2,2 0 0 1 2,13 V5 A2,2 0 0 1 4,3 Z M9,3 V15"/></Button>
+            <Button Style="{StaticResource KtFlatButton}" Width="32" Height="24" Margin="2,0,0,0" ToolTip="3ペイン(現在のフォルダを右に追加)" AutomationProperties.Name="3ペイン" AutomationProperties.AutomationId="Panes3Button"
+                    Command="{Binding OpenPanesCommand}" CommandParameter="3"><Path Style="{StaticResource KtPaneGlyph}" Data="M4,3 H14 A2,2 0 0 1 16,5 V13 A2,2 0 0 1 14,15 H4 A2,2 0 0 1 2,13 V5 A2,2 0 0 1 4,3 Z M6.67,3 V15 M11.33,3 V15"/></Button>
+            <Button Style="{StaticResource KtFlatButton}" Width="46" Height="24" Margin="2,0,0,0" ToolTip="2つか3つのタブ・フォルダを選んで、ペインを作成" AutomationProperties.Name="指定ペイン" AutomationProperties.AutomationId="SpecifyPaneButton"
+                    Click="SpecifyPane_Click">
+                <StackPanel Orientation="Horizontal">
+                    <Path Style="{StaticResource KtPaneGlyph}" Data="M4,3 H14 A2,2 0 0 1 16,5 V13 A2,2 0 0 1 14,15 H4 A2,2 0 0 1 2,13 V5 A2,2 0 0 1 4,3 Z M9,3 V15 M2,9 H16"/>
+                    <TextBlock Style="{StaticResource KtIcon}" FontSize="10" Margin="3,0,0,0" Text="&#xE70D;"/>
+                </StackPanel>
+            </Button>
         </StackPanel>
         <Menu x:Name="MainMenu">
             <MenuItem Header="ファイル(_F)" SubmenuOpened="FileMenu_SubmenuOpened">
@@ -76,20 +202,24 @@
 
         <!-- ツールバー -->
         <DockPanel Grid.Row="1" Margin="4" LastChildFill="True">
-            <Button DockPanel.Dock="Left" Content="←" Width="30" ToolTip="戻る (Alt+←)"
-                    Command="{Binding BackCommand}" IsEnabled="{Binding CurrentFolder.CanGoBack}"/>
-            <Button DockPanel.Dock="Left" Content="→" Width="30" Margin="2,0,0,0" ToolTip="進む (Alt+→)"
-                    Command="{Binding ForwardCommand}" IsEnabled="{Binding CurrentFolder.CanGoForward}"/>
-            <Button DockPanel.Dock="Left" Content="↑" Width="30" Margin="2,0,0,0" ToolTip="一つ上の階層へ (Alt+↑)"
-                    Command="{Binding UpCommand}" IsEnabled="{Binding CurrentFolder.CanGoUp}"/>
-            <Button DockPanel.Dock="Left" Content="⟳" Width="30" Margin="2,0,0,0" ToolTip="更新 (F5)"
-                    Command="{Binding RefreshCommand}"/>
-            <Button DockPanel.Dock="Left" Content="↶" Width="30" Margin="6,0,0,0" ToolTip="{Binding UndoToolTip}"
-                    IsEnabled="{Binding CanUndo}" Click="Undo_Click"/>
-            <Button DockPanel.Dock="Left" Content="↷" Width="30" Margin="2,0,6,0" ToolTip="{Binding RedoToolTip}"
-                    IsEnabled="{Binding CanRedo}" Click="Redo_Click"/>
-            <ToggleButton DockPanel.Dock="Right" Content="プレビュー" Margin="2,0,0,0" Padding="6,0" IsChecked="{Binding ShowPreview}"
-                          ToolTip="選択したファイルの内容を、右側に表示します (Alt+P)"/>
+            <Button Style="{StaticResource KtFlatButton}" DockPanel.Dock="Left" Width="30" Margin="0,0,2,0" ToolTip="戻る (Alt+←)" AutomationProperties.Name="戻る" AutomationProperties.AutomationId="BackButton"
+                    Command="{Binding BackCommand}" IsEnabled="{Binding CurrentFolder.CanGoBack}"><TextBlock Style="{StaticResource KtIcon}" Text="&#xE72B;"/></Button>
+            <Button Style="{StaticResource KtFlatButton}" DockPanel.Dock="Left" Width="30" Margin="0,0,2,0" ToolTip="進む (Alt+→)" AutomationProperties.Name="進む" AutomationProperties.AutomationId="ForwardButton"
+                    Command="{Binding ForwardCommand}" IsEnabled="{Binding CurrentFolder.CanGoForward}"><TextBlock Style="{StaticResource KtIcon}" Text="&#xE72A;"/></Button>
+            <Button Style="{StaticResource KtFlatButton}" DockPanel.Dock="Left" Width="30" ToolTip="一つ上の階層へ (Alt+↑)" AutomationProperties.Name="一つ上の階層へ" AutomationProperties.AutomationId="UpButton"
+                    Command="{Binding UpCommand}" IsEnabled="{Binding CurrentFolder.CanGoUp}"><TextBlock Style="{StaticResource KtIcon}" Text="&#xE74A;"/></Button>
+            <Rectangle DockPanel.Dock="Left" Style="{StaticResource KtSeparator}"/>
+            <Button Style="{StaticResource KtFlatButton}" DockPanel.Dock="Left" Width="30" ToolTip="更新 (F5)" AutomationProperties.Name="更新" AutomationProperties.AutomationId="RefreshButton"
+                    Command="{Binding RefreshCommand}"><TextBlock Style="{StaticResource KtIcon}" Text="&#xE72C;"/></Button>
+            <Rectangle DockPanel.Dock="Left" Style="{StaticResource KtSeparator}"/>
+            <Button Style="{StaticResource KtFlatButton}" DockPanel.Dock="Left" Width="30" Margin="0,0,2,0" ToolTip="{Binding UndoToolTip}" AutomationProperties.Name="元に戻す" AutomationProperties.AutomationId="UndoButton"
+                    IsEnabled="{Binding CanUndo}" Click="Undo_Click"><TextBlock Style="{StaticResource KtIcon}" Text="&#xE7A7;"/></Button>
+            <Button Style="{StaticResource KtFlatButton}" DockPanel.Dock="Left" Width="30" Margin="0,0,6,0" ToolTip="{Binding RedoToolTip}" AutomationProperties.Name="やり直し" AutomationProperties.AutomationId="RedoButton"
+                    IsEnabled="{Binding CanRedo}" Click="Redo_Click"><TextBlock Style="{StaticResource KtIcon}" Text="&#xE7A6;"/></Button>
+            <ToggleButton Style="{StaticResource KtFlatToggle}" DockPanel.Dock="Right" Width="32" Margin="6,0,0,0" IsChecked="{Binding ShowPreview}"
+                          ToolTip="選択したファイルの内容を、右側に表示します (Alt+P)" AutomationProperties.Name="プレビュー" AutomationProperties.AutomationId="PreviewToggle">
+                <Path Style="{StaticResource KtPaneGlyph}" Data="M4,3 H14 A2,2 0 0 1 16,5 V13 A2,2 0 0 1 14,15 H4 A2,2 0 0 1 2,13 V5 A2,2 0 0 1 4,3 Z M12,3 V15"/>
+            </ToggleButton>
             <TextBox DockPanel.Dock="Right" x:Name="SearchBox" Width="150" Margin="6,0,0,0" VerticalContentAlignment="Center"
                      ToolTip="このフォルダ以下を検索(Enter で実行 / Esc で解除)&#10;名前: 文字を含むもの / *.png(ワイルドカード)&#10;絞込と同じ条件: type:画像 ext:png size:&gt;10MB date:今週 -除外&#10;ファイルの中身: content:語(または 中身:語)"
                      Text="{Binding CurrentFolder.SearchText, UpdateSourceTrigger=PropertyChanged}" KeyDown="SearchBox_KeyDown"/>
@@ -137,10 +267,10 @@
             </Grid.ColumnDefinitions>
 
             <!-- タブグループ(全幅の行。タブをここへドロップして移動できる) -->
-            <DockPanel Grid.Row="0" Grid.ColumnSpan="5" Background="#FFE8EEF5">
-                <Button DockPanel.Dock="Right" Content="＋グループ" Padding="8,0" ToolTip="タブグループを追加"
-                        Click="AddGroup_Click"/>
-                <ListBox x:Name="GroupBar" ItemsSource="{Binding Groups}" SelectedItem="{Binding SelectedGroup}"
+            <DockPanel Grid.Row="0" Grid.ColumnSpan="5" Background="#FFF6F7F9">
+                <Button Style="{StaticResource KtFlatButton}" DockPanel.Dock="Right" Width="26" Height="24" Margin="0,0,4,0" ToolTip="タブグループを追加" AutomationProperties.Name="グループを追加" AutomationProperties.AutomationId="AddGroupButton"
+                        Click="AddGroup_Click"><TextBlock Style="{StaticResource KtIcon}" Text="&#xE710;"/></Button>
+                <ListBox x:Name="GroupBar" ItemsSource="{Binding Groups}" SelectedItem="{Binding SelectedGroup}" ItemContainerStyle="{StaticResource KtGroupItem}"
                          BorderThickness="0" Background="Transparent"
                          ScrollViewer.VerticalScrollBarVisibility="Disabled"
                          ScrollViewer.HorizontalScrollBarVisibility="Auto"
@@ -150,7 +280,7 @@
                     </ListBox.ItemsPanel>
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding Display}" Padding="6,1" FontWeight="SemiBold" AllowDrop="True"
+                            <TextBlock Text="{Binding Display}" Padding="6,1" FontWeight="SemiBold" AllowDrop="True" Background="Transparent"
                                        ToolTip="タブをドロップするとこのグループへ移動"
                                        DragOver="Group_DragOver" Drop="Group_Drop">
                                 <TextBlock.ContextMenu>
@@ -319,11 +449,11 @@
                 </Grid.RowDefinitions>
 
                 <!-- タブバー(ホイールでタブ切替) -->
-                <DockPanel Grid.Row="0">
-                    <Button DockPanel.Dock="Right" Content="＋" Width="28" ToolTip="新しいタブ (Ctrl+T)"
-                            Command="{Binding NewTabCommand}"/>
-                    <ListBox x:Name="TabBar" ItemsSource="{Binding SelectedGroup.Tabs}" SelectedItem="{Binding SelectedTab}"
-                             BorderThickness="0"
+                <DockPanel Grid.Row="0" Background="#FFF6F7F9">
+                    <Button Style="{StaticResource KtFlatButton}" DockPanel.Dock="Right" Width="26" Height="24" Margin="0,0,4,3" VerticalAlignment="Bottom" ToolTip="新しいタブ (Ctrl+T)" AutomationProperties.Name="新しいタブ" AutomationProperties.AutomationId="NewTabButton"
+                            Command="{Binding NewTabCommand}"><TextBlock Style="{StaticResource KtIcon}" Text="&#xE710;"/></Button>
+                    <ListBox x:Name="TabBar" ItemsSource="{Binding SelectedGroup.Tabs}" SelectedItem="{Binding SelectedTab}" ItemContainerStyle="{StaticResource KtTabItem}"
+                             BorderThickness="0" Background="Transparent"
                              ScrollViewer.VerticalScrollBarVisibility="Disabled"
                              ScrollViewer.HorizontalScrollBarVisibility="Auto"
                              SelectionChanged="TabBar_SelectionChanged"
@@ -335,15 +465,15 @@
                         </ListBox.ItemsPanel>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <!-- 色: 下に太い線 + 薄い背景。ピン留め: 先頭に 📌 -->
+                                <!-- 色: 下に太い線 + 薄い背景。ピン留め: 先頭に青いピンのアイコン -->
                                 <Border ToolTip="{Binding ToolTipText}" AllowDrop="True" Padding="4,1"
                                         BorderThickness="0,0,0,3" BorderBrush="{Binding TabColorBrush}" Background="{Binding TabTintBrush}"
                                         ContextMenuOpening="TabItem_ContextMenuOpening"
                                         DragOver="TabItem_DragOver" Drop="TabItem_Drop">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="📌" FontSize="10" Margin="0,0,2,0" VerticalAlignment="Center">
+                                        <TextBlock Text="&#xE718;" FontSize="11" Foreground="#FF3B82D6" Margin="0,0,2,0" VerticalAlignment="Center">
                                             <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
+                                                <Style TargetType="TextBlock" BasedOn="{StaticResource KtIcon}">
                                                     <Setter Property="Visibility" Value="Collapsed"/>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsPinned}" Value="True">
