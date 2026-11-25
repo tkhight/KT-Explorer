@@ -332,6 +332,7 @@
             <TreeView x:Name="FolderTree" ItemsSource="{Binding TreeRoots}"
                       VirtualizingStackPanel.IsVirtualizing="True" VirtualizingStackPanel.VirtualizationMode="Standard"
                       ScrollViewer.CanContentScroll="True"
+                      PreviewMouseLeftButtonDown="FolderTree_PreviewMouseLeftButtonDown"
                       PreviewMouseRightButtonDown="FolderTree_PreviewMouseRightButtonDown"
                       ContextMenuOpening="FolderTree_ContextMenuOpening"
                       KeyDown="FolderTree_KeyDown">

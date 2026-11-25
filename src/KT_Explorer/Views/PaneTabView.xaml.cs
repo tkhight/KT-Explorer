@@ -90,6 +90,12 @@ public partial class PaneTabView : UserControl
             if (column.ActualWidth > 0) pane.PaneWeight = column.ActualWidth;
     }
 
+    /// <summary>ペインの枠・ヘッダーのクリックでも、そのペインを操作中にする(一覧の外なので、一覧側の処理は働かない)。</summary>
+    private void Pane_PreviewMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (((FrameworkElement)sender).DataContext is FolderTabViewModel pane) pane.RequestActivate();
+    }
+
     private void ClosePane_Click(object sender, RoutedEventArgs e)
     {
         if (DataContext is PaneTabViewModel tab && ((FrameworkElement)sender).DataContext is FolderTabViewModel pane)

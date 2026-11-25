@@ -5,7 +5,7 @@
     <UserControl.Resources>
         <!-- 1つのペイン(ヘッダー + 一覧)。操作中のペインは青枠で示す -->
         <DataTemplate x:Key="PaneTemplate">
-            <Border Margin="1" BorderThickness="2">
+            <Border Margin="1" BorderThickness="2" PreviewMouseDown="Pane_PreviewMouseDown">
                 <Border.Style>
                     <Style TargetType="Border">
                         <Setter Property="BorderBrush" Value="Transparent"/>
