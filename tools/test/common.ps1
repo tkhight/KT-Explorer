@@ -89,11 +89,11 @@ function Close-RunningKtApp {
         Write-Output "closing the running KT_Explorer (pid $($p.Id), started $($p.StartTime.ToString('HH:mm:ss')))"
         try { [void]$p.CloseMainWindow() } catch { }
     }
-    Start-Sleep -Seconds 2
+    [void](Wait-Until { -not (Get-Process KT_Explorer -ErrorAction SilentlyContinue) } 2500 100)   # 閉じる操作で終わるのを、最大 2.5 秒待つ
     foreach ($p in @(Get-Process KT_Explorer -ErrorAction SilentlyContinue)) {
         Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
     }
-    Start-Sleep -Seconds 1
+    [void](Wait-Until { -not (Get-Process KT_Explorer -ErrorAction SilentlyContinue) } 3000 100)
     if (Get-Process KT_Explorer -ErrorAction SilentlyContinue) {
         Write-Output 'ABORT: could not close the running KT_Explorer.'
         exit 2
@@ -109,11 +109,12 @@ function Start-KtApp {
     }
     $A = $global:Kt.A
     $global:Kt.Proc = Start-Process $global:Kt.Exe -PassThru
-    Start-Sleep -Seconds 4
     $global:Kt.Root = $A::RootElement
     $global:Kt.PidCond = New-Object Windows.Automation.PropertyCondition($A::ProcessIdProperty, $global:Kt.Proc.Id)
-    $global:Kt.Win = $global:Kt.Root.FindFirst('Children', $global:Kt.PidCond)
+    # ウィンドウが現れるまで待つ(最大 15 秒)。現れたら、中身の読み込みのために、少し置く
+    [void](Wait-Until { $global:Kt.Win = $global:Kt.Root.FindFirst('Children', $global:Kt.PidCond); [bool]$global:Kt.Win } 15000 200)
     if (-not $global:Kt.Win) { Stop-Test 'app window not found' }
+    Start-Sleep -Milliseconds 1500
     Set-Foreground
 }
 
@@ -123,9 +124,22 @@ function Stop-KtApp {
     if ($p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
 }
 
+# 条件が成り立つまで、短い間隔で確かめる(固定の待ちの代わり)。成り立てば $true、時間切れなら $false。
+# 速いときは待たず、遅いときだけ、timeoutMs まで待つ。
+function Wait-Until([scriptblock]$cond, [int]$timeoutMs = 3000, [int]$pollMs = 100) {
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    while ($true) {
+        if (& $cond) { return $true }
+        if ($sw.ElapsedMilliseconds -ge $timeoutMs) { return $false }
+        Start-Sleep -Milliseconds $pollMs
+    }
+}
+
 function Set-Foreground {
     [void][KtWin]::SetForegroundWindow([IntPtr]$global:Kt.Win.Current.NativeWindowHandle)
-    Start-Sleep -Milliseconds 400
+    # 前面に出るまで待つ(最大 1 秒)。出たら、少しだけ落ち着かせる
+    [void](Wait-Until { [KtWin]::ForegroundPid() -eq $global:Kt.Proc.Id } 1000 50)
+    Start-Sleep -Milliseconds 120
 }
 
 # キーを送る前に、いま前面にあるのが、テスト用の KT_Explorer であることを確かめる。
@@ -176,11 +190,14 @@ function Get-PathText { Get-Text (Find-ById 'PathBox') }
 function Move-To([string]$path) {
     $pb = Find-ById 'PathBox'
     Set-Foreground
-    $pb.SetFocus(); Start-Sleep -Milliseconds 200
+    $pb.SetFocus(); Start-Sleep -Milliseconds 150
     Assert-AppForeground
     [System.Windows.Forms.SendKeys]::SendWait('^a')
     Send-Text $path
-    Send-Keys '{ENTER}' 1500
+    Send-Keys '{ENTER}' 0
+    # パス欄の表示が、目的のパスになるまで待つ(最大 4 秒)。なったら、一覧・ツリーの読み込みのために、少し置く
+    [void](Wait-Until { (Get-PathText) -eq $path } 4000 100)
+    Start-Sleep -Milliseconds 500
     if ((Get-PathText) -ne $path) { Stop-Test "could not navigate to '$path' (path box shows '$(Get-PathText)')" }
 }
 
@@ -197,8 +214,13 @@ function Get-InlineEdit {
 
 function Find-AppMenuItem([string]$name) {
     $A = $global:Kt.A
-    $global:Kt.Root.FindAll('Descendants', (New-Object Windows.Automation.PropertyCondition($A::NameProperty, $name))) |
-        Where-Object { $_.Current.ProcessId -eq $global:Kt.Proc.Id } | Select-Object -First 1
+    # デスクトップ全体を調べず、このアプリのトップレベルのウィンドウ(メイン + メニューなどのポップアップ)の中だけを調べる(他のアプリの分だけ、遅くなるため)
+    $byName = New-Object Windows.Automation.PropertyCondition($A::NameProperty, $name)
+    foreach ($w in $global:Kt.Root.FindAll('Children', $global:Kt.PidCond)) {
+        $hit = $w.FindFirst('Descendants', $byName)
+        if ($hit) { return $hit }
+        if ($w.Current.Name -eq $name) { return $w }
+    }
 }
 
 # 位置が取れた要素の中央を、実際のマウスでクリックする
