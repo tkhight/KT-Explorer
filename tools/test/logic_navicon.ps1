@@ -41,11 +41,11 @@ try {
 
     # ── 2) ツリーのノード: アイコンがある。ダミーの子には無い。ジャンクションのノードには、オーバーレイが後から付く
     $cb = [Action[object]]{ param($x) }
-    $node = [Activator]::CreateInstance($TNV, [object[]]@('plain', "$d\plain", $cb))
+    $node = [Activator]::CreateInstance($TNV, [object[]]@('plain', "$d\plain", $cb, $null))
     Check '2) a tree node has an icon' ($null -ne $node.Icon)
     Check '2) the placeholder child has no icon' ($null -eq $node.Children[0].Icon)
     Check '2) a normal folder node has no overlay' (-not (Wait-Until { $null -ne $node.OverlayIcon } 1500))
-    $jn = [Activator]::CreateInstance($TNV, [object[]]@('junc', "$d\junc", $cb))
+    $jn = [Activator]::CreateInstance($TNV, [object[]]@('junc', "$d\junc", $cb, $null))
     [void]$jn.OverlayIcon
     Check '2) a junction node gets the link overlay (in the background)' (Wait-Until { $null -ne $jn.OverlayIcon })
     $jn.ResetOverlay()

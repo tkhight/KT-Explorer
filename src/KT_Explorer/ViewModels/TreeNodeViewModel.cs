@@ -24,8 +24,9 @@ public partial class TreeNodeViewModel : ObservableObject
     /// <summary>直接編集中の入力内容。</summary>
     [ObservableProperty] private string _editName = "";
 
-    public TreeNodeViewModel(string name, string fullPath, Action<TreeNodeViewModel> onSelected)
+    public TreeNodeViewModel(string name, string fullPath, Action<TreeNodeViewModel> onSelected, TreeNodeViewModel? parent = null)
     {
+        Parent = parent;
         Name = name;
         FullPath = fullPath;
         _onSelected = onSelected;
@@ -45,6 +46,9 @@ public partial class TreeNodeViewModel : ObservableObject
 
     public string FullPath { get; }
     public bool IsPlaceholder { get; }
+
+    /// <summary>親のノード(ルートは null)。ツリーを仮想化しているため、選択したノードまでスクロールするときに、親をたどって、順に表示させる。</summary>
+    public TreeNodeViewModel? Parent { get; }
 
     /// <summary>フォルダのアイコン(通常は共通のフォルダのアイコン。ドライブ・デスクトップなどは固有のもの)。ダミーの子には無い。</summary>
     public ImageSource? Icon => IsPlaceholder ? null : ShellIconService.GetIcon(FullPath, isDirectory: true);
@@ -85,7 +89,7 @@ public partial class TreeNodeViewModel : ObservableObject
                 .Where(d => (d.Attributes & (FileAttributes.Hidden | FileAttributes.System)) == 0)
                 .OrderBy(d => d.Name, StringComparer.CurrentCultureIgnoreCase);
             foreach (var d in dirs)
-                Children.Add(new TreeNodeViewModel(d.Name, d.FullName, _onSelected));
+                Children.Add(new TreeNodeViewModel(d.Name, d.FullName, _onSelected, this));
         }
         catch
         {
@@ -125,7 +129,7 @@ public partial class TreeNodeViewModel : ObservableObject
         for (int i = 0; i < dirs.Count; i++)
         {
             if (i < Children.Count && string.Equals(Children[i].FullPath, dirs[i].FullName, StringComparison.Ordinal)) continue;
-            Children.Insert(i, new TreeNodeViewModel(dirs[i].Name, dirs[i].FullName, _onSelected));
+            Children.Insert(i, new TreeNodeViewModel(dirs[i].Name, dirs[i].FullName, _onSelected, this));
         }
         foreach (var child in Children)
         {
