@@ -171,6 +171,16 @@ try {
     [void]$vm.CreatePanes([string[]]@("$d2", "$d\sub")); $pane = $vm.SelectedTab
     $vm.MoveTabToGroup($pane, $g2)
     Check 'move to group: a pane tab moves too, and the destination shows it as the active tab' (($vm.SelectedGroup -eq $g2) -and ($vm.SelectedTab -eq $pane))
+
+    # ── タブの複数段表示(設定)の保存と復元
+    Check 'multi-row tabs: off by default' ((-not $vm.MultiRowTabs) -and (-not ([Activator]::CreateInstance($AS)).MultiRowTabs))
+    $vm.MultiRowTabs = $true
+    $stM = $vm.ToState()
+    Check 'multi-row tabs: saved in the state' ($stM.MultiRowTabs -eq $true)
+    $vmM = [Activator]::CreateInstance($MVM, [object[]]@($stM))
+    Check 'multi-row tabs: restored from the state' ($vmM.MultiRowTabs -eq $true)
+    $vm.MultiRowTabs = $false
+    Check 'multi-row tabs: turned off again' (-not $vm.ToState().MultiRowTabs)
 }
 finally {
     Remove-TestDir $d

@@ -33,6 +33,9 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void TogglePreview() => ShowPreview = !ShowPreview;
 
+    /// <summary>フォルダタブを、複数段に折り返して表示する(オフなら、1 段で、あふれた分は横にスクロール)。</summary>
+    [ObservableProperty] private bool _multiRowTabs;
+
     /// <summary>一覧のアイコンに、シェルのオーバーレイ(OneDrive・SVN などの状態)を重ねる。</summary>
     [ObservableProperty] private bool _showOverlayIcons = true;
 
@@ -224,6 +227,7 @@ public partial class MainViewModel : ObservableObject
         AutoFolderSize = state.AutoFolderSize;
         ShowPreview = state.ShowPreview;
         ShowOverlayIcons = state.ShowOverlayIcons;
+        MultiRowTabs = state.MultiRowTabs;
         foreach (var fs in state.Favorites)
         {
             var fav = FavoriteFromState(fs);
@@ -756,6 +760,7 @@ public partial class MainViewModel : ObservableObject
             AutoFolderSize = AutoFolderSize,
             ShowPreview = ShowPreview,
             ShowOverlayIcons = ShowOverlayIcons,
+            MultiRowTabs = MultiRowTabs,
             SelectedGroupIndex = Groups.IndexOf(_selectedGroup),
         };
         foreach (var f in Favorites) state.Favorites.Add(FavoriteToState(f));
