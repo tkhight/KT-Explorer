@@ -49,6 +49,7 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 | 指定ペインの作成ダイアログの画面テスト(既存タブにチェックを付けて作成、フォルダを 2〜3 個指定して作成、キャンセル) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_pane_create.ps1'` |
 | メニューバー「編集」の画面テスト(元に戻す・やり直し・切り取り・コピー・貼り付け・削除・全て選択。ファイルへの操作と、入力欄の文字への操作)。クリップボードを書き換える | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_edit.ps1'` |
 | アプリのアイコン(app.ico の大きさの種類、exe のアイコン、トレイのアイコンの読み込み)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_icon.ps1'` |
+| メニューのフラットなデザインの画面テスト(メニューバーのホバー・開いている見出しの色、開いたメニューのホバー・使えない項目の灰色・チェックの青いマークを、画素で確かめる)。マウスを実際に動かす。メニューの見た目は、`src/KT_Explorer/Resources/FlatMenu.xaml`(アプリ全体のリソース) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_flat_menu.ps1'` |
 | 統一したフラットなデザインの画面テスト(枠なし・ホバーの水色・プレビューのオンの色・選択中のグループタブとフォルダタブの色・一覧の列見出しのホバー・入力欄の枠と入力中の青い線・ペインタブの図柄を、画素で確かめる。ペインのボタンでペインタブができる)。ボタンの `AutomationId` は `Panes2Button` `Panes3Button` `SpecifyPaneButton` `PreviewToggle` `AddGroupButton` など。マウスを実際に動かす | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_flat_style.ps1'` |
 | ツールバーのアイコンボタン(戻る・進む・一つ上・更新・元に戻す・やり直し・新しいタブ)の画面テスト(名前つきで存在する・アイコンが描かれている・使えないときは灰色・押すと操作が働く)。ボタンの `AutomationId` は `BackButton` `ForwardButton` `UpButton` `RefreshButton` `UndoButton` `RedoButton` `NewTabButton` | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_toolbar_icons.ps1'` |
 | タブの複数段表示の画面テスト(名前の長いタブを 12 個開き、「表示」メニューで、1 段 → 複数段(すべてが画面の中)→ 1 段に戻る。選択中のタブは変わらない)。設定の保存・復元のロジックは `logic_tabs.ps1` に含む | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_multirow_tabs.ps1'` |
@@ -66,6 +67,7 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 - 実行前に、上のビルドを行う。結果は `OK` / `NG` の行と、最後の `RESULT: ok=… ng=…`。
 - 画面テストの時間は、1 本 10〜45 秒ほど(全 22 本で約 9 分)。以前は 1 本 1〜5 分かかっていた。待ち時間は、固定の `Start-Sleep` ではなく、`common.ps1` の `Wait-Until { 条件 } 最大ミリ秒`(条件が成り立つまで 0.1 秒ごとに確かめる)で書く。`Move-To`・`Set-Foreground`・`Start-KtApp`・`Find-AppMenuItem`(このアプリのウィンドウの中だけを探す)も、そうなっている。以前の遅さの原因:原因は、`%TEMP%` の数千のサブフォルダでツリーが膨らみ、ウィンドウの画面要素が 3 万個を超えて、全体の列挙(`Find-All`)が 1 回約 9 秒かかったため。ツリーを仮想化して(見えているノードだけを作る)、要素は約 500 個、列挙は約 0.15 秒になった。テストを足すときは、**ツリーの要素(`TreeItem`)は、表示範囲の外にも、余分に作られる**ので、位置で選ぶときは、ツリーの表示範囲の中にあるものだけを選ぶ。PowerShell ツールの `timeout` は、念のため長め(例: 300000)にする。
 - **ユーザーの指示**: KT_Explorer が起動していても、確認のために閉じてよい(ユーザーに閉じてもらうのを待たない)。画面テストは(`ui_pane_width.ps1` を除き)、起動中のアプリがあれば、先にウィンドウを閉じる操作(終了時の状態保存が走る)をしてから、残っていれば強制終了して、テストを続ける。閉じるのは、名前が `KT_Explorer` のプロセスだけ。テストのあと、ユーザーのアプリは自動では起動し直さないので、作業の報告で、閉じたことを伝え、再起動はユーザーに任せる。
+- **自動操作でメニューの項目を押した(`Invoke`)あとは、メニューのキー操作の状態が残って、最初のキー入力が吸われることがある**(`ui_viewmode` の手順 6 が、まれに落ちていた原因)。そのあとにキーで操作するテストは、項目が消えるまで待ち、期待する結果になるまで、キーを(最大 3 回)送り直す(`Wait-Until`)。`Esc` で抜けるのは、名前の入力中の編集を取り消してしまうことがあるので、避ける。
 - テストを足す・変えるときは、`tools/test/common.ps1` の決まりを守る。
   - 操作するフォルダは `%TEMP%\kt_test_*` の中だけ。
   - 止めてよいプロセスは、名前が `KT_Explorer` のものだけ(それ以外のプロセスは止めない)。
