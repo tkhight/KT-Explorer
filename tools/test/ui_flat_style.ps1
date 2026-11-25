@@ -69,11 +69,43 @@ try {
     Check "6) the selected folder tab has a blue line on top (got $($top.R),$($top.G),$($top.B))" (Near $top 59 130 214 14)
     Check "6) and a white background (got $($body.R),$($body.G),$($body.B))" (Near $body 255 255 255 4)
 
+    # ── 6b) 一覧の列見出し: フラット(普通は白、ホバーで淡い水色)
+    $hdr = Find-All 'HeaderItem' | Where-Object { $_.Current.BoundingRectangle.Width -gt 20 } | Select-Object -First 1
+    if (-not $hdr) { Stop-Test 'a column header was not found' }
+    $hr = $hdr.Current.BoundingRectangle
+    $hplain = Pixel ([int]$hr.X + [int]($hr.Width - 6)) ([int]$hr.Y + 4)
+    Check "6b) a column header is flat white (got $($hplain.R),$($hplain.G),$($hplain.B))" (Near $hplain 255 255 255 4)
+    Move-Mouse ([int]($hr.X + $hr.Width - 6)) ([int]($hr.Y + 10))
+    $hhover = Pixel ([int]$hr.X + [int]($hr.Width - 6)) ([int]$hr.Y + 4)
+    Check "6b) hovering a column header turns it light blue (got $($hhover.R),$($hhover.G),$($hhover.B))" (Near $hhover 229 243 255 6)
+    Move-Mouse ([int]($hr.X + 40)) ([int]($hr.Y + 200))
+
+    # ── 6c) 入力欄: 普通は灰色の細い枠。入力中(Ctrl+L)は、青い枠と、下に青い線
+    $fr = Rect 'FilterBox'
+    $fb = Pixel ([int]($fr.X + $fr.Width / 2)) ([int]($fr.Y + $fr.Height) - 1)
+    Check "6c) an input box has a thin gray frame at rest (got $($fb.R),$($fb.G),$($fb.B))" (Near $fb 208 208 208 14)
+    (Find-ById 'FilterBox').SetFocus(); Start-Sleep -Milliseconds 500
+    $fb2 = Pixel ([int]($fr.X + $fr.Width / 2)) ([int]($fr.Y + $fr.Height) - 2)
+    Check "6c) while typing, the box has a blue line at the bottom (got $($fb2.R),$($fb2.G),$($fb2.B))" (Near $fb2 59 130 214 14)
+    Set-Foreground; Send-Keys '{ESC}' 200
+    Click-Element (Selected-Item 'FolderTab')   # フォーカスを外す(パンくず表示へ戻る)
+
     # ── 7) ペインのボタン(2 ペイン)を押すと、ペインタブができる
     $before = @(Find-All 'ListItem' | Where-Object { $_.Current.Name -like '*PaneTab*' }).Count
     (Find-ById 'Panes2Button').GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke()
     [void](Wait-Until { @(Find-All 'ListItem' | Where-Object { $_.Current.Name -like '*PaneTab*' }).Count -eq $before + 1 } 3000 100)
     Check '7) the 2-pane button creates a pane tab' (@(Find-All 'ListItem' | Where-Object { $_.Current.Name -like '*PaneTab*' }).Count -eq $before + 1)
+
+    # ── 8) ペインタブ: タイトルは「▥」で始まらず、左にペインの図柄(濃い線)がある
+    $pt = Selected-Item 'PaneTab'
+    Check '8) the pane tab is selected' ($null -ne $pt)
+    if ($pt) {
+        $pr2 = $pt.Current.BoundingRectangle
+        $bmpP = New-Object System.Drawing.Bitmap(30, 22)
+        $gP = [System.Drawing.Graphics]::FromImage($bmpP); $gP.CopyFromScreen([int]$pr2.X, [int]$pr2.Y + 6, 0, 0, $bmpP.Size); $gP.Dispose()
+        $dark = 0; for ($x = 0; $x -lt 30; $x++) { for ($y = 0; $y -lt 22; $y++) { $c = $bmpP.GetPixel($x, $y); if (($c.R + $c.G + $c.B) / 3 -lt 120) { $dark++ } } }
+        Check "8) the pane tab shows the pane glyph (dark line pixels at its left: $dark)" ($dark -ge 12)
+    }
 }
 finally {
     Stop-KtApp

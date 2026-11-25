@@ -70,9 +70,10 @@ try {
     $drv = [Activator]::CreateInstance($FTV, [object[]]@('C:\'))
     Check '3) a tab on a drive root shows the drive icon' (([object]::ReferenceEquals($drv.Icon, $drive)) -and ($null -ne $drv.Icon))
 
-    # ── 4) ペインタブには、アイコンを付けない(タイトルの ▥ で表す)
+    # ── 4) ペインタブには、アイコンを付けない(画面が、ペインの図柄を描く)
     $pane = [Activator]::CreateInstance($PTV, [object[]]@(, [string[]]@("$d\plain", "$d\target")))
-    Check '4) a pane tab has no icon (the title starts with ▥)' (($null -eq $pane.Icon) -and ($pane.Title -like '▥*'))
+    Check '4) a pane tab has no folder icon, is marked as a pane tab (the screen draws the pane glyph), and its title has no ▥ prefix' (($null -eq $pane.Icon) -and $pane.IsPane -and ($pane.Title -notlike '▥*') -and ($pane.Title -like '*│*'))
+    Check '4) a folder tab is not a pane tab' (-not $tab.IsPane)
 
     # ── 5) 「オーバーレイを表示」の切り替えは、タブとツリーにも効く
     $vm = [Activator]::CreateInstance($MVM, [object[]]@([Activator]::CreateInstance($AS)))

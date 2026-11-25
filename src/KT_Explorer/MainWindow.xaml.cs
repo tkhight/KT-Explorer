@@ -862,7 +862,8 @@ public partial class MainWindow : Window
             var seg = segments[i];
             var crumb = new Button
             {
-                Content = new TextBlock { Text = seg.Name }, /* 文字列のままだと、名前の「_」がアクセスキー扱いで消える */ Padding = new Thickness(2, 0, 2, 0), Margin = new Thickness(0), MinWidth = 0,
+                Style = (Style)FindResource("KtFlatButton"), Height = 22,
+                Content = new TextBlock { Text = seg.Name }, /* 文字列のままだと、名前の「_」がアクセスキー扱いで消える */ Padding = new Thickness(6, 0, 6, 0), Margin = new Thickness(0), MinWidth = 0,
                 Background = Brushes.Transparent, BorderThickness = new Thickness(0), Focusable = false, ToolTip = seg.FullPath, Tag = seg.FullPath,
             };
             crumb.Click += (_, _) =>
@@ -875,6 +876,7 @@ public partial class MainWindow : Window
             // ▸: その階層の中のフォルダを一覧にして、選んだものへ移動
             var arrow = new Button
             {
+                Style = (Style)FindResource("KtFlatButton"), Height = 22,
                 Content = ">", Padding = new Thickness(0), Margin = new Thickness(0), MinWidth = 0, Background = Brushes.Transparent, BorderThickness = new Thickness(0),
                 Focusable = false, Foreground = Brushes.Gray, ToolTip = "この中のフォルダ", Tag = seg.FullPath,
             };

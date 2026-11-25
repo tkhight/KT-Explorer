@@ -20,6 +20,37 @@
             </Style.Triggers>
         </Style>
 
+        <!-- 一覧の列見出し: 立体的なボタンをやめ、フラットに(下に細い線)。ホバーで淡い水色。列幅の変更(右端のつまみ)は、そのまま使える -->
+        <Style x:Key="KtColumnHeader" TargetType="GridViewColumnHeader">
+            <Setter Property="Background" Value="#FFFFFFFF"/>
+            <Setter Property="Foreground" Value="#FF444444"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="GridViewColumnHeader">
+                        <Grid>
+                            <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="#FFE3E3E3" BorderThickness="0,0,0,1">
+                                <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                            </Border>
+                            <Thumb x:Name="PART_HeaderGripper" HorizontalAlignment="Right" Width="8" Margin="0,0,-4,0" Cursor="SizeWE" Background="Transparent">
+                                <Thumb.Template>
+                                    <ControlTemplate TargetType="Thumb"><Border Background="Transparent"/></ControlTemplate>
+                                </Thumb.Template>
+                            </Thumb>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="#FFE5F3FF"/></Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Bd" Property="Background" Value="#FFCCE8FF"/></Trigger>
+                            <Trigger Property="Role" Value="Padding"><Setter TargetName="PART_HeaderGripper" Property="Visibility" Value="Collapsed"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- アイコン: 大きなアイコン(画像・動画などはサムネイル)の下に、名前 -->
         <DataTemplate x:Key="IconItemTemplate">
             <StackPanel Width="{DynamicResource IconItemWidth}" Margin="2" ToolTip="{Binding Name}">
@@ -83,7 +114,7 @@
                   SelectionChanged="FileList_SelectionChanged"
                   DragOver="FileList_DragOver" Drop="FileList_Drop">
             <ListView.View>
-                <GridView>
+                <GridView ColumnHeaderContainerStyle="{StaticResource KtColumnHeader}">
                     <GridViewColumn Header="名前" Width="280">
                         <GridViewColumn.CellTemplate>
                             <DataTemplate>

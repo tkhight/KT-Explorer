@@ -26,6 +26,8 @@ public partial class PaneTabViewModel : TabBase
     /// <summary>ペインが1つ以下になり、タブごと閉じる必要がある。</summary>
     public event Action<PaneTabViewModel>? RequestClose;
 
+    public override bool IsPane => true;
+
     public override string ToolTipText => string.Join("\n", Panes.Select(p => p.Path));
 
     public bool AddPane(string path)
@@ -63,7 +65,7 @@ public partial class PaneTabViewModel : TabBase
 
     private void UpdateTitle()
     {
-        Title = "▥ " + string.Join(" │ ", Panes.Select(p => p.Title));
+        Title = string.Join(" │ ", Panes.Select(p => p.Title));
         OnPropertyChanged(nameof(ToolTipText));
     }
 }
