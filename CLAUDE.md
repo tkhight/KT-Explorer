@@ -49,6 +49,7 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 | 指定ペインの作成ダイアログの画面テスト(既存タブにチェックを付けて作成、フォルダを 2〜3 個指定して作成、キャンセル) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_pane_create.ps1'` |
 | メニューバー「編集」の画面テスト(元に戻す・やり直し・切り取り・コピー・貼り付け・削除・全て選択。ファイルへの操作と、入力欄の文字への操作)。クリップボードを書き換える | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_edit.ps1'` |
 | アプリのアイコン(app.ico の大きさの種類、exe のアイコン、トレイのアイコンの読み込み)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_icon.ps1'` |
+| タブの複数段表示の画面テスト(名前の長いタブを 12 個開き、「表示」メニューで、1 段 → 複数段(すべてが画面の中)→ 1 段に戻る。選択中のタブは変わらない)。設定の保存・復元のロジックは `logic_tabs.ps1` に含む | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_multirow_tabs.ps1'` |
 | ツリーの仮想化の画面テスト(サブフォルダ 300 個でも、画面の要素は見えている分だけ。選択したノードが表示範囲へスクロールされる。列挙が速い) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_tree_virtual.ps1'` |
 | ツリーとタブのアイコン(固有のアイコンを持つフォルダ・共通アイコンの使い回し・ツリーのノードとタブのアイコンとオーバーレイ・パスが変わったときの付け替え・ペインタブは無し・設定のオフ/オン)のロジック。画面は出ない。ジャンクションを作る(テスト用フォルダの中だけ) | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_navicon.ps1'` |
 | ツリーとタブのアイコンの画面テスト(タブとツリーに、フォルダのアイコンが出る。ジャンクションのタブに、リンクの矢印が重なり、「表示」メニューのオフ/オンで消える・戻る) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_navicon.ps1'` |

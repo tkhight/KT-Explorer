@@ -49,7 +49,9 @@ public partial class MainWindow : Window
         _vm.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName == nameof(MainViewModel.ShowPreview)) ApplyPreviewColumns();
+            else if (args.PropertyName == nameof(MainViewModel.MultiRowTabs)) ApplyTabLayout();
         };
+        ApplyTabLayout();
 
         // ツリーは、見えているノードだけを作る(仮想化)ので、選択したノードが見える位置へ、スクロールする
         _vm.TreeNodeSynced += node => Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, () => ScrollTreeTo(node));
@@ -57,6 +59,22 @@ public partial class MainWindow : Window
         {
             if (_vm.LastSyncedTreeNode is { } n) Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, () => ScrollTreeTo(n));
         };
+    }
+
+    // ───────── タブバーの並べ方(1 段 / 複数段) ─────────
+
+    /// <summary>
+    /// フォルダタブの並べ方を切り替える。1 段: 横に並べ、あふれた分は横にスクロール。
+    /// 複数段: 幅に収まらない分を、次の段へ折り返す(スクロールせず、すべてのタブが見える)。
+    /// </summary>
+    private void ApplyTabLayout()
+    {
+        bool multi = _vm.MultiRowTabs;
+        var panel = new FrameworkElementFactory(multi ? typeof(WrapPanel) : typeof(StackPanel));
+        if (!multi) panel.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+        TabBar.ItemsPanel = new ItemsPanelTemplate(panel);
+        ScrollViewer.SetHorizontalScrollBarVisibility(TabBar, multi ? ScrollBarVisibility.Disabled : ScrollBarVisibility.Auto);
+        if (TabBar.SelectedItem != null) Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, () => TabBar.ScrollIntoView(TabBar.SelectedItem));
     }
 
     // ───────── ツリーのスクロール(仮想化) ─────────
@@ -574,7 +592,7 @@ public partial class MainWindow : Window
         return item;
     }
 
-    /// <summary>「表示」メニューの設定: ツリーをタブに連動 / プレビューを表示 / フォルダーを先頭にまとめる / オーバーレイアイコンを表示。</summary>
+    /// <summary>「表示」メニューの設定: ツリーをタブに連動 / プレビューを表示 / フォルダーを先頭にまとめる / タブを複数段で表示 / オーバーレイアイコンを表示。</summary>
     private void AddViewSettings(ItemCollection items)
     {
         items.Add(new Separator());
@@ -589,6 +607,8 @@ public partial class MainWindow : Window
         };
         foldersFirst.Click += (_, _) => SortSettings.Instance.SetFoldersFirst(foldersFirst.IsChecked);
         items.Add(foldersFirst);
+        items.Add(SettingCheck("タブを複数段で表示", nameof(MainViewModel.MultiRowTabs),
+            "フォルダタブが幅に収まらないとき、横にスクロールさせず、次の段へ折り返して、すべてのタブを見えるようにします"));
         items.Add(SettingCheck("オーバーレイアイコンを表示", nameof(MainViewModel.ShowOverlayIcons),
             "アイコンに、OneDrive の同期状態・SVN の状態・ショートカットの矢印などを重ねます(エクスプローラーと同じ)。重いときは、オフにしてください"));
     }
