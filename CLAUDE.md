@@ -49,7 +49,7 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 | 指定ペインの作成ダイアログの画面テスト(既存タブにチェックを付けて作成、フォルダを 2〜3 個指定して作成、キャンセル) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_pane_create.ps1'` |
 | メニューバー「編集」の画面テスト(元に戻す・やり直し・切り取り・コピー・貼り付け・削除・全て選択。ファイルへの操作と、入力欄の文字への操作)。クリップボードを書き換える | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_edit.ps1'` |
 | アプリのアイコン(app.ico の大きさの種類、exe のアイコン、トレイのアイコンの読み込み)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_icon.ps1'` |
-| 統一したフラットなデザインの画面テスト(枠なし・ホバーの水色・プレビューのオンの色・選択中のグループタブとフォルダタブの色を、画素で確かめる。ペインのボタンでペインタブができる)。ボタンの `AutomationId` は `Panes2Button` `Panes3Button` `SpecifyPaneButton` `PreviewToggle` `AddGroupButton` など。マウスを実際に動かす | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_flat_style.ps1'` |
+| 統一したフラットなデザインの画面テスト(枠なし・ホバーの水色・プレビューのオンの色・選択中のグループタブとフォルダタブの色・一覧の列見出しのホバー・入力欄の枠と入力中の青い線・ペインタブの図柄を、画素で確かめる。ペインのボタンでペインタブができる)。ボタンの `AutomationId` は `Panes2Button` `Panes3Button` `SpecifyPaneButton` `PreviewToggle` `AddGroupButton` など。マウスを実際に動かす | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_flat_style.ps1'` |
 | ツールバーのアイコンボタン(戻る・進む・一つ上・更新・元に戻す・やり直し・新しいタブ)の画面テスト(名前つきで存在する・アイコンが描かれている・使えないときは灰色・押すと操作が働く)。ボタンの `AutomationId` は `BackButton` `ForwardButton` `UpButton` `RefreshButton` `UndoButton` `RedoButton` `NewTabButton` | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_toolbar_icons.ps1'` |
 | タブの複数段表示の画面テスト(名前の長いタブを 12 個開き、「表示」メニューで、1 段 → 複数段(すべてが画面の中)→ 1 段に戻る。選択中のタブは変わらない)。設定の保存・復元のロジックは `logic_tabs.ps1` に含む | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_multirow_tabs.ps1'` |
 | ツリーの仮想化の画面テスト(サブフォルダ 300 個でも、画面の要素は見えている分だけ。選択したノードが表示範囲へスクロールされる。列挙が速い) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_tree_virtual.ps1'` |

@@ -24,6 +24,9 @@ public abstract partial class TabBase : ObservableObject, IDisposable
     /// <summary>タブの背景の薄い色(色なしは透明)。</summary>
     public Brush TabTintBrush => TabColors.Brush(TabColor, 60);
 
+    /// <summary>ペインタブか(タブの左に、ペインの図柄を出す)。</summary>
+    public virtual bool IsPane => false;
+
     /// <summary>タブの左に出すアイコン(フォルダタブはフォルダのアイコン。ペインタブは、タイトルの ▥ で表すので無し)。</summary>
     public virtual ImageSource? Icon => null;
 
