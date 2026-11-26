@@ -22,7 +22,8 @@
 
         <!-- 一覧の列見出し: 立体的なボタンをやめ、フラットに(下に細い線)。ホバーで淡い水色。列幅の変更(右端のつまみ)は、そのまま使える -->
         <Style x:Key="KtColumnHeader" TargetType="GridViewColumnHeader">
-            <Setter Property="Background" Value="#FFFFFFFF"/>
+            <!-- 表示中のグループに色があれば、一覧の背景より少し濃い色。無ければ透明(一覧の背景が見える) -->
+            <Setter Property="Background" Value="{Binding DataContext.ViewHeaderBackground, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Transparent}"/>
             <Setter Property="Foreground" Value="#FF444444"/>
             <Setter Property="HorizontalContentAlignment" Value="Left"/>
             <Setter Property="Padding" Value="8,0"/>
@@ -101,7 +102,9 @@
         </Grid.RowDefinitions>
 
         <!-- 文字を打つと、その文字で始まる名前の項目へ移動する(TextSearch。続けて打つと絞られ、少し間を置くとリセット) -->
+        <!-- 背景は、表示中のグループの色を、ごく薄くしたもの(色が無ければ白) -->
         <ListView x:Name="FileList" ItemsSource="{Binding Items}" SelectionMode="Extended" AllowDrop="True"
+                  Background="{Binding DataContext.ViewBackground, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=White}"
                   IsTextSearchEnabled="True" TextSearch.TextPath="Name"
                   MouseDoubleClick="FileList_MouseDoubleClick" KeyDown="FileList_KeyDown"
                   PreviewMouseLeftButtonDown="FileList_PreviewMouseLeftButtonDown"

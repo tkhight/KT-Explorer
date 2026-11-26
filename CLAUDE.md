@@ -49,7 +49,7 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 | 指定ペインの作成ダイアログの画面テスト(既存タブにチェックを付けて作成、フォルダを 2〜3 個指定して作成、キャンセル) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_pane_create.ps1'` |
 | メニューバー「編集」の画面テスト(元に戻す・やり直し・切り取り・コピー・貼り付け・削除・全て選択。ファイルへの操作と、入力欄の文字への操作)。クリップボードを書き換える | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_edit.ps1'` |
 | アプリのアイコン(app.ico の大きさの種類、exe のアイコン、トレイのアイコンの読み込み)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_icon.ps1'` |
-| グループタブの画面テスト(件数が付かない・ドラッグで並べ替え・クリックだけでは並ばない・右クリックの「グループの色」で色の線が付き「色なし」で消える)。実際のマウスを使う。ロジック(並べ替え・色・デフォルトグループ)は `logic_tabs.ps1` に含む | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_group_tabs.ps1'` |
+| グループタブの画面テスト(件数が付かない・ドラッグで並べ替え・クリックだけでは並ばない・右クリックの「グループの色」の格子で色を選ぶと色の線が付き、一覧と列見出しの背景がごく薄いその色になる・「その他の色…」の画面を開いてキャンセル・「色なし」で戻る)。実際のマウスを使う。ロジック(並べ替え・色・デフォルトグループ)は `logic_tabs.ps1` に含む | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_group_tabs.ps1'` |
 | コピー・貼り付けの対象と、ツリーの Ctrl+クリックの画面テスト(タブ A でコピー → タブ B をクリックした直後に Ctrl+V が、タブ B に貼り付く / ペイン A でコピー → ペイン B のヘッダーをクリックして Ctrl+V が、ペイン B に貼り付く / ツリーのフォルダの Ctrl+クリックで新しいタブ)。クリップボードを書き換える。マウスを実際に動かす | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_paste_target.ps1'` |
 | メニューのフラットなデザインの画面テスト(メニューバーのホバー・開いている見出しの色、開いたメニューのホバー・使えない項目の灰色・チェックの青いマークを、画素で確かめる)。マウスを実際に動かす。メニューの見た目は、`src/KT_Explorer/Resources/FlatMenu.xaml`(アプリ全体のリソース) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_flat_menu.ps1'` |
 | 統一したフラットなデザインの画面テスト(枠なし・ホバーの水色・プレビューのオンの色・選択中のグループタブとフォルダタブの色・一覧の列見出しのホバー・入力欄の枠と入力中の青い線・ペインタブの図柄を、画素で確かめる。ペインのボタンでペインタブができる)。ボタンの `AutomationId` は `Panes2Button` `Panes3Button` `SpecifyPaneButton` `PreviewToggle` `AddGroupButton` など。マウスを実際に動かす | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_flat_style.ps1'` |

@@ -289,6 +289,8 @@ public partial class MainViewModel : ObservableObject
         if (_selectedGroup != null) _selectedGroup.LastSelected = _selectedTab;
         _selectedGroup = group;
         OnPropertyChanged(nameof(SelectedGroup));
+        OnPropertyChanged(nameof(ViewBackground));
+        OnPropertyChanged(nameof(ViewHeaderBackground));
         var target = group.LastSelected != null && group.Tabs.Contains(group.LastSelected)
             ? group.LastSelected
             : group.Tabs.FirstOrDefault();
@@ -416,7 +418,7 @@ public partial class MainViewModel : ObservableObject
         if (tab is FolderTabViewModel f) f.IsPinned = !f.IsPinned;
     }
 
-    /// <summary>タブの色を変える。null か、パレットにない色は、色なしにする。</summary>
+    /// <summary>タブの色を変える。null か、色の形(#RRGGBB)でないものは、色なしにする。</summary>
     public void SetTabColor(TabBase tab, string? hex) => tab.TabColor = TabColors.Normalize(hex);
 
     private FolderTabViewModel AddTab(string path, bool select = false)
@@ -532,8 +534,24 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(SelectedGroup)); // 並べ替えのあとも、グループバーの選択の表示を合わせる
     }
 
-    /// <summary>グループの色を変える。null か、パレットにない色は、色なしにする。</summary>
-    public void SetGroupColor(TabGroupViewModel group, string? hex) => group.Color = TabColors.Normalize(hex);
+    /// <summary>グループの色を変える。null か、色の形(#RRGGBB)でないものは、色なしにする。</summary>
+    public void SetGroupColor(TabGroupViewModel group, string? hex)
+    {
+        group.Color = TabColors.Normalize(hex);
+        OnPropertyChanged(nameof(ViewBackground));
+        OnPropertyChanged(nameof(ViewHeaderBackground));
+    }
+
+    /// <summary>一覧の背景: 表示中のグループの色を、ごく薄く(約 6%)したもの。色が無ければ白。</summary>
+    public System.Windows.Media.Brush ViewBackground => TabColors.Pale(_selectedGroup?.Color, ViewTint);
+
+    /// <summary>一覧の列見出し(名前・更新日時…の行)の背景: 一覧より濃い(約 24%)。色が無ければ透明(一覧の背景が見える)。</summary>
+    public System.Windows.Media.Brush ViewHeaderBackground => _selectedGroup?.Color == null
+        ? System.Windows.Media.Brushes.Transparent : TabColors.Pale(_selectedGroup.Color, HeaderTint);
+
+    // 一覧の背景と、列見出しの背景の濃さ(調整するときは、ここ)
+    private const double ViewTint = 0.06;
+    private const double HeaderTint = 0.24;
 
     public void RenameGroup(TabGroupViewModel group, string name)
     {

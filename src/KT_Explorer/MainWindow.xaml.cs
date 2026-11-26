@@ -1075,7 +1075,7 @@ public partial class MainWindow : Window
         var rename = new MenuItem { Header = "名前を変更" };
         rename.Click += (_, _) => RenameGroup(group);
         menu.Items.Add(rename);
-        menu.Items.Add(BuildColorMenu("グループの色", group.Color, hex => _vm.SetGroupColor(group, hex)));
+        menu.Items.Add(BuildColorMenu("グループの色", group.Color, menu, hex => _vm.SetGroupColor(group, hex)));
         menu.Items.Add(new Separator());
         var delete = new MenuItem { Header = "グループを削除" };
         delete.Click += (_, _) => DeleteGroup(group);
@@ -1083,26 +1083,68 @@ public partial class MainWindow : Window
         OpenMenuAt(menu, fe, e);
     }
 
-    /// <summary>色の見本つきのサブメニュー(「色なし」とパレット。いまの色にチェック)。タブとグループで共用。</summary>
-    private static MenuItem BuildColorMenu(string header, string? current, Action<string?> apply)
+    /// <summary>
+    /// 色を選ぶサブメニュー: 24 色の格子(6 列)、「色なし」、「その他の色…」。タブとグループで共用。
+    /// owner は、色を選んだあとに閉じる右クリックのメニュー。
+    /// </summary>
+    private MenuItem BuildColorMenu(string header, string? current, ContextMenu owner, Action<string?> apply)
     {
         var colorMenu = new MenuItem { Header = header };
-        var none = new MenuItem { Header = "色なし", IsChecked = current == null };
-        none.Click += (_, _) => apply(null);
-        colorMenu.Items.Add(none);
+
+        var grid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 6, Margin = new Thickness(2) };
+        var swatchStyle = (Style)FindResource("KtSwatch");
         foreach (var (name, hex) in TabColors.Palette)
         {
             string h = hex;
-            var item = new MenuItem
+            var swatch = new Button
             {
-                Header = name,
-                IsChecked = string.Equals(current, h, StringComparison.OrdinalIgnoreCase),
-                Icon = new System.Windows.Shapes.Rectangle { Width = 12, Height = 12, Fill = TabColors.Brush(h) },
+                Style = swatchStyle,
+                Background = TabColors.Brush(h),
+                ToolTip = name,
+                Tag = string.Equals(current, h, StringComparison.OrdinalIgnoreCase) ? "selected" : null,
             };
-            item.Click += (_, _) => apply(h);
-            colorMenu.Items.Add(item);
+            System.Windows.Automation.AutomationProperties.SetName(swatch, name);
+            swatch.Click += (_, _) => { owner.IsOpen = false; apply(h); };
+            grid.Children.Add(swatch);
         }
+        // 格子は、メニュー項目の見た目(ホバーやチェックの欄)を持たない、入れ物として置く
+        var host = new MenuItem { Header = grid, StaysOpenOnClick = true, Focusable = false };
+        var frame = new FrameworkElementFactory(typeof(ContentPresenter));
+        frame.SetValue(ContentPresenter.ContentSourceProperty, "Header");
+        host.Template = new ControlTemplate(typeof(MenuItem)) { VisualTree = frame };
+        colorMenu.Items.Add(host);
+        colorMenu.Items.Add(new Separator());
+
+        var none = new MenuItem { Header = "色なし", IsChecked = current == null };
+        none.Click += (_, _) => apply(null);
+        colorMenu.Items.Add(none);
+
+        bool custom = current != null && !TabColors.Palette.Any(p => string.Equals(p.Hex, current, StringComparison.OrdinalIgnoreCase));
+        var other = new MenuItem
+        {
+            Header = "その他の色…",
+            IsChecked = custom,
+            Icon = custom ? new System.Windows.Shapes.Rectangle { Width = 12, Height = 12, Fill = TabColors.Brush(current) } : null,
+        };
+        // 色の選択画面は、メニューが閉じてから開く
+        other.Click += (_, _) => AfterMenuClosed(() => PickColor(current, apply));
+        colorMenu.Items.Add(other);
         return colorMenu;
+    }
+
+    /// <summary>Windows 標準の色の選択画面で、好きな色を選ぶ(キャンセルなら、何もしない)。</summary>
+    private void PickColor(string? current, Action<string?> apply)
+    {
+        using var dialog = new System.Windows.Forms.ColorDialog { FullOpen = true, AnyColor = true };
+        if (TabColors.Normalize(current) is { } c) dialog.Color = System.Drawing.ColorTranslator.FromHtml(c);
+        var owner = new System.Windows.Forms.NativeWindow();
+        owner.AssignHandle(WindowHandle);
+        try
+        {
+            if (dialog.ShowDialog(owner) == System.Windows.Forms.DialogResult.OK)
+                apply($"#{dialog.Color.R:X2}{dialog.Color.G:X2}{dialog.Color.B:X2}");
+        }
+        finally { owner.ReleaseHandle(); }
     }
 
     // タブの右クリックメニュー(移動先グループは開くたびに組み立てる)
@@ -1134,7 +1176,7 @@ public partial class MainWindow : Window
         menu.Items.Add(pin);
 
         // タブの色: 色の見本つき。いまの色にチェック
-        menu.Items.Add(BuildColorMenu("タブの色", tab.TabColor, hex => _vm.SetTabColor(tab, hex)));
+        menu.Items.Add(BuildColorMenu("タブの色", tab.TabColor, menu, hex => _vm.SetTabColor(tab, hex)));
         menu.Items.Add(new Separator());
         var close = new MenuItem { Header = "タブを閉じる", InputGestureText = "Ctrl+W", IsEnabled = !tab.IsPinned,
             ToolTip = tab.IsPinned ? "ピン留めされたタブは閉じられません(ピン留めを外してください)" : null };

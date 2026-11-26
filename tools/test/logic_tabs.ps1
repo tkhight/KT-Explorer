@@ -197,8 +197,21 @@ try {
     Check 'group order: dropping onto itself does nothing' ((Names) -eq "G-B,$($def.Name),G-A")
     $vmG.SetGroupColor($ga, '#30A46C')
     Check 'group color: set' ($ga.Color -eq '#30A46C' -and $ga.ColorBrush.Color.G -eq 0xA4 -and $ga.TintBrush.Color.A -lt 255)
-    $vmG.SetGroupColor($gb, '#123456')
-    Check 'group color: a color outside the palette becomes no color' ($null -eq $gb.Color)
+    $vmG.SetGroupColor($gb, '#abc')
+    Check 'group color: a value that is not #RRGGBB becomes no color' ($null -eq $gb.Color)
+    # 一覧の背景: 表示中のグループの色を、ごく薄く(約 6%)。色が無ければ白。任意の色も使える
+    function Bg { $c = $vmG.ViewBackground.Color; '{0},{1},{2}' -f $c.R, $c.G, $c.B }
+    $vmG.SelectedGroup = $ga
+    Check 'view background: the shown group color, very pale (#30A46C -> 243,250,246)' ((Bg) -eq '243,250,246')
+    function Hd { $c = $vmG.ViewHeaderBackground.Color; '{0},{1},{2},{3}' -f $c.A, $c.R, $c.G, $c.B }
+    Check 'column header: a little darker than the list (#30A46C 24% -> 205,233,220)' ((Hd) -eq '255,205,233,220')
+    $vmG.SelectedGroup = $gb
+    Check 'view background: a group without a color is white' ((Bg) -eq '255,255,255')
+    Check 'column header: transparent for a group without a color' ($vmG.ViewHeaderBackground.Color.A -eq 0)
+    $vmG.SetGroupColor($gb, '#000000')
+    Check 'view background: even black stays readable (6% only)' (((Bg) -eq '240,240,240') -or ((Bg) -eq '239,239,239'))
+    $vmG.SetGroupColor($gb, $null)
+    Check 'view background: clearing the color of the shown group returns to white' ((Bg) -eq '255,255,255')
     $stG = $vmG.ToState()
     Check 'group state: order, color and the default mark are saved' (($stG.Groups[0].Name -eq 'G-B') -and ($stG.Groups[2].Color -eq '#30A46C') -and $stG.Groups[1].IsDefault -and -not $stG.Groups[0].IsDefault)
     $vmG2 = [Activator]::CreateInstance($MVM, [object[]]@($stG))

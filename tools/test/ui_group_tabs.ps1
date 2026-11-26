@@ -45,7 +45,9 @@ function Right-Click($item) {
     $rc = $item.Current.BoundingRectangle
     Assert-AppForeground
     [void][KtWin]::SetCursorPos([int]($rc.X + $rc.Width / 2), [int]($rc.Y + $rc.Height / 2)); Start-Sleep -Milliseconds 400
-    [KtWin]::mouse_event(8, 0, 0, 0, [UIntPtr]::Zero); [KtWin]::mouse_event(16, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 900
+    [KtWin]::mouse_event(8, 0, 0, 0, [UIntPtr]::Zero); [KtWin]::mouse_event(16, 0, 0, 0, [UIntPtr]::Zero)
+    [void](Wait-Until { [bool](Find-AppMenuItem 'グループの色') } 4000 150)   # メニューが出きるまで待つ
+    Start-Sleep -Milliseconds 300
 }
 function Invoke-Item([string]$name) {
     $m = Find-AppMenuItem $name
@@ -93,6 +95,54 @@ try {
     Invoke-Item '色なし'
     [void](Wait-Until { -not (Has-Color (Get-Groups)[0].Item 0xE5 0x48 0x4D) } 2500 200)
     Check '4) after choosing 色なし, the red line is gone' (-not (Has-Color (Get-Groups)[0].Item 0xE5 0x48 0x4D))
+
+    # ── 5) 一覧の背景が、表示中のグループの色を、ごく薄くしたものになる(緑 #30A46C → 243,250,246)
+    Click-Element (Get-Groups)[0].Item
+    Move-To $d
+    Click-Element (Get-Groups)[0].Item
+    $hdr = Find-All 'HeaderItem' | Where-Object { $_.Current.BoundingRectangle.Width -gt 20 } | Select-Object -First 1
+    if (-not $hdr) { Stop-Test 'a column header was not found' }
+    $hr = $hdr.Current.BoundingRectangle
+    function List-Pixel { $bmp = New-Object System.Drawing.Bitmap(1, 1); $g = [System.Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen([int]$hr.X + 40, [int]($hr.Y + $hr.Height) + 60, 0, 0, $bmp.Size); $g.Dispose(); $c = $bmp.GetPixel(0, 0); $bmp.Dispose(); $c }
+    function Is-Rgb($c, [int]$r, [int]$g, [int]$b) { ([Math]::Abs($c.R - $r) -le 3) -and ([Math]::Abs($c.G - $g) -le 3) -and ([Math]::Abs($c.B - $b) -le 3) }
+    $p = List-Pixel
+    Check "5) without a group color the file list is white (got $($p.R),$($p.G),$($p.B))" (Is-Rgb $p 255 255 255)
+    Right-Click (Get-Groups)[0].Item
+    (Find-AppMenuItem 'グループの色').GetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern).Expand(); Start-Sleep -Milliseconds 700
+    Check '5) the color grid has the new colors (青緑, こげ茶) and "その他の色…"' (([bool](Find-AppMenuItem '青緑')) -and ([bool](Find-AppMenuItem 'こげ茶')) -and ([bool](Find-AppMenuItem 'その他の色…')))
+    Invoke-Item '緑'
+    [void](Wait-Until { Is-Rgb (List-Pixel) 243 250 246 } 2500 200)
+    $p = List-Pixel
+    Check "5) after choosing 緑, the file list is pale green (got $($p.R),$($p.G),$($p.B))" (Is-Rgb $p 243 250 246)
+    $hp = $(  $bmp = New-Object System.Drawing.Bitmap(1, 1); $g = [System.Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen([int]($hr.X + $hr.Width) - 6, [int]$hr.Y + 4, 0, 0, $bmp.Size); $g.Dispose(); $c = $bmp.GetPixel(0, 0); $bmp.Dispose(); $c )
+    Check "5) the column header row is a little darker than the list (got $($hp.R),$($hp.G),$($hp.B))" (Is-Rgb $hp 205 233 220)
+
+    # ── 6) 「その他の色…」: 色の選択画面が開き、キャンセル(Esc)なら色は変わらない
+    function Window-Count { @($global:Kt.Root.FindAll('Children', $global:Kt.PidCond)).Count }
+    $before = Window-Count
+    Right-Click (Get-Groups)[0].Item
+    (Find-AppMenuItem 'グループの色').GetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern).Expand(); Start-Sleep -Milliseconds 700
+    Invoke-Item 'その他の色…'
+    $A = $global:Kt.A
+    $dialog = { $global:Kt.Win.FindFirst('Descendants', (New-Object Windows.Automation.PropertyCondition($A::ClassNameProperty, '#32770'))) }
+    $top = { @($global:Kt.Root.FindAll('Children', $global:Kt.PidCond)) | Where-Object { $_.Current.ClassName -eq '#32770' } }
+    $opened = Wait-Until { [bool](& $dialog) -or [bool](& $top) } 4000 200
+    Check '6) "その他の色…" opens the color dialog' $opened
+    if ($opened) {
+        Assert-AppForeground
+        [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep -Milliseconds 800
+        Check '6) cancelling the dialog closes it' (-not ([bool](& $dialog) -or [bool](& $top)))
+        $p = List-Pixel
+        Check "6) cancelling keeps the color (got $($p.R),$($p.G),$($p.B))" (Is-Rgb $p 243 250 246)
+    }
+
+    # ── 7) 色なし: 一覧は白に戻る
+    Right-Click (Get-Groups)[0].Item
+    (Find-AppMenuItem 'グループの色').GetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern).Expand(); Start-Sleep -Milliseconds 700
+    Invoke-Item '色なし'
+    [void](Wait-Until { Is-Rgb (List-Pixel) 255 255 255 } 2500 200)
+    $p = List-Pixel
+    Check "7) after 色なし, the file list is white again (got $($p.R),$($p.G),$($p.B))" (Is-Rgb $p 255 255 255)
 }
 finally {
     Stop-KtApp

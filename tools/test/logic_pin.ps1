@@ -94,12 +94,14 @@ try {
     Check '7) color is set' ($pinTab.TabColor -eq '#E5484D')
     Check '7) the color brush is not transparent' ($pinTab.TabColorBrush.Color.A -eq 255 -and $pinTab.TabColorBrush.Color.R -eq 0xE5)
     Check '7) the tint brush is translucent' ($pinTab.TabTintBrush.Color.A -lt 255 -and $pinTab.TabTintBrush.Color.A -gt 0)
-    $vm.SetTabColor($pinTab, '#123456')
-    Check '7) a color outside the palette becomes no color' ($null -eq $pinTab.TabColor)
+    $vm.SetTabColor($pinTab, '#12ab3f')
+    Check '7) a color chosen with "other color" (any #RRGGBB) is accepted' ($pinTab.TabColor -eq '#12AB3F')
+    $vm.SetTabColor($pinTab, 'red')
+    Check '7) a value that is not #RRGGBB becomes no color' ($null -eq $pinTab.TabColor)
     Check '7) no color: the brush is transparent' ($pinTab.TabColorBrush -eq [System.Windows.Media.Brushes]::Transparent)
     $vm.SetTabColor($pinTab, '#30A46C'); $vm.SetTabColor($pinTab, $null)
     Check '7) color can be cleared' ($null -eq $pinTab.TabColor)
-    Check '7) the palette has several colors' (@($TC.GetField('Palette').GetValue($null)).Count -ge 6)
+    Check '7) the palette has 24 colors' (@($TC.GetField('Palette').GetValue($null)).Count -eq 24)
 
     # ── 8) 複製: 色は引き継ぎ、ピン留めは引き継がない
     $vm.TogglePin($pinTab); $vm.SetTabColor($pinTab, '#3E63DD')
