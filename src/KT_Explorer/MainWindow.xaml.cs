@@ -1517,29 +1517,29 @@ public partial class MainWindow : Window
             return item;
         }
 
-        Add("開く", () => _vm.NavigateToText(path), bold: true);
-        Add("新しいタブで開く", () => _vm.OpenInNewTab(path));
-        Add("お気に入りに追加", () => _vm.AddFavorite(path));
+        Add("開く(_O)", () => _vm.NavigateToText(path), bold: true);
+        Add("新しいタブで開く(_E)", () => _vm.OpenInNewTab(path));
+        Add("お気に入りに追加(_F)", () => _vm.AddFavorite(path));
         menu.Items.Add(new Separator());
-        Add("切り取り", () => ClipboardService.SetFiles(new[] { path }, cut: true));
-        Add("コピー", () => ClipboardService.SetFiles(new[] { path }, cut: false));
-        Add("貼り付け", () => FolderActions.PasteInto(path, WindowHandle), enabled: ClipboardService.HasFiles());
+        Add("切り取り(_T)", () => ClipboardService.SetFiles(new[] { path }, cut: true));
+        Add("コピー(_C)", () => ClipboardService.SetFiles(new[] { path }, cut: false));
+        Add("貼り付け(_P)", () => FolderActions.PasteInto(path, WindowHandle), enabled: ClipboardService.HasFiles());
         menu.Items.Add(new Separator());
-        var create = new MenuItem { Header = "新規作成" };
-        var newFolder = new MenuItem { Header = "フォルダー" };
+        var create = new MenuItem { Header = "新規作成(_W)" };
+        var newFolder = new MenuItem { Header = "フォルダー(_F)" };
         newFolder.Click += (_, _) => AfterMenuClosed(() => TreeNewFolder(node));
         create.Items.Add(newFolder);
         menu.Items.Add(create);
         // ドライブのルートなど、親を持たないものは、名前の変更・削除の対象にしない
         bool canModify = CanModifyFolder(path);
-        Add("名前の変更", () => AfterMenuClosed(() => TreeRename(node)), enabled: canModify);
-        Add("削除", () => TreeDelete(node), enabled: canModify);
+        Add("名前の変更(_M)", () => AfterMenuClosed(() => TreeRename(node)), enabled: canModify);
+        Add("削除(_D)", () => TreeDelete(node), enabled: canModify);
         menu.Items.Add(new Separator());
-        Add("パスをコピー", () => FolderActions.CopyPathText(new[] { path }));
-        Add("ここでターミナルを開く", () => FolderActions.OpenTerminal(path));
-        Add("プロパティ", () => FolderActions.ShowProperties(path));
+        Add("パスをコピー(_A)", () => FolderActions.CopyPathText(new[] { path }));
+        Add("ここでターミナルを開く(_I)", () => FolderActions.OpenTerminal(path));
+        Add("プロパティ(_R)", () => FolderActions.ShowProperties(path));
         menu.Items.Add(new Separator());
-        Add("その他のオプション", () =>
+        Add("その他のオプション(_X)", () =>
             Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, () => ShowTreeShellMenu(node, extended: false)),
             "Shift+右クリック");
 
@@ -1551,6 +1551,7 @@ public partial class MainWindow : Window
             ? System.Windows.Controls.Primitives.PlacementMode.Center
             : System.Windows.Controls.Primitives.PlacementMode.MousePoint;
         _treeMenu = menu;
+        Views.MenuKeys.DisableIme(menu);
         menu.IsOpen = true;
     }
 

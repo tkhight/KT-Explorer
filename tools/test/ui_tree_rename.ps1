@@ -21,10 +21,10 @@ try {
 
     # ── 1) 新規作成 → その場で入力
     Open-ContextMenuByKey
-    $m = Find-AppMenuItem '新規作成'
+    $m = Find-AppMenuItem '新規作成(W)'
     if (-not $m) { Stop-Test 'context menu did not open' }
     $m.GetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern).Expand(); Start-Sleep -Milliseconds 500
-    $f = Find-AppMenuItem 'フォルダー'
+    $f = Find-AppMenuItem 'フォルダー(F)'
     $f.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep -Milliseconds 2500
     $e = Get-InlineEdit
     Check '1) new folder: inline edit shown with focus' ($e -and $e.Current.HasKeyboardFocus)

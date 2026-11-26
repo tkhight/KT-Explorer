@@ -48,7 +48,7 @@ try {
     Move-To $links
     [void](Select-First-Row)
     Open-ContextMenuByKey
-    $item = Find-AppMenuItem '新しいタブで開く'
+    $item = Find-AppMenuItem '新しいタブで開く(E)'
     Check '3) the context menu offers "新しいタブで開く" for the shortcut' ([bool]$item)
     if ($item) {
         $item.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep -Milliseconds 2000

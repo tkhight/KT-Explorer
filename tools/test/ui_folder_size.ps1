@@ -23,7 +23,7 @@ try {
     Check '1) size is empty before calculating' (-not (Has-Text '2 KB'))
     $rows[0].GetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern).Select(); $rows[0].SetFocus(); Start-Sleep -Milliseconds 400
     Open-ContextMenuByKey
-    $m = Find-AppMenuItem 'フォルダーのサイズを計算'
+    $m = Find-AppMenuItem 'フォルダーのサイズを計算(Z)'
     if (-not $m) { Stop-Test 'menu item "フォルダーのサイズを計算" not found' }
     $m.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep -Milliseconds 2500
     Check '1) manual calculation shows the size (2 KB)' (Has-Text '2 KB')

@@ -687,50 +687,50 @@ public partial class FolderView : UserControl
         if (onItem)
         {
             var single = sel.Count == 1 ? sel[0] : null;
-            Add("開く", () => { if (single != null) vm.Open(single); }, "Enter", single != null, bold: true);
+            Add("開く(_O)", () => { if (single != null) vm.Open(single); }, "Enter", single != null, bold: true);
             // フォルダ、または、リンク先がフォルダのショートカット
             var openTarget = single == null ? null : single.IsDirectory ? single.FullPath
                 : ShortcutService.TryResolveFolder(single.FullPath, out var linked) ? linked : null;
             if (openTarget != null)
-                Add("新しいタブで開く", () => (Application.Current.MainWindow?.DataContext as MainViewModel)?.OpenInNewTab(openTarget));
+                Add("新しいタブで開く(_E)", () => (Application.Current.MainWindow?.DataContext as MainViewModel)?.OpenInNewTab(openTarget));
             menu.Items.Add(new Separator());
-            Add("切り取り", () => CopySelection(cut: true), "Ctrl+X");
-            Add("コピー", () => CopySelection(cut: false), "Ctrl+C");
+            Add("切り取り(_T)", () => CopySelection(cut: true), "Ctrl+X");
+            Add("コピー(_C)", () => CopySelection(cut: false), "Ctrl+C");
             // フォルダを1つ選んでいるときは、そのフォルダの中へ貼り付ける
-            Add("貼り付け", () => Paste(single is { IsDirectory: true } ? single.FullPath : null), "Ctrl+V", canPaste);
+            Add("貼り付け(_P)", () => Paste(single is { IsDirectory: true } ? single.FullPath : null), "Ctrl+V", canPaste);
             AddPaneTransfer(menu, vm, Add);
             menu.Items.Add(new Separator());
-            Add("名前の変更", RenameSelected, "F2", single != null);
-            Add("削除", () => DeleteSelection(permanent: false), "Del");
+            Add("名前の変更(_M)", RenameSelected, "F2", single != null);
+            Add("削除(_D)", () => DeleteSelection(permanent: false), "Del");
             menu.Items.Add(new Separator());
-            if (sel.Any(s => s.IsDirectory)) Add("フォルダーのサイズを計算", () => vm.CalculateFolderSizes(sel, recalculate: true));
-            Add("パスをコピー", () => CopyPathText(sel.Select(s => s.FullPath)));
-            if (single is { IsDirectory: true }) Add("ここでターミナルを開く", () => FolderActions.OpenTerminal(single.FullPath));
-            Add("プロパティ", () => ShowProperties(sel[0].FullPath));
+            if (sel.Any(s => s.IsDirectory)) Add("フォルダーのサイズを計算(_Z)", () => vm.CalculateFolderSizes(sel, recalculate: true));
+            Add("パスをコピー(_A)", () => CopyPathText(sel.Select(s => s.FullPath)));
+            if (single is { IsDirectory: true }) Add("ここでターミナルを開く(_I)", () => FolderActions.OpenTerminal(single.FullPath));
+            Add("プロパティ(_R)", () => ShowProperties(sel[0].FullPath));
         }
         else
         {
-            var create = new MenuItem { Header = "新規作成" };
-            var newFolder = new MenuItem { Header = "フォルダー", InputGestureText = "Ctrl+Shift+N" };
+            var create = new MenuItem { Header = "新規作成(_W)" };
+            var newFolder = new MenuItem { Header = "フォルダー(_F)", InputGestureText = "Ctrl+Shift+N" };
             newFolder.Click += (_, _) => NewItem(folder: true);
-            var newText = new MenuItem { Header = "テキスト ドキュメント" };
+            var newText = new MenuItem { Header = "テキスト ドキュメント(_T)" };
             newText.Click += (_, _) => NewItem(folder: false);
             create.Items.Add(newFolder);
             create.Items.Add(newText);
             menu.Items.Add(create);
             menu.Items.Add(new Separator());
-            Add("貼り付け", () => Paste(null), "Ctrl+V", canPaste);
-            Add("更新", vm.Reload, "F5");
+            Add("貼り付け(_P)", () => Paste(null), "Ctrl+V", canPaste);
+            Add("更新(_E)", vm.Reload, "F5");
             menu.Items.Add(new Separator());
-            Add("フォルダーのサイズをすべて計算", () => vm.CalculateFolderSizes(vm.Items.Where(e => e.IsDirectory).ToList(), recalculate: true));
-            Add("パスをコピー", () => CopyPathText(new[] { vm.Path }));
-            Add("ここでターミナルを開く", () => FolderActions.OpenTerminal(vm.Path));
-            Add("プロパティ", () => ShowProperties(vm.Path));
+            Add("フォルダーのサイズをすべて計算(_Z)", () => vm.CalculateFolderSizes(vm.Items.Where(e => e.IsDirectory).ToList(), recalculate: true));
+            Add("パスをコピー(_A)", () => CopyPathText(new[] { vm.Path }));
+            Add("ここでターミナルを開く(_I)", () => FolderActions.OpenTerminal(vm.Path));
+            Add("プロパティ(_R)", () => ShowProperties(vm.Path));
         }
 
         // Windows 11 のエクスプローラーの「その他のオプションを確認」に相当する
         menu.Items.Add(new Separator());
-        Add("その他のオプション", () =>
+        Add("その他のオプション(_X)", () =>
                 Dispatcher.BeginInvoke(DispatcherPriority.Background, () => ShowShellMenu(onItem, sel, extended: false)),
             "Shift+右クリック", CanShowShellMenu(onItem, sel));
 
@@ -751,13 +751,13 @@ public partial class FolderView : UserControl
         if (others.Count == 1)
         {
             var target = others[0];
-            add("反対のペインへコピー", () => TransferToPane(target, move: false), "Ctrl+Shift+C", true, false);
-            add("反対のペインへ移動", () => TransferToPane(target, move: true), "Ctrl+Shift+M", true, false);
+            add("反対のペインへコピー(_Y)", () => TransferToPane(target, move: false), "Ctrl+Shift+C", true, false);
+            add("反対のペインへ移動(_V)", () => TransferToPane(target, move: true), "Ctrl+Shift+M", true, false);
             return;
         }
         foreach (var target in others)
         {
-            string name = string.IsNullOrEmpty(target.Title) ? target.Path : target.Title;
+            string name = (string.IsNullOrEmpty(target.Title) ? target.Path : target.Title).Replace("_", "__"); // "_" はメニューではショートカットキーの指定になるので重ねる
             add($"ペイン「{name}」へコピー", () => TransferToPane(target, move: false), null, true, false);
             add($"ペイン「{name}」へ移動", () => TransferToPane(target, move: true), null, true, false);
         }
@@ -774,6 +774,7 @@ public partial class FolderView : UserControl
             ? System.Windows.Controls.Primitives.PlacementMode.Center
             : System.Windows.Controls.Primitives.PlacementMode.MousePoint;
         _openMenu = menu;
+        MenuKeys.DisableIme(menu);
         menu.IsOpen = true;
     }
 
