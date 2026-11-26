@@ -309,6 +309,7 @@ public partial class FolderTabViewModel : TabBase
     public override void Dispose()
     {
         _disposed = true;
+        SourceGroup = null; // グループの変更の通知を外す
         CancelFolderSizes();
         SortSettings.Instance.Changed -= ApplySort;
         _refreshTimer.Stop();

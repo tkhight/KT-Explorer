@@ -13,9 +13,17 @@ public partial class PaneTabViewModel : TabBase
 
     [ObservableProperty] private FolderTabViewModel? _activePane;
 
-    public PaneTabViewModel(IEnumerable<string> paths)
+    public PaneTabViewModel(IEnumerable<string> paths) : this(paths, null) { }
+
+    /// <param name="sources">各ペインの参照元のグループ(paths と同じ順)。null なら、参照元なし。</param>
+    public PaneTabViewModel(IEnumerable<string> paths, IReadOnlyList<TabGroupViewModel?>? sources)
     {
-        foreach (var p in paths) AddPane(p);
+        int i = 0;
+        foreach (var p in paths)
+        {
+            AddPane(p, sources != null && i < sources.Count ? sources[i] : null);
+            i++;
+        }
     }
 
     public ObservableCollection<FolderTabViewModel> Panes { get; } = new();
@@ -30,10 +38,10 @@ public partial class PaneTabViewModel : TabBase
 
     public override string ToolTipText => string.Join("\n", Panes.Select(p => p.Path));
 
-    public bool AddPane(string path)
+    public bool AddPane(string path, TabGroupViewModel? source = null)
     {
         if (Panes.Count >= MaxPanes) return false;
-        var pane = new FolderTabViewModel(path);
+        var pane = new FolderTabViewModel(path) { SourceGroup = source };
         pane.Activated += p => ActivePane = p;
         pane.PathChanged += _ => UpdateTitle();
         Panes.Add(pane);

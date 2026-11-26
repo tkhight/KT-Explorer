@@ -143,6 +143,28 @@ try {
     [void](Wait-Until { Is-Rgb (List-Pixel) 255 255 255 } 2500 200)
     $p = List-Pixel
     Check "7) after 色なし, the file list is white again (got $($p.R),$($p.G),$($p.B))" (Is-Rgb $p 255 255 255)
+
+    # ── 8) ペイン: 参照元のグループの色と名札(2 ペインのボタンは、今のグループが参照元)
+    Right-Click (Get-Groups)[0].Item
+    (Find-AppMenuItem 'グループの色').GetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern).Expand(); Start-Sleep -Milliseconds 700
+    Invoke-Item '緑'
+    $groupName = (Get-Groups)[0].Name
+    (Find-ById 'Panes2Button').GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep -Milliseconds 1200
+    function Text-Elements([string]$name) { @($global:Kt.Win.FindAll('Descendants', (New-Object Windows.Automation.AndCondition(
+        (New-Object Windows.Automation.PropertyCondition($global:Kt.A::ControlTypeProperty, [Windows.Automation.ControlType]::Text)),
+        (New-Object Windows.Automation.PropertyCondition($global:Kt.A::NameProperty, $name)))))) }
+    # グループタブの名前(1 個)に加えて、ペインの名札(2 個)
+    [void](Wait-Until { (Text-Elements $groupName).Count -ge 3 } 3000 200)
+    Check "8) each pane header has a tag with the source group name ($((Text-Elements $groupName).Count) texts '$groupName')" ((Text-Elements $groupName).Count -ge 3)
+    $hdrs = @(Find-All 'HeaderItem' | Where-Object { $_.Current.BoundingRectangle.Width -gt 20 -and $_.Current.Name -like '名前*' } | Sort-Object { $_.Current.BoundingRectangle.X })
+    Check '8) two panes are shown' ($hdrs.Count -eq 2)
+    if ($hdrs.Count -eq 2) {
+        foreach ($i in 0, 1) {
+            $hr = $hdrs[$i].Current.BoundingRectangle
+            $p = List-Pixel
+            Check "8) pane $($i + 1): the list takes the source group color (got $($p.R),$($p.G),$($p.B))" (Is-Rgb $p 243 250 246)
+        }
+    }
 }
 finally {
     Stop-KtApp

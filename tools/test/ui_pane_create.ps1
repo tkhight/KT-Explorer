@@ -53,7 +53,11 @@ try {
     Set-Foreground; Send-Keys '^t' 700; Move-To "$d\c"
     $panes0 = Pane-Tab-Count
 
-    # ── 1) 既存タブから選択: 最初は、いま開いているタブ(c)だけにチェック → 「作成」は押せない
+    # 同じフォルダ(c)のタブを 2 つにする(OneDrive のように、同じ場所のタブが複数ある状態)
+    Set-Foreground; Send-Keys '^t' 700; Move-To "$d\c"
+    $panes0 = Pane-Tab-Count
+
+    # ── 1) 既存タブから選択: 最初は、何もチェックされていない(現在のタブも) → 「作成」は押せない
     Open-SpecifyMenu '既存タブから選択…'
     $dlg = Find-Dialog '指定ペイン: 既存タブから選択'
     if (-not $dlg) { Stop-Test 'the tab-selection dialog did not open' }
@@ -62,9 +66,12 @@ try {
     $mine = @($boxes | Where-Object { $_.Current.Name -like "*kt_test_ui_pane_create\a*" -or $_.Current.Name -like "*kt_test_ui_pane_create\b*" -or $_.Current.Name -like "*kt_test_ui_pane_create\c*" })
     Check "1) the dialog lists the open tabs with check boxes (test tabs: $($mine.Count))" ($mine.Count -ge 3)
     $cb = @{}; foreach ($x in $mine) { foreach ($k in 'a', 'b', 'c') { if ($x.Current.Name -like "*kt_test_ui_pane_create\$k  *" -or $x.Current.Name -like "*kt_test_ui_pane_create\$k") { $cb[$k] = $x } } }
-    Check '1) only the current tab (c) is checked at first, and "作成" is disabled' ((Is-On $cb['c']) -and (-not (Is-On $cb['a'])) -and (-not $create.Current.IsEnabled))
+    $checked = @($boxes | Where-Object { Is-On $_ })
+    Check "1) nothing is checked at first, even with the same folder open in two tabs (checked: $($checked.Count)), and `"作成`" is disabled" (($checked.Count -eq 0) -and (-not $create.Current.IsEnabled))
 
-    # ── 2) もう 1 つチェック(2 個)→ 「作成」が押せる
+    # ── 2) 1 個だけでは押せず、2 個チェックすると「作成」が押せる
+    $cb['c'].GetCurrentPattern([Windows.Automation.TogglePattern]::Pattern).Toggle(); Start-Sleep -Milliseconds 600
+    Check '2) with only one tab checked, "作成" stays disabled' (-not $create.Current.IsEnabled)
     $cb['a'].GetCurrentPattern([Windows.Automation.TogglePattern]::Pattern).Toggle(); Start-Sleep -Milliseconds 600
     Check '2) with two tabs checked, "作成" is enabled' ($create.Current.IsEnabled)
 

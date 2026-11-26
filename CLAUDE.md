@@ -45,11 +45,11 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 | メニューバー「ファイル」の画面テスト(項目の有無、新規作成でフォルダー・テキストが作られる)。ターミナル・WinMerge・終了は押さない | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_file.ps1'` |
 | マウスジェスチャ「右ボタン+ホイール」(上=左のタブ・下=右のタブ。Ctrl つきは前・次のタブグループ)と、ロッカー(右ボタンを押したまま左クリック=タブを閉じる)の判定のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_gesture.ps1'` |
 | 同じジェスチャとロッカーの画面テスト(実際のマウス入力)。**StrokesPlus などのマウスジェスチャの常駐ツールが、KT_Explorer を除外していないと、合成した右ボタンが横取りされて失敗する**(ツールで KT_Explorer を除外するか、無効にして実行する。除外していれば、有効なままで通る: 2026-11-26 に確認、13 件 OK・約 45 秒) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_gesture_wheel.ps1'` |
-| 指定ペインの作成(2〜3 個の条件、フォルダ入力の整理、`MainViewModel.CreatePanes`)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_panecreate.ps1'` |
+| ペインの参照元のグループと色、指定ペインの作成(2〜3 個の条件、フォルダ入力の整理、`MainViewModel.CreatePanes`)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_panecreate.ps1'` |
 | 指定ペインの作成ダイアログの画面テスト(既存タブにチェックを付けて作成、フォルダを 2〜3 個指定して作成、キャンセル) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_pane_create.ps1'` |
 | メニューバー「編集」の画面テスト(元に戻す・やり直し・切り取り・コピー・貼り付け・削除・全て選択。ファイルへの操作と、入力欄の文字への操作)。クリップボードを書き換える | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_edit.ps1'` |
 | アプリのアイコン(app.ico の大きさの種類、exe のアイコン、トレイのアイコンの読み込み)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_icon.ps1'` |
-| グループタブの画面テスト(件数が付かない・ドラッグで並べ替え・クリックだけでは並ばない・右クリックの「グループの色」の格子で色を選ぶと色の線が付き、一覧と列見出しの背景がごく薄いその色になる・「その他の色…」の画面を開いてキャンセル・「色なし」で戻る)。実際のマウスを使う。ロジック(並べ替え・色・デフォルトグループ)は `logic_tabs.ps1` に含む | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_group_tabs.ps1'` |
+| グループタブの画面テスト(件数が付かない・ドラッグで並べ替え・クリックだけでは並ばない・右クリックの「グループの色」の格子で色を選ぶと色の線が付き、一覧と列見出しの背景がごく薄いその色になる・「その他の色…」の画面を開いてキャンセル・「色なし」で戻る)。2 ペインの名札と色も確認。実際のマウスを使う。ロジック(並べ替え・色・デフォルトグループ)は `logic_tabs.ps1` に含む | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_group_tabs.ps1'` |
 | コピー・貼り付けの対象と、ツリーの Ctrl+クリックの画面テスト(タブ A でコピー → タブ B をクリックした直後に Ctrl+V が、タブ B に貼り付く / ペイン A でコピー → ペイン B のヘッダーをクリックして Ctrl+V が、ペイン B に貼り付く / ツリーのフォルダの Ctrl+クリックで新しいタブ)。クリップボードを書き換える。マウスを実際に動かす | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_paste_target.ps1'` |
 | メニューのフラットなデザインの画面テスト(メニューバーのホバー・開いている見出しの色、開いたメニューのホバー・使えない項目の灰色・チェックの青いマークを、画素で確かめる)。マウスを実際に動かす。メニューの見た目は、`src/KT_Explorer/Resources/FlatMenu.xaml`(アプリ全体のリソース) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_flat_menu.ps1'` |
 | 統一したフラットなデザインの画面テスト(枠なし・ホバーの水色・プレビューのオンの色・選択中のグループタブとフォルダタブの色・一覧の列見出しのホバー・入力欄の枠と入力中の青い線・ペインタブの図柄を、画素で確かめる。ペインのボタンでペインタブができる)。ボタンの `AutomationId` は `Panes2Button` `Panes3Button` `SpecifyPaneButton` `PreviewToggle` `AddGroupButton` など。マウスを実際に動かす | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_flat_style.ps1'` |

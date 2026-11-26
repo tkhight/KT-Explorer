@@ -10,13 +10,28 @@
         <!-- 既存タブから選択: チェックを付けた 2 つか 3 つのタブのフォルダで、ペインを作る -->
         <ListBox x:Name="TabList" MaxHeight="300" Visibility="Collapsed" BorderThickness="1"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemContainerStyle>
+                <Style TargetType="ListBoxItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    <Setter Property="Padding" Value="2,1"/>
+                </Style>
+            </ListBox.ItemContainerStyle>
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <!-- 文字列をそのまま Content にすると、名前の「_」がアクセスキー扱いで消えるため、TextBlock に入れる -->
-                    <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}" IsEnabled="{Binding CanCheck}"
-                              ToolTip="{Binding Path}" Margin="0,2" Checked="Choice_Changed" Unchecked="Choice_Changed">
-                        <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis"/>
-                    </CheckBox>
+                    <!-- 行の背景はグループの色。グループ名は色の名札で示す -->
+                    <Border Background="{Binding RowBrush}" CornerRadius="4" Padding="6,3">
+                        <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}" IsEnabled="{Binding CanCheck}" AutomationProperties.Name="{Binding Label}"
+                                  ToolTip="{Binding Path}" VerticalContentAlignment="Center" Checked="Choice_Changed" Unchecked="Choice_Changed">
+                            <DockPanel>
+                                <Border DockPanel.Dock="Left" Background="{Binding TagBrush}" CornerRadius="3" Padding="6,0" Margin="2,0,8,0" MinWidth="44">
+                                    <TextBlock Text="{Binding GroupName}" Foreground="{Binding TagTextBrush}" FontWeight="SemiBold" FontSize="11"
+                                               HorizontalAlignment="Center" MaxWidth="110" TextTrimming="CharacterEllipsis"/>
+                                </Border>
+                                <TextBlock Text="{Binding Display}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                            </DockPanel>
+                        </CheckBox>
+                    </Border>
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>

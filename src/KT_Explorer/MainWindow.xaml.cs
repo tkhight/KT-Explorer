@@ -1291,9 +1291,11 @@ public partial class MainWindow : Window
         var fromTab = new MenuItem { Header = "既存タブから選択…", IsEnabled = candidates.Count >= PaneRequest.Min };
         fromTab.Click += (_, _) => Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, () =>
         {
-            var list = candidates.Select(c => ($"{c.Group.Name} / {c.Tab.Title}  —  {c.Tab.Path}", c.Tab.Path)).ToList();
-            var picked = PaneCreateDialog.PickTabs(this, list, _vm.CurrentFolder?.Path);
-            if (picked != null && !_vm.CreatePanes(picked))
+            var list = candidates.Select(c => new PaneChoice(c.Tab.Title, c.Tab.Path, c.Group.Name, c.Group.Color)).ToList();
+            var picked = PaneCreateDialog.PickTabs(this, list);
+            // 選んだタブのグループを、各ペインの参照元(一覧の色)にする
+            if (picked != null && !_vm.CreatePanes(picked.Select(i => candidates[i].Tab.Path).ToList(),
+                                                   picked.Select(i => (TabGroupViewModel?)candidates[i].Group).ToList()))
                 MessageBox.Show("ペインを作れませんでした(フォルダが見つからないタブがあります)。", "KT_Explorer");
         });
         menu.Items.Add(fromTab);

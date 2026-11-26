@@ -17,6 +17,10 @@ public static class TabColors
         ("ピンク", "#E93D82"), ("えんじ", "#9B2C4B"), ("茶", "#A0713C"), ("こげ茶", "#6F4E37"), ("グレー", "#8B8D98"), ("青灰", "#5F7080"),
     };
 
+    /// <summary>一覧の背景の濃さと、列見出し(とペインのヘッダー)の背景の濃さ。調整するときは、ここ。</summary>
+    public const double ViewTint = 0.06;
+    public const double HeaderTint = 0.24;
+
     private static readonly Regex HexPattern = new("^#[0-9A-Fa-f]{6}$");
 
     /// <summary>#RRGGBB(大文字)にそろえる。形が違うものは、色なし(状態ファイルが壊れていても落ちないように)。</summary>
@@ -42,6 +46,17 @@ public static class TabColors
         byte Mix(byte v) => (byte)Math.Round(255 - (255 - v) * amount);
         return Frozen(Color.FromRgb(Mix(c.R), Mix(c.G), Mix(c.B)));
     }
+
+    /// <summary>名札など、色の背景に載せる文字の色: 明るい色(黄など)の上では黒、それ以外は白。</summary>
+    public static Brush TextOn(string? hex)
+    {
+        var c = (Color)ColorConverter.ConvertFromString(Normalize(hex) ?? NoColorTag);
+        double luminance = (0.299 * c.R + 0.587 * c.G + 0.114 * c.B) / 255;
+        return luminance > 0.62 ? Brushes.Black : Brushes.White;
+    }
+
+    /// <summary>色の無いグループの名札の色(灰色)。</summary>
+    public const string NoColorTag = "#8B8D98";
 
     private static Brush Frozen(Color color)
     {
