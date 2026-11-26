@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KT_Explorer 使い方</title>
+<style>
+  :root { --bg:#fff; --panel:#f6f8fa; --text:#1f2328; --sub:#59636e; --line:#d8dee4; --accent:#2f6fbf; --accent-bg:#e5f3ff; --key:#fff; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#1b1d21; --panel:#24272d; --text:#e6e8eb; --sub:#a4adb8; --line:#3a3f47; --accent:#7fb6f2; --accent-bg:#243649; --key:#30343b; }
+  }
+  * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; scroll-padding-top:16px; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.75 "Yu Gothic UI","Meiryo",system-ui,sans-serif; }
+  .layout { display:flex; max-width:1120px; margin:0 auto; gap:32px; padding:0 20px; }
+  nav { width:200px; flex:none; position:sticky; top:0; align-self:flex-start; max-height:100vh; overflow:auto; padding:24px 0; font-size:14px; }
+  nav a { display:block; padding:3px 10px; border-radius:6px; color:var(--text); text-decoration:none; }
+  nav a:hover { background:var(--accent-bg); }
+  main { flex:1; min-width:0; padding:24px 0 80px; }
+  h1 { font-size:26px; margin:0 0 4px; }
+  h2 { font-size:19px; margin:40px 0 12px; padding-bottom:6px; border-bottom:2px solid var(--line); }
+  h3 { font-size:16px; margin:24px 0 8px; }
+  .lead { color:var(--sub); margin:0 0 16px; }
+  table { width:100%; border-collapse:collapse; margin:8px 0 12px; font-size:14px; }
+  th, td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+  th { background:var(--panel); font-weight:600; }
+  td:first-child { width:30%; }
+  table.keys td:first-child, table.keys td:nth-child(3) { width:9%; text-align:center; }
+  kbd { display:inline-block; background:var(--key); border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:0 6px; font:12.5px/1.7 Consolas,monospace; white-space:nowrap; }
+  code { background:var(--panel); border-radius:4px; padding:1px 5px; font-family:Consolas,monospace; font-size:13px; }
+  .note { background:var(--accent-bg); border-left:4px solid var(--accent); padding:8px 14px; margin:12px 0; }
+  ul { padding-left:22px; margin:8px 0; }
+  @media (max-width:760px) { .layout { display:block; padding:0 16px; } nav { position:static; width:auto; max-height:none; padding-bottom:0; } nav a { display:inline-block; } table { display:block; overflow-x:auto; } }
+  @media print { nav { display:none; } body { font-size:12px; } h2 { break-after:avoid; } tr { break-inside:avoid; } }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav aria-label="目次">
+  <a href="#screen">画面の構成</a>
+  <a href="#basic">基本操作</a>
+  <a href="#select">選択とドラッグ</a>
+  <a href="#file">ファイル操作</a>
+  <a href="#context">右クリックメニュー</a>
+  <a href="#tab">タブ</a>
+  <a href="#group">タブグループ</a>
+  <a href="#pane">ペイン</a>
+  <a href="#view">表示と並べ替え</a>
+  <a href="#find">絞り込みと検索</a>
+  <a href="#fav">お気に入りと履歴</a>
+  <a href="#gesture">マウスジェスチャ</a>
+  <a href="#menu">メニューと設定</a>
+  <a href="#etc">取り込み・常駐・制約</a>
+</nav>
+<main>
+<h1>KT_Explorer 使い方</h1>
+<p class="lead">タブ・タブグループ・ペイン表示を持つ、Windows 用のファイルブラウザです。</p>
+
+<h2 id="screen">画面の構成</h2>
+<table>
+  <tr><th>場所</th><th>内容</th></tr>
+  <tr><td>メニューバー(上端)</td><td>ファイル / 編集 / 表示 / お気に入り / 履歴 / ツール / ヘルプ。右端はペインのボタン(2ペイン・3ペイン・指定ペイン)</td></tr>
+  <tr><td>ツールバー</td><td>戻る・進む・一つ上・更新・元に戻す・やり直し、パス欄、絞込欄、検索欄、プレビューの切り替え</td></tr>
+  <tr><td>グループバー</td><td>タブグループの切り替え。右端の「＋」で追加</td></tr>
+  <tr><td>左のツリー</td><td>フォルダの階層。タブに連動して位置が変わります(オフにもできます)</td></tr>
+  <tr><td>タブバーと一覧</td><td>開いているフォルダのタブと、その中身。一覧の下に件数や状態が出ます</td></tr>
+</table>
+
+<h2 id="basic">基本操作</h2>
+<table>
+  <tr><th>したいこと</th><th>操作</th></tr>
+  <tr><td>開く</td><td>ダブルクリック / <kbd>Enter</kbd>。フォルダへのショートカット(.lnk)は、この一覧のままリンク先を表示</td></tr>
+  <tr><td>戻る / 進む</td><td><kbd>Alt</kbd>+<kbd>←</kbd> / <kbd>Alt</kbd>+<kbd>→</kbd>、ツールバー、マウスのサイドボタン</td></tr>
+  <tr><td>一つ上の階層へ</td><td><kbd>Alt</kbd>+<kbd>↑</kbd>、<kbd>Backspace</kbd>、ツールバー</td></tr>
+  <tr><td>更新</td><td><kbd>F5</kbd>(フォルダの変更は自動でも反映されます)</td></tr>
+  <tr><td>パスを入力する</td><td><kbd>Ctrl</kbd>+<kbd>L</kbd>、またはパンくずの空いたところをクリック。入力中は候補が出ます(<kbd>↓</kbd><kbd>↑</kbd> で選び、<kbd>Tab</kbd> で次の階層へ)</td></tr>
+  <tr><td>パンくず</td><td>階層をクリックで移動、<code>▸</code> で中のフォルダ一覧、<kbd>Ctrl</kbd>+クリックで新しいタブ</td></tr>
+  <tr><td>名前で項目へ移動</td><td>一覧で文字を入力(その文字で始まる項目を選択)</td></tr>
+</table>
+
+<h2 id="select">選択とドラッグ</h2>
+<div class="note">一覧では、<strong>アイコンと名前</strong>をドラッグするとファイルの移動・コピー、<strong>それ以外</strong>の場所をドラッグすると範囲選択になります。</div>
+<h3>範囲選択</h3>
+<table>
+  <tr><th>したいこと</th><th>操作</th></tr>
+  <tr><td>枠で選ぶ</td><td>左右の余白、下の空き、更新日時・種類・サイズの列からドラッグ。端の外で止めると自動スクロール</td></tr>
+  <tr><td>今の選択に追加</td><td><kbd>Ctrl</kbd> を押しながらドラッグ</td></tr>
+  <tr><td>取り消し / 解除</td><td>ドラッグ中に <kbd>Esc</kbd> / 余白をクリック</td></tr>
+  <tr><td>1 つずつ・連続で選ぶ</td><td><kbd>Ctrl</kbd>+クリック / <kbd>Shift</kbd>+クリック。全て選択は <kbd>Ctrl</kbd>+<kbd>A</kbd></td></tr>
+</table>
+<h3>ドラッグ&ドロップ</h3>
+<p>アイコンか名前をドラッグして、別のペイン、一覧のフォルダ、ツリー、タブへドロップします。エクスプローラーとの間でも使えます。</p>
+<table>
+  <tr><th>押すキー</th><th>動作</th></tr>
+  <tr><td>なし</td><td>同じドライブなら移動、違うドライブならコピー</td></tr>
+  <tr><td><kbd>Ctrl</kbd> / <kbd>Shift</kbd></td><td>コピー / 移動</td></tr>
+</table>
+
+<h2 id="file">ファイル操作</h2>
+<table>
+  <tr><th>したいこと</th><th>操作</th></tr>
+  <tr><td>コピー / 切り取り / 貼り付け</td><td><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>X</kbd> / <kbd>V</kbd>。操作中のタブ・ペインに働きます</td></tr>
+  <tr><td>削除(ごみ箱へ)</td><td><kbd>Delete</kbd></td></tr>
+  <tr><td>完全に削除</td><td><kbd>Shift</kbd>+<kbd>Delete</kbd>(確認あり。元に戻せません)</td></tr>
+  <tr><td>名前の変更</td><td><kbd>F2</kbd>、または選択済みの名前をゆっくり 2 回クリック。<kbd>Enter</kbd> で確定、<kbd>Esc</kbd> で取り消し</td></tr>
+  <tr><td>新しいフォルダー</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd></td></tr>
+  <tr><td>新規作成</td><td>一覧の空白を右クリック →「新規作成」、または「ファイル」メニュー(フォルダー / テキスト ドキュメント)</td></tr>
+  <tr><td>元に戻す / やり直し</td><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd>、ツールバー</td></tr>
+  <tr><td>パスをコピー / プロパティ</td><td>項目を右クリック。プロパティは「ファイル」メニューからも</td></tr>
+  <tr><td>フォルダのサイズ</td><td>右クリック →「フォルダーのサイズを計算」。「ツール」で自動計算も可</td></tr>
+</table>
+<ul>
+  <li>元に戻せるのは、コピー・移動・ごみ箱への削除・名前の変更・新規作成です(最大 50 件。アプリを終了すると消えます)。</li>
+  <li>完全な削除と、同名ファイルの上書きは戻せません。</li>
+  <li>コピー・移動・削除は Windows 標準の機能を使うので、進捗や同名の確認はエクスプローラーと同じです。</li>
+</ul>
+
+<h2 id="context">右クリックメニュー</h2>
+<p>一覧とツリーのメニューは、開いたあと <strong>1 文字のキー</strong>で実行できます(例: 右クリック → <kbd>D</kbd> で削除)。<kbd>Shift</kbd>+<kbd>F10</kbd> やメニューキーで開いた場合も同じです。</p>
+<table class="keys">
+  <tr><th>キー</th><th>項目</th><th>キー</th><th>項目</th></tr>
+  <tr><td><kbd>O</kbd></td><td>開く</td><td><kbd>E</kbd></td><td>新しいタブで開く(空白では「更新」)</td></tr>
+  <tr><td><kbd>T</kbd></td><td>切り取り</td><td><kbd>C</kbd></td><td>コピー</td></tr>
+  <tr><td><kbd>P</kbd></td><td>貼り付け</td><td><kbd>M</kbd></td><td>名前の変更</td></tr>
+  <tr><td><kbd>D</kbd></td><td>削除(ごみ箱へ)</td><td><kbd>A</kbd></td><td>パスをコピー</td></tr>
+  <tr><td><kbd>I</kbd></td><td>ここでターミナルを開く</td><td><kbd>R</kbd></td><td>プロパティ</td></tr>
+  <tr><td><kbd>W</kbd></td><td>新規作成(続けて <kbd>F</kbd> フォルダー / <kbd>T</kbd> テキスト。ツリーはフォルダーのみ)</td><td><kbd>Z</kbd></td><td>フォルダーのサイズを計算</td></tr>
+  <tr><td><kbd>F</kbd></td><td>お気に入りに追加(ツリー)</td><td><kbd>X</kbd></td><td>その他のオプション</td></tr>
+  <tr><td><kbd>Y</kbd></td><td>反対のペインへコピー</td><td><kbd>V</kbd></td><td>反対のペインへ移動</td></tr>
+</table>
+<ul>
+  <li>「<strong>その他のオプション</strong>」で、Windows 標準のメニュー(7-Zip、Git、「送る」など)が開きます。</li>
+  <li><kbd>Shift</kbd>+右クリックで、最初から標準のメニューを開きます。</li>
+</ul>
+
+<h2 id="tab">タブ</h2>
+<table>
+  <tr><th>したいこと</th><th>操作</th></tr>
+  <tr><td>新しいタブ</td><td><kbd>Ctrl</kbd>+<kbd>T</kbd>、「＋」、ツリーを <kbd>Ctrl</kbd>+クリック</td></tr>
+  <tr><td>閉じる</td><td><kbd>Ctrl</kbd>+<kbd>W</kbd>、中クリック、右クリック →「タブを閉じる」</td></tr>
+  <tr><td>閉じたタブを開き直す</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd>(直近 20 件)</td></tr>
+  <tr><td>切り替え</td><td>タブバー上でホイール、<kbd>Ctrl</kbd>+<kbd>Tab</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Tab</kbd></td></tr>
+  <tr><td>並べ替え / グループ移動</td><td>タブを別のタブ、またはグループ名へドラッグ</td></tr>
+  <tr><td>複製・色・パスをコピー</td><td>タブを右クリック</td></tr>
+  <tr><td>ピン留め</td><td>右クリック →「タブをピン留め」。別のフォルダへ移ると新しいタブで開きます。ピン留め中は閉じられません</td></tr>
+  <tr><td>複数段で表示</td><td>「表示」メニュー →「タブを複数段で表示」</td></tr>
+</table>
+
+<h2 id="group">タブグループ</h2>
+<ul>
+  <li>プロジェクトごとにタブをまとめます。グループバーの「＋」で追加、右クリックで名前の変更・色・削除。</li>
+  <li>グループ名をドラッグして並べ替えます。グループバー上のホイールで切り替えます。</li>
+  <li>グループに色を付けると、一覧の背景がごく薄いその色になります。</li>
+  <li>「デフォルト」グループは削除できません。取り込んだエクスプローラーはここに入ります。</li>
+</ul>
+
+<h2 id="pane">ペイン</h2>
+<p>2〜3 個のフォルダを横に並べます。現在のタブの右隣に「ペインタブ」ができます。ペインは一時的なもので、終了すると残りません。</p>
+<table>
+  <tr><th>作り方</th><th>内容</th></tr>
+  <tr><td>2ペイン / 3ペイン</td><td>今のフォルダを右側に追加</td></tr>
+  <tr><td>指定ペイン → 既存タブから選択</td><td>タブを 2〜3 個選んで作成。ペインはそれぞれのグループの色になります</td></tr>
+  <tr><td>指定ペイン → フォルダを指定</td><td>フォルダを 2〜3 個入力して作成</td></tr>
+</table>
+<table>
+  <tr><th>したいこと</th><th>操作</th></tr>
+  <tr><td>別のペインへコピー / 移動</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd> / <kbd>M</kbd>(右隣へ)、または右クリック</td></tr>
+  <tr><td>幅を変える</td><td>境界線をドラッグ</td></tr>
+  <tr><td>閉じる</td><td>ペインのヘッダーの「✕」</td></tr>
+</table>
+
+<h2 id="view">表示と並べ替え</h2>
+<table>
+  <tr><th>したいこと</th><th>操作</th></tr>
+  <tr><td>詳細 / アイコン / 一覧</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>1</kbd> / <kbd>2</kbd> / <kbd>3</kbd>、または「表示」メニュー(タブごとに記憶)</td></tr>
+  <tr><td>アイコンの大きさ</td><td>「表示」の大・中・小、またはアイコン表示で <kbd>Ctrl</kbd>+ホイール</td></tr>
+  <tr><td>並べ替え</td><td>列見出しをクリック(アイコン・一覧は「表示」→「並べ替え」)。タブごとに記憶</td></tr>
+  <tr><td>列の追加</td><td>列見出しを右クリック(作成日時・属性・画像のサイズ・再生時間)</td></tr>
+  <tr><td>プレビュー</td><td><kbd>Alt</kbd>+<kbd>P</kbd>(画像・テキスト・フォルダなど)</td></tr>
+</table>
+
+<h2 id="find">絞り込みと検索</h2>
+<ul>
+  <li><strong>絞込</strong>(<kbd>Ctrl</kbd>+<kbd>F</kbd>): 表示中の一覧を絞ります。<kbd>Esc</kbd> で解除。</li>
+  <li><strong>検索</strong>: 検索欄に入力して <kbd>Enter</kbd>。サブフォルダも探します。<kbd>Esc</kbd> で中断・解除。</li>
+</ul>
+<p>条件は空白で区切って並べます(すべてを満たすものが残ります)。</p>
+<table>
+  <tr><th>書き方</th><th>意味</th></tr>
+  <tr><td><code>report</code>、<code>"二語 以上"</code></td><td>名前に含む</td></tr>
+  <tr><td><code>*.png</code>、<code>?.txt</code></td><td>ワイルドカード</td></tr>
+  <tr><td><code>-draft</code></td><td>除外(どの条件にも <code>-</code> を付けられる)</td></tr>
+  <tr><td><code>type:画像</code></td><td>画像・動画・音声・文書・圧縮・コード・フォルダー・ファイル</td></tr>
+  <tr><td><code>ext:png,jpg</code></td><td>拡張子</td></tr>
+  <tr><td><code>size:&gt;10MB</code>、<code>size:1MB..10MB</code></td><td>ファイルサイズ</td></tr>
+  <tr><td><code>date:今日</code>、<code>date:今週</code>、<code>date:7d</code></td><td>更新日時</td></tr>
+  <tr><td><code>date:&gt;2024-01-01</code></td><td>日付の指定(範囲は <code>..</code>)</td></tr>
+  <tr><td><code>content:語</code>(<code>中身:語</code>)</td><td>ファイルの中身。<strong>検索欄のみ</strong>(テキストの先頭 2 MB)</td></tr>
+</table>
+<p>例: <code>type:画像 size:&gt;1MB date:今週</code></p>
+
+<h2 id="fav">お気に入りと履歴</h2>
+<ul>
+  <li><strong>お気に入り</strong>メニュー: 今のフォルダを追加、クリックで開く、右クリックで新しいタブ・編集・削除。「お気に入りを整理…」で並べ替え・グループ・区切り線。</li>
+  <li><strong>履歴</strong>メニュー: 最近開いたフォルダと、よく開くフォルダ。<kbd>Ctrl</kbd>+クリックで新しいタブ。</li>
+</ul>
+
+<h2 id="gesture">マウスジェスチャ</h2>
+<table>
+  <tr><th>操作(右ボタンを押したまま)</th><th>動作</th></tr>
+  <tr><td>左 / 右 / 上へドラッグ</td><td>戻る / 進む / 一つ上の階層へ</td></tr>
+  <tr><td>ホイール 上 / 下</td><td>左 / 右のタブへ</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+ホイール 上 / 下</td><td>前 / 次のタブグループへ</td></tr>
+  <tr><td>左クリック</td><td>いまのタブを閉じる</td></tr>
+</table>
+<div class="note">StrokesPlus などのジェスチャの常駐ツールを使っている場合は、そのツールで KT_Explorer を除外してください。</div>
+
+<h2 id="menu">メニューと設定</h2>
+<table>
+  <tr><th>メニュー</th><th>主な内容</th></tr>
+  <tr><td>ファイル</td><td>ターミナルで開く、WinMerge(2 つ選択、またはペイン同士を比較)、新規作成、プロパティ、アプリケーションの終了</td></tr>
+  <tr><td>編集</td><td>元に戻す、やり直し、切り取り、コピー、貼り付け、削除、全て選択</td></tr>
+  <tr><td>表示</td><td>表示の形式、並べ替え、プレビュー、ツリーをタブに連動、フォルダーを先頭にまとめる、タブを複数段で表示、オーバーレイアイコンを表示</td></tr>
+  <tr><td>ツール</td><td>マウスジェスチャ、開いた Explorer を取り込む、閉じるボタンでトレイに常駐、フォルダーのサイズを自動計算、Windows 起動時に自動起動</td></tr>
+</table>
+
+<h2 id="etc">取り込み・常駐・制約</h2>
+<ul>
+  <li><strong>Explorer の取り込み</strong>: 外部から開いたエクスプローラーを、デフォルトグループのタブにして閉じます(「PC」「ごみ箱」や複数タブのウィンドウは対象外)。</li>
+  <li><strong>常駐</strong>: 閉じるボタンでトレイに隠れます。完全に終了するには「ファイル」→「アプリケーションの終了」。</li>
+  <li><strong>仮想デスクトップ</strong>: 切り替えにウィンドウが追従します(最大 0.4 秒ほどの遅れ)。</li>
+  <li><strong>保存先</strong>: <code>%AppData%\KT_Explorer\state.json</code>(タブ、グループ、お気に入り、表示の設定、履歴など)。</li>
+  <li>ZIP の中身の閲覧には対応していません。ZIP は Windows の既定の動作で開きます。</li>
+  <li>タブを切り替えると、選択位置とスクロール位置は保持されません。</li>
+  <li>大きなコピー・移動の進捗ダイアログが出ている間は、ウィンドウを操作できません。</li>
+</ul>
+</main>
+</div>
+</body>
+</html>
