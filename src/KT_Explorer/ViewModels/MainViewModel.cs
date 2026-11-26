@@ -241,10 +241,13 @@ public partial class MainViewModel : ObservableObject
             ? state.Groups
             : new List<GroupState> { new() { Name = "デフォルト", IsDefault = true, TabPaths = state.TabPaths, SelectedIndex = state.SelectedIndex } };
 
+        // デフォルトグループは、保存した印で決める(グループを並べ替えられるので、位置では決めない)。印が無ければ先頭
+        int defaultIndex = Math.Max(saved.FindIndex(g => g.IsDefault), 0);
         for (int i = 0; i < saved.Count; i++)
         {
             var gs = saved[i];
-            var group = new TabGroupViewModel(string.IsNullOrWhiteSpace(gs.Name) ? "グループ" : gs.Name, isDefault: i == 0);
+            var group = new TabGroupViewModel(string.IsNullOrWhiteSpace(gs.Name) ? "グループ" : gs.Name, isDefault: i == defaultIndex);
+            group.Color = TabColors.Normalize(gs.Color);
             for (int k = 0; k < gs.TabPaths.Count; k++)
             {
                 if (!Directory.Exists(gs.TabPaths[k])) continue;
@@ -522,6 +525,16 @@ public partial class MainViewModel : ObservableObject
         SelectGroup(group);
     }
 
+    public void ReorderGroup(TabGroupViewModel group, TabGroupViewModel target)
+    {
+        if (ReferenceEquals(group, target) || !Groups.Contains(group) || !Groups.Contains(target)) return;
+        Groups.Move(Groups.IndexOf(group), Groups.IndexOf(target));
+        OnPropertyChanged(nameof(SelectedGroup)); // 並べ替えのあとも、グループバーの選択の表示を合わせる
+    }
+
+    /// <summary>グループの色を変える。null か、パレットにない色は、色なしにする。</summary>
+    public void SetGroupColor(TabGroupViewModel group, string? hex) => group.Color = TabColors.Normalize(hex);
+
     public void RenameGroup(TabGroupViewModel group, string name)
     {
         if (!string.IsNullOrWhiteSpace(name)) group.Name = name.Trim();
@@ -704,7 +717,7 @@ public partial class MainViewModel : ObservableObject
     public void ImportFolder(string path)
     {
         string p = FolderTabViewModel.Normalize(path);
-        var def = Groups[0];
+        var def = Groups.First(g => g.IsDefault);
         var tab = def.Tabs.OfType<FolderTabViewModel>()
                       .FirstOrDefault(t => string.Equals(t.Path, p, StringComparison.OrdinalIgnoreCase));
         if (tab == null)
@@ -779,7 +792,7 @@ public partial class MainViewModel : ObservableObject
                 }
                 if (ReferenceEquals(t, selected)) selectedIndex = Math.Max(folderTabs.Count - 1, 0);
             }
-            state.Groups.Add(new GroupState { Name = g.Name, IsDefault = g.IsDefault, TabPaths = folderTabs, TabSorts = tabSorts, SelectedIndex = selectedIndex });
+            state.Groups.Add(new GroupState { Name = g.Name, IsDefault = g.IsDefault, Color = g.Color, TabPaths = folderTabs, TabSorts = tabSorts, SelectedIndex = selectedIndex });
         }
         return state;
     }

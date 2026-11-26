@@ -24,6 +24,9 @@ public sealed class GroupState
 {
     public string Name { get; set; } = "";
     public bool IsDefault { get; set; }
+
+    /// <summary>グループの色(#RRGGBB)。古い状態ファイルには無い(その場合は色なし)。</summary>
+    public string? Color { get; set; }
     public List<string> TabPaths { get; set; } = new();
 
     /// <summary>TabPaths と同じ順の、タブごとの並び順。古い状態ファイルには無い(その場合は初期の並び順)。</summary>
