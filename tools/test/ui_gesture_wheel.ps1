@@ -46,7 +46,7 @@ try {
     # ── 1) 右ボタン+ホイール上 = 左のタブ
     Wheel-WithRight 120
     Check "1) right button + wheel up selects the tab on the left ($(Selected-Position 'FolderTab'))" ((Selected-Position 'FolderTab') -eq "$($n - 1)/$n")
-    Check '2) the context menu did not open after releasing the button' (-not (Find-AppMenuItem '貼り付け'))
+    Check '2) the context menu did not open after releasing the button' (-not (Find-AppMenuItem '貼り付け(P)'))
     # ── 3) 下 = 右のタブ
     Wheel-WithRight -120
     Check "3) right button + wheel down selects the tab on the right ($(Selected-Position 'FolderTab'))" ((Selected-Position 'FolderTab') -eq "$n/$n")
@@ -78,7 +78,7 @@ try {
 
     # ── 9) 普通の右クリック(動かさない)は、メニューが出る
     [KtWin]::mouse_event(8, 0, 0, 0, [UIntPtr]::Zero); [KtWin]::mouse_event(16, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 1200
-    Check '9) a plain right click still opens the context menu' ([bool](Find-AppMenuItem '貼り付け'))
+    Check '9) a plain right click still opens the context menu' ([bool](Find-AppMenuItem '貼り付け(P)'))
     Send-Keys '{ESC}' 500
 
     # ── 10) ロッカー: 右ボタンを押したまま左クリック = いまのタブを閉じる。右ボタンを離しても、メニューは出ない
@@ -90,7 +90,7 @@ try {
     [KtWin]::mouse_event(2, 0, 0, 0, [UIntPtr]::Zero); [KtWin]::mouse_event(4, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 700   # 左クリック
     [KtWin]::mouse_event(16, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 1200     # 右ボタンを離す
     Check "10) right button held + left click closes the current tab ($before -> $(Tab-Count))" ((Tab-Count) -eq $before - 1)
-    Check '10) the context menu did not open after releasing the right button' (-not (Find-AppMenuItem '貼り付け'))
+    Check '10) the context menu did not open after releasing the right button' (-not (Find-AppMenuItem '貼り付け(P)'))
 
     # ── 11) 右ボタンを押さない左クリックは、タブを閉じない
     $before = Tab-Count

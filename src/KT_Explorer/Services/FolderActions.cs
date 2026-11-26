@@ -1,17 +1,31 @@
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Interop;
 
 namespace KT_Explorer.Services;
 
 /// <summary>フォルダ・ファイルへの小さな操作(一覧とツリーの右クリックメニューで共用する)。</summary>
 public static class FolderActions
 {
+    /// <summary>
+    /// Windows のプロパティ画面を出す(ファイル・フォルダ・ドライブ)。
+    /// Process.Start の "properties" 動詞は、この画面に必要な指定(SEE_MASK_INVOKEIDLIST)を渡さないので、使わない。
+    /// </summary>
     public static void ShowProperties(string path)
     {
-        try { Process.Start(new ProcessStartInfo(path) { Verb = "properties", UseShellExecute = true }); }
-        catch (Exception ex) { MessageBox.Show(ex.Message, "KT_Explorer"); }
+        var window = Application.Current?.MainWindow;
+        var owner = window == null ? IntPtr.Zero : new WindowInteropHelper(window).Handle;
+        if (!SHObjectProperties(owner, SHOP_FILEPATH, path, null))
+            MessageBox.Show($"プロパティを表示できませんでした。\n{path}", "KT_Explorer", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
+
+    private const uint SHOP_FILEPATH = 0x2;
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SHObjectProperties(IntPtr hwnd, uint shopObjectType, string pszObjectName, string? pszPropertyPage);
 
     public static void CopyPathText(IEnumerable<string> paths)
     {

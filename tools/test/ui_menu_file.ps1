@@ -1,4 +1,4 @@
-# メニューバーの「ファイル」の画面テスト: 項目が並ぶこと、新規作成(フォルダー・テキスト ドキュメント)が表示中のフォルダに作られること。
+# メニューバーの「ファイル」の画面テスト: 項目が並ぶこと、新規作成(フォルダー・テキスト ドキュメント)が表示中のフォルダに作られること、プロパティの画面が出ること。
 # ターミナル・WinMerge は外部のアプリが起動し、「アプリケーションの終了」は、終了時にユーザーの設定ファイルを書き換えるため、ここでは押さない(項目の有無と、使える状態かだけを見る)。
 # 事前に: dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 # 使い方: & 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_file.ps1'
@@ -62,6 +62,20 @@ try {
     (Find-AppMenuItem 'フォルダー(F)').GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep -Milliseconds 1800
     Check '4) a second New > Folder gets a different name (no overwrite)' (@(Get-ChildItem -LiteralPath $d -Directory).Count -eq 2)
     Send-Keys '{ESC}' 700
+
+    # ── 5) プロパティ: 表示中のフォルダ(何も選んでいない)の Windows のプロパティ画面が、このアプリから出る
+    Move-To "$d\新しいフォルダー"
+    Open-FileMenu
+    (Find-AppMenuItem 'プロパティ(R)').GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke()
+    # 画面の題名は「<名前>のプロパティ」。このアプリのウィンドウの中だけを探す(出ない場合のエラーの小窓は、題名が KT_Explorer)
+    $title = '新しいフォルダーのプロパティ'
+    $shown = Wait-Until { [bool](Find-AppMenuItem $title) } 5000 150
+    Check "5) File > Properties opens the properties dialog '$title'" $shown
+    if ($shown) {
+        $dlg = Find-AppMenuItem $title
+        $dlg.GetCurrentPattern([Windows.Automation.WindowPattern]::Pattern).Close()
+        [void](Wait-Until { -not (Find-AppMenuItem $title) } 3000 150)
+    }
 }
 finally {
     Stop-KtApp

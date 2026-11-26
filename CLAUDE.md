@@ -41,8 +41,10 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 | パス欄の補助(入力補完の候補・パンくずの階層の分割・中のフォルダの一覧)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_pathbar.ps1'` |
 | 検索(絞込と同じ条件 `type:` `ext:` `size:` など、ファイルの中身 `content:` / `中身:`)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_search.ps1'` |
 | 詳細表示の追加の列(作成日時・属性・画像のサイズ・再生時間)と列の選択のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_columns.ps1'` |
+| 一覧の範囲選択の画面テスト(左右の余白・名前以外の列からのドラッグ、下の方の行でのずれ、`Ctrl` で追加、解除、自動スクロール、名前からのドラッグはファイルの移動、アイコン表示)。マウスを実際に動かす | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_marquee.ps1'` |
+| 一覧とツリーの右クリックメニューの 1 文字キーの画面テスト(D=削除、M=名前の変更、C/P=コピー・貼り付け、W→F=新規フォルダー、ツリー、日本語入力がオンでも効く)。テスト用の 1 ファイルがごみ箱に入る。クリップボードを書き換える | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_context_keys.ps1'` |
 | メニューバー「ファイル」のロジック(WinMerge の引数の組み立て・見つけ方)。画面は出ない。WinMerge は起動しない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_menu_file.ps1'` |
-| メニューバー「ファイル」の画面テスト(項目の有無、新規作成でフォルダー・テキストが作られる)。ターミナル・WinMerge・終了は押さない | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_file.ps1'` |
+| メニューバー「ファイル」の画面テスト(項目の有無、新規作成でフォルダー・テキストが作られる、プロパティの画面が出る)。ターミナル・WinMerge・終了は押さない | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_file.ps1'` |
 | マウスジェスチャ「右ボタン+ホイール」(上=左のタブ・下=右のタブ。Ctrl つきは前・次のタブグループ)と、ロッカー(右ボタンを押したまま左クリック=タブを閉じる)の判定のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_gesture.ps1'` |
 | 同じジェスチャとロッカーの画面テスト(実際のマウス入力)。**StrokesPlus などのマウスジェスチャの常駐ツールが、KT_Explorer を除外していないと、合成した右ボタンが横取りされて失敗する**(ツールで KT_Explorer を除外するか、無効にして実行する。除外していれば、有効なままで通る: 2026-11-26 に確認、13 件 OK・約 45 秒) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_gesture_wheel.ps1'` |
 | ペインの参照元のグループと色、指定ペインの作成(2〜3 個の条件、フォルダ入力の整理、`MainViewModel.CreatePanes`)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_panecreate.ps1'` |
@@ -81,10 +83,12 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
   | タブ・グループ | `logic_tabs` `logic_pin` `ui_pin_color` `ui_group_tabs` `ui_multirow_tabs` `ui_typeahead_tabs` `ui_sort_tabs` |
   | ペイン | `ui_pane_create` `ui_pane_width` `logic_panecreate` `ui_paste_target` |
   | 一覧の表示・列・並べ替え | `logic_viewmode` `ui_viewmode` `logic_columns` `ui_sort_tabs` |
+  | 一覧のクリック・ドラッグ・余白(`FolderView`) | `ui_marquee` `ui_list_rename` `ui_shortcut` `ui_paste_target` |
   | 絞込・検索 | `logic_filter` `ui_filter` `logic_search` |
   | お気に入り・履歴 | `logic_favorites` `ui_favorites` `logic_history` |
   | プレビュー | `logic_preview` `ui_preview` |
   | メニュー | `ui_menu_file` `ui_menu_edit` `ui_menu_settings` `ui_flat_menu` |
+  | 一覧・ツリーの右クリックメニュー(項目名を変えると、名前で探すテストも直す) | `ui_context_keys` `ui_tree_rename` `ui_folder_size` `ui_shortcut` `ui_gesture_wheel` |
   | マウスジェスチャ | `logic_gesture` `ui_gesture_wheel` |
   | アイコン・オーバーレイ | `logic_navicon` `ui_navicon` `logic_overlay` `ui_overlay` `ui_toolbar_icons` |
   | 見た目(フラットなデザイン) | `ui_flat_style` `ui_flat_menu` `ui_toolbar_icons` |

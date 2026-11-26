@@ -114,7 +114,28 @@
 
         <!-- 文字を打つと、その文字で始まる名前の項目へ移動する(TextSearch。続けて打つと絞られ、少し間を置くとリセット) -->
         <!-- 背景は、表示中のグループ(ペインは参照元のグループ)の色を、ごく薄くしたもの。色が無ければ白 -->
+        <!-- 一覧の左右には余白を空ける(そこからドラッグして、範囲選択できるようにする)。背景と、列見出しの帯は、余白の分も
+             含めて描くので、ここに置き、ListView は透明にする -->
+        <Grid x:Name="ListHost" PreviewMouseMove="Marquee_PreviewMouseMove" PreviewMouseLeftButtonUp="Marquee_PreviewMouseLeftButtonUp"
+              PreviewKeyDown="Marquee_PreviewKeyDown" LostMouseCapture="Marquee_LostMouseCapture">
+            <Grid.Background>
+                <MultiBinding Converter="{StaticResource FirstBrush}" FallbackValue="White">
+                    <Binding Path="DataContext.SourceViewBackground" RelativeSource="{RelativeSource AncestorType=UserControl}"/>
+                    <Binding Path="DataContext.ViewBackground" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                </MultiBinding>
+            </Grid.Background>
+            <!-- 詳細表示の列見出しの帯(余白の分まで。色と下の線は、列見出しと同じ) -->
+            <Border x:Name="HeaderStrip" Height="26" VerticalAlignment="Top" Margin="1,1,1,0"
+                    BorderBrush="#FFE3E3E3" BorderThickness="0,0,0,1">
+                <Border.Background>
+                    <MultiBinding Converter="{StaticResource FirstBrush}" FallbackValue="Transparent">
+                        <Binding Path="DataContext.SourceViewHeaderBackground" RelativeSource="{RelativeSource AncestorType=UserControl}"/>
+                        <Binding Path="DataContext.ViewHeaderBackground" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                    </MultiBinding>
+                </Border.Background>
+            </Border>
         <ListView x:Name="FileList" ItemsSource="{Binding Items}" SelectionMode="Extended" AllowDrop="True"
+                  Background="Transparent" Padding="14,0"
                   IsTextSearchEnabled="True" TextSearch.TextPath="Name"
                   MouseDoubleClick="FileList_MouseDoubleClick" KeyDown="FileList_KeyDown"
                   PreviewMouseLeftButtonDown="FileList_PreviewMouseLeftButtonDown"
@@ -126,12 +147,6 @@
                   GridViewColumnHeader.Click="ColumnHeader_Click"
                   SelectionChanged="FileList_SelectionChanged"
                   DragOver="FileList_DragOver" Drop="FileList_Drop">
-            <ListView.Background>
-                <MultiBinding Converter="{StaticResource FirstBrush}" FallbackValue="White">
-                    <Binding Path="DataContext.SourceViewBackground" RelativeSource="{RelativeSource AncestorType=UserControl}"/>
-                    <Binding Path="DataContext.ViewBackground" RelativeSource="{RelativeSource AncestorType=Window}"/>
-                </MultiBinding>
-            </ListView.Background>
             <ListView.View>
                 <GridView ColumnHeaderContainerStyle="{StaticResource KtColumnHeader}">
                     <GridViewColumn Header="名前" Width="280">
@@ -185,6 +200,11 @@
                 </GridView>
             </ListView.View>
         </ListView>
+            <!-- 範囲選択の枠 -->
+            <Canvas IsHitTestVisible="False" ClipToBounds="True">
+                <Rectangle x:Name="MarqueeRect" Fill="#263B82D6" Stroke="#FF3B82D6" StrokeThickness="1" Visibility="Collapsed"/>
+            </Canvas>
+        </Grid>
 
         <StackPanel Grid.Row="1" Orientation="Horizontal">
             <TextBlock Margin="6,2" Foreground="DimGray" Text="{Binding Status}"/>
