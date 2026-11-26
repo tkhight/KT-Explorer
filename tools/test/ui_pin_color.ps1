@@ -16,7 +16,10 @@ function Open-TabMenu($tab) {
     $rc = $tab.Current.BoundingRectangle
     Assert-AppForeground
     [void][KtWin]::SetCursorPos([int]($rc.X + $rc.Width / 2), [int]($rc.Y + $rc.Height / 2)); Start-Sleep -Milliseconds 500
-    [KtWin]::mouse_event(8, 0, 0, 0, [UIntPtr]::Zero); [KtWin]::mouse_event(16, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 1200
+    [KtWin]::mouse_event(8, 0, 0, 0, [UIntPtr]::Zero); [KtWin]::mouse_event(16, 0, 0, 0, [UIntPtr]::Zero)
+    # メニューが出きるまで待つ(固定の待ちだと、遅いときに、項目がまだ無いうちに探してしまう)
+    [void](Wait-Until { [bool](Find-AppMenuItem 'タブの色') } 4000 150)
+    Start-Sleep -Milliseconds 300
 }
 function Invoke-Item([string]$name) {
     $m = Find-AppMenuItem $name

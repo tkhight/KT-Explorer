@@ -12,6 +12,9 @@ namespace KT_Explorer;
 public partial class MainWindow : Window
 {
     private const string TabDragFormat = "KT_Explorer.Tab";
+    private const string GroupDragFormat = "KT_Explorer.TabGroup";
+    private TabGroupViewModel? _dragGroup;
+    private Point _groupDragStart;
 
     private readonly MainViewModel _vm;
     private readonly AppState _state;
@@ -1028,17 +1031,120 @@ public partial class MainWindow : Window
         DragDrop.DoDragDrop(TabBar, new DataObject(TabDragFormat, tab), DragDropEffects.Move);
     }
 
+    // グループタブをドラッグして、並べ替える
+    private void GroupBar_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _dragGroup = (e.OriginalSource as DependencyObject) is { } d ? FindAncestor<ListBoxItem>(d)?.DataContext as TabGroupViewModel : null;
+        _groupDragStart = e.GetPosition(null);
+    }
+
+    private void GroupBar_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (e.LeftButton != MouseButtonState.Pressed || _dragGroup == null) return;
+        var delta = e.GetPosition(null) - _groupDragStart;
+        if (Math.Abs(delta.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(delta.Y) < SystemParameters.MinimumVerticalDragDistance) return;
+
+        var group = _dragGroup;
+        _dragGroup = null;
+        DragDrop.DoDragDrop(GroupBar, new DataObject(GroupDragFormat, group), DragDropEffects.Move);
+    }
+
+    // グループの上へのドラッグ: タブ(このグループへ移動)か、グループ(この位置へ並べ替え)
     private void Group_DragOver(object sender, DragEventArgs e)
     {
-        e.Effects = e.Data.GetDataPresent(TabDragFormat) ? DragDropEffects.Move : DragDropEffects.None;
+        e.Effects = e.Data.GetDataPresent(TabDragFormat) || e.Data.GetDataPresent(GroupDragFormat) ? DragDropEffects.Move : DragDropEffects.None;
         e.Handled = true;
     }
 
     private void Group_Drop(object sender, DragEventArgs e)
     {
-        if (e.Data.GetData(TabDragFormat) is TabBase tab && ((FrameworkElement)sender).DataContext is TabGroupViewModel group)
-            _vm.MoveTabToGroup(tab, group);
+        if (((FrameworkElement)sender).DataContext is TabGroupViewModel group)
+        {
+            if (e.Data.GetData(TabDragFormat) is TabBase tab) _vm.MoveTabToGroup(tab, group);
+            else if (e.Data.GetData(GroupDragFormat) is TabGroupViewModel dragged) _vm.ReorderGroup(dragged, group);
+        }
         e.Handled = true;
+    }
+
+    // グループの右クリックメニュー(名前を変更 / グループの色 / グループを削除)。開くたびに組み立てる
+    private void GroupItem_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+    {
+        if (sender is not FrameworkElement fe || fe.DataContext is not TabGroupViewModel group) return;
+        var menu = new ContextMenu();
+        var rename = new MenuItem { Header = "名前を変更" };
+        rename.Click += (_, _) => RenameGroup(group);
+        menu.Items.Add(rename);
+        menu.Items.Add(BuildColorMenu("グループの色", group.Color, menu, hex => _vm.SetGroupColor(group, hex)));
+        menu.Items.Add(new Separator());
+        var delete = new MenuItem { Header = "グループを削除" };
+        delete.Click += (_, _) => DeleteGroup(group);
+        menu.Items.Add(delete);
+        OpenMenuAt(menu, fe, e);
+    }
+
+    /// <summary>
+    /// 色を選ぶサブメニュー: 24 色の格子(6 列)、「色なし」、「その他の色…」。タブとグループで共用。
+    /// owner は、色を選んだあとに閉じる右クリックのメニュー。
+    /// </summary>
+    private MenuItem BuildColorMenu(string header, string? current, ContextMenu owner, Action<string?> apply)
+    {
+        var colorMenu = new MenuItem { Header = header };
+
+        var grid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 6, Margin = new Thickness(2) };
+        var swatchStyle = (Style)FindResource("KtSwatch");
+        foreach (var (name, hex) in TabColors.Palette)
+        {
+            string h = hex;
+            var swatch = new Button
+            {
+                Style = swatchStyle,
+                Background = TabColors.Brush(h),
+                ToolTip = name,
+                Tag = string.Equals(current, h, StringComparison.OrdinalIgnoreCase) ? "selected" : null,
+            };
+            System.Windows.Automation.AutomationProperties.SetName(swatch, name);
+            swatch.Click += (_, _) => { owner.IsOpen = false; apply(h); };
+            grid.Children.Add(swatch);
+        }
+        // 格子は、メニュー項目の見た目(ホバーやチェックの欄)を持たない、入れ物として置く
+        var host = new MenuItem { Header = grid, StaysOpenOnClick = true, Focusable = false };
+        var frame = new FrameworkElementFactory(typeof(ContentPresenter));
+        frame.SetValue(ContentPresenter.ContentSourceProperty, "Header");
+        host.Template = new ControlTemplate(typeof(MenuItem)) { VisualTree = frame };
+        colorMenu.Items.Add(host);
+        colorMenu.Items.Add(new Separator());
+
+        var none = new MenuItem { Header = "色なし", IsChecked = current == null };
+        none.Click += (_, _) => apply(null);
+        colorMenu.Items.Add(none);
+
+        bool custom = current != null && !TabColors.Palette.Any(p => string.Equals(p.Hex, current, StringComparison.OrdinalIgnoreCase));
+        var other = new MenuItem
+        {
+            Header = "その他の色…",
+            IsChecked = custom,
+            Icon = custom ? new System.Windows.Shapes.Rectangle { Width = 12, Height = 12, Fill = TabColors.Brush(current) } : null,
+        };
+        // 色の選択画面は、メニューが閉じてから開く
+        other.Click += (_, _) => AfterMenuClosed(() => PickColor(current, apply));
+        colorMenu.Items.Add(other);
+        return colorMenu;
+    }
+
+    /// <summary>Windows 標準の色の選択画面で、好きな色を選ぶ(キャンセルなら、何もしない)。</summary>
+    private void PickColor(string? current, Action<string?> apply)
+    {
+        using var dialog = new System.Windows.Forms.ColorDialog { FullOpen = true, AnyColor = true };
+        if (TabColors.Normalize(current) is { } c) dialog.Color = System.Drawing.ColorTranslator.FromHtml(c);
+        var owner = new System.Windows.Forms.NativeWindow();
+        owner.AssignHandle(WindowHandle);
+        try
+        {
+            if (dialog.ShowDialog(owner) == System.Windows.Forms.DialogResult.OK)
+                apply($"#{dialog.Color.R:X2}{dialog.Color.G:X2}{dialog.Color.B:X2}");
+        }
+        finally { owner.ReleaseHandle(); }
     }
 
     // タブの右クリックメニュー(移動先グループは開くたびに組み立てる)
@@ -1070,23 +1176,7 @@ public partial class MainWindow : Window
         menu.Items.Add(pin);
 
         // タブの色: 色の見本つき。いまの色にチェック
-        var colorMenu = new MenuItem { Header = "タブの色" };
-        var none = new MenuItem { Header = "色なし", IsCheckable = false, IsChecked = tab.TabColor == null };
-        none.Click += (_, _) => _vm.SetTabColor(tab, null);
-        colorMenu.Items.Add(none);
-        foreach (var (name, hex) in TabColors.Palette)
-        {
-            string h = hex;
-            var item = new MenuItem
-            {
-                Header = name,
-                IsChecked = string.Equals(tab.TabColor, h, StringComparison.OrdinalIgnoreCase),
-                Icon = new System.Windows.Shapes.Rectangle { Width = 12, Height = 12, Fill = TabColors.Brush(h) },
-            };
-            item.Click += (_, _) => _vm.SetTabColor(tab, h);
-            colorMenu.Items.Add(item);
-        }
-        menu.Items.Add(colorMenu);
+        menu.Items.Add(BuildColorMenu("タブの色", tab.TabColor, menu, hex => _vm.SetTabColor(tab, hex)));
         menu.Items.Add(new Separator());
         var close = new MenuItem { Header = "タブを閉じる", InputGestureText = "Ctrl+W", IsEnabled = !tab.IsPinned,
             ToolTip = tab.IsPinned ? "ピン留めされたタブは閉じられません(ピン留めを外してください)" : null };
@@ -1164,16 +1254,14 @@ public partial class MainWindow : Window
         if (name != null) _vm.AddGroup(name);
     }
 
-    private void RenameGroup_Click(object sender, RoutedEventArgs e)
+    private void RenameGroup(TabGroupViewModel group)
     {
-        if (((FrameworkElement)sender).DataContext is not TabGroupViewModel group) return;
         var name = InputDialog.Ask(this, "グループ名を変更", "新しいグループ名:", group.Name);
         if (name != null) _vm.RenameGroup(group, name);
     }
 
-    private void DeleteGroup_Click(object sender, RoutedEventArgs e)
+    private void DeleteGroup(TabGroupViewModel group)
     {
-        if (((FrameworkElement)sender).DataContext is not TabGroupViewModel group) return;
         if (group.IsDefault)
         {
             MessageBox.Show("デフォルトグループは削除できません。", "KT_Explorer");
@@ -1203,9 +1291,11 @@ public partial class MainWindow : Window
         var fromTab = new MenuItem { Header = "既存タブから選択…", IsEnabled = candidates.Count >= PaneRequest.Min };
         fromTab.Click += (_, _) => Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, () =>
         {
-            var list = candidates.Select(c => ($"{c.Group.Name} / {c.Tab.Title}  —  {c.Tab.Path}", c.Tab.Path)).ToList();
-            var picked = PaneCreateDialog.PickTabs(this, list, _vm.CurrentFolder?.Path);
-            if (picked != null && !_vm.CreatePanes(picked))
+            var list = candidates.Select(c => new PaneChoice(c.Tab.Title, c.Tab.Path, c.Group.Name, c.Group.Color)).ToList();
+            var picked = PaneCreateDialog.PickTabs(this, list);
+            // 選んだタブのグループを、各ペインの参照元(一覧の色)にする
+            if (picked != null && !_vm.CreatePanes(picked.Select(i => candidates[i].Tab.Path).ToList(),
+                                                   picked.Select(i => (TabGroupViewModel?)candidates[i].Group).ToList()))
                 MessageBox.Show("ペインを作れませんでした(フォルダが見つからないタブがあります)。", "KT_Explorer");
         });
         menu.Items.Add(fromTab);

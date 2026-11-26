@@ -241,10 +241,13 @@ public partial class MainViewModel : ObservableObject
             ? state.Groups
             : new List<GroupState> { new() { Name = "デフォルト", IsDefault = true, TabPaths = state.TabPaths, SelectedIndex = state.SelectedIndex } };
 
+        // デフォルトグループは、保存した印で決める(グループを並べ替えられるので、位置では決めない)。印が無ければ先頭
+        int defaultIndex = Math.Max(saved.FindIndex(g => g.IsDefault), 0);
         for (int i = 0; i < saved.Count; i++)
         {
             var gs = saved[i];
-            var group = new TabGroupViewModel(string.IsNullOrWhiteSpace(gs.Name) ? "グループ" : gs.Name, isDefault: i == 0);
+            var group = new TabGroupViewModel(string.IsNullOrWhiteSpace(gs.Name) ? "グループ" : gs.Name, isDefault: i == defaultIndex);
+            group.Color = TabColors.Normalize(gs.Color);
             for (int k = 0; k < gs.TabPaths.Count; k++)
             {
                 if (!Directory.Exists(gs.TabPaths[k])) continue;
@@ -286,6 +289,8 @@ public partial class MainViewModel : ObservableObject
         if (_selectedGroup != null) _selectedGroup.LastSelected = _selectedTab;
         _selectedGroup = group;
         OnPropertyChanged(nameof(SelectedGroup));
+        OnPropertyChanged(nameof(ViewBackground));
+        OnPropertyChanged(nameof(ViewHeaderBackground));
         var target = group.LastSelected != null && group.Tabs.Contains(group.LastSelected)
             ? group.LastSelected
             : group.Tabs.FirstOrDefault();
@@ -413,7 +418,7 @@ public partial class MainViewModel : ObservableObject
         if (tab is FolderTabViewModel f) f.IsPinned = !f.IsPinned;
     }
 
-    /// <summary>タブの色を変える。null か、パレットにない色は、色なしにする。</summary>
+    /// <summary>タブの色を変える。null か、色の形(#RRGGBB)でないものは、色なしにする。</summary>
     public void SetTabColor(TabBase tab, string? hex) => tab.TabColor = TabColors.Normalize(hex);
 
     private FolderTabViewModel AddTab(string path, bool select = false)
@@ -480,7 +485,7 @@ public partial class MainViewModel : ObservableObject
         else if (tab is PaneTabViewModel pane)
         {
             Select(tab); // 複製は、選択中のタブの右隣に作られる
-            CreatePaneTab(pane.Panes.Select(p => p.Path).ToList());
+            CreatePaneTab(pane.Panes.Select(p => p.Path).ToList(), pane.Panes.Select(p => p.SourceGroup).ToList());
         }
     }
 
@@ -522,6 +527,29 @@ public partial class MainViewModel : ObservableObject
         SelectGroup(group);
     }
 
+    public void ReorderGroup(TabGroupViewModel group, TabGroupViewModel target)
+    {
+        if (ReferenceEquals(group, target) || !Groups.Contains(group) || !Groups.Contains(target)) return;
+        Groups.Move(Groups.IndexOf(group), Groups.IndexOf(target));
+        OnPropertyChanged(nameof(SelectedGroup)); // 並べ替えのあとも、グループバーの選択の表示を合わせる
+    }
+
+    /// <summary>グループの色を変える。null か、色の形(#RRGGBB)でないものは、色なしにする。</summary>
+    public void SetGroupColor(TabGroupViewModel group, string? hex)
+    {
+        group.Color = TabColors.Normalize(hex);
+        OnPropertyChanged(nameof(ViewBackground));
+        OnPropertyChanged(nameof(ViewHeaderBackground));
+    }
+
+    /// <summary>一覧の背景: 表示中のグループの色を、ごく薄く(約 6%)したもの。色が無ければ白。</summary>
+    public System.Windows.Media.Brush ViewBackground => TabColors.Pale(_selectedGroup?.Color, TabColors.ViewTint);
+
+    /// <summary>一覧の列見出し(名前・更新日時…の行)の背景: 一覧より濃い(約 24%)。色が無ければ透明(一覧の背景が見える)。</summary>
+    public System.Windows.Media.Brush ViewHeaderBackground => _selectedGroup?.Color == null
+        ? System.Windows.Media.Brushes.Transparent : TabColors.Pale(_selectedGroup.Color, TabColors.HeaderTint);
+
+
     public void RenameGroup(TabGroupViewModel group, string name)
     {
         if (!string.IsNullOrWhiteSpace(name)) group.Name = name.Trim();
@@ -534,6 +562,8 @@ public partial class MainViewModel : ObservableObject
         bool wasSelected = group == _selectedGroup;
         Groups.Remove(group);
         foreach (var tab in group.Tabs) tab.Dispose();
+        // 削除したグループから来たペインは、参照元なし(表示中のグループの色)に戻す
+        foreach (var f in AllFolders().Where(f => ReferenceEquals(f.SourceGroup, group)).ToList()) f.SourceGroup = null;
         if (wasSelected) SelectGroup(Groups[0]);
         return true;
     }
@@ -584,20 +614,24 @@ public partial class MainViewModel : ObservableObject
         string path = CurrentFolder.Path;
         if (_selectedTab is PaneTabViewModel existing)
         {
-            while (existing.Panes.Count < count && existing.AddPane(path)) { }
+            while (existing.Panes.Count < count && existing.AddPane(path, _selectedGroup)) { }
             return;
         }
-        CreatePaneTab(Enumerable.Repeat(path, count));
+        // 今のフォルダを増やすので、今のグループを参照元にする
+        CreatePaneTab(Enumerable.Repeat(path, count), Enumerable.Repeat<TabGroupViewModel?>(_selectedGroup, count).ToList());
     }
 
     /// <summary>
     /// 指定した 2 つか 3 つのフォルダで、ペインを作る(「指定ペイン」の「既存タブから選択」「フォルダを指定」)。
     /// カレントタブの右隣に、新しいペインタブとして作り、選択する。存在しないフォルダが含まれるときや、数が 2〜3 でないときは、何もせず false。
     /// </summary>
-    public bool CreatePanes(IReadOnlyList<string> paths)
+    public bool CreatePanes(IReadOnlyList<string> paths) => CreatePanes(paths, null);
+
+    /// <param name="sources">各ペインの参照元のグループ(paths と同じ順)。null か、要素が null のペインは、参照元なし。</param>
+    public bool CreatePanes(IReadOnlyList<string> paths, IReadOnlyList<TabGroupViewModel?>? sources)
     {
         if (!PaneRequest.IsValidCount(paths.Count) || paths.Any(p => !Directory.Exists(p))) return false;
-        CreatePaneTab(paths);
+        CreatePaneTab(paths, sources);
         return true;
     }
 
@@ -605,9 +639,9 @@ public partial class MainViewModel : ObservableObject
     public IEnumerable<(TabGroupViewModel Group, FolderTabViewModel Tab)> AllFolderTabs() =>
         Groups.SelectMany(g => g.Tabs.OfType<FolderTabViewModel>().Select(t => (g, t)));
 
-    private void CreatePaneTab(IEnumerable<string> paths)
+    private void CreatePaneTab(IEnumerable<string> paths, IReadOnlyList<TabGroupViewModel?>? sources = null)
     {
-        var pane = new PaneTabViewModel(paths);
+        var pane = new PaneTabViewModel(paths, sources);
         pane.ActivePaneChanged += UpdateCurrentFolder;
         pane.RequestClose += ClosePaneTab;
 
@@ -704,7 +738,7 @@ public partial class MainViewModel : ObservableObject
     public void ImportFolder(string path)
     {
         string p = FolderTabViewModel.Normalize(path);
-        var def = Groups[0];
+        var def = Groups.First(g => g.IsDefault);
         var tab = def.Tabs.OfType<FolderTabViewModel>()
                       .FirstOrDefault(t => string.Equals(t.Path, p, StringComparison.OrdinalIgnoreCase));
         if (tab == null)
@@ -779,7 +813,7 @@ public partial class MainViewModel : ObservableObject
                 }
                 if (ReferenceEquals(t, selected)) selectedIndex = Math.Max(folderTabs.Count - 1, 0);
             }
-            state.Groups.Add(new GroupState { Name = g.Name, IsDefault = g.IsDefault, TabPaths = folderTabs, TabSorts = tabSorts, SelectedIndex = selectedIndex });
+            state.Groups.Add(new GroupState { Name = g.Name, IsDefault = g.IsDefault, Color = g.Color, TabPaths = folderTabs, TabSorts = tabSorts, SelectedIndex = selectedIndex });
         }
         return state;
     }

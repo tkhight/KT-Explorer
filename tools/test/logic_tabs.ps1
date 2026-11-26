@@ -181,6 +181,50 @@ try {
     Check 'multi-row tabs: restored from the state' ($vmM.MultiRowTabs -eq $true)
     $vm.MultiRowTabs = $false
     Check 'multi-row tabs: turned off again' (-not $vm.ToState().MultiRowTabs)
+
+    # ── グループの並べ替え・色・デフォルトグループ(並べ替えても同じグループのまま)
+    $vmG = [Activator]::CreateInstance($MVM, [object[]]@([Activator]::CreateInstance($AS)))
+    $def = $vmG.Groups[0]
+    $vmG.AddGroup('G-A'); $ga = $vmG.SelectedGroup
+    $vmG.AddGroup('G-B'); $gb = $vmG.SelectedGroup
+    function Names { @($vmG.Groups | ForEach-Object { $_.Name }) -join ',' }
+    Check 'group order: added in order' ((Names) -eq "$($def.Name),G-A,G-B")
+    $vmG.ReorderGroup($gb, $def)
+    Check 'group order: drag B onto the first -> B comes first' ((Names) -eq "G-B,$($def.Name),G-A")
+    Check 'group order: the selected group does not change' ($vmG.SelectedGroup -eq $gb)
+    Check 'group order: the default group is still the same group (not by position)' ($def.IsDefault -and -not $vmG.Groups[0].IsDefault)
+    $vmG.ReorderGroup($ga, $ga)
+    Check 'group order: dropping onto itself does nothing' ((Names) -eq "G-B,$($def.Name),G-A")
+    $vmG.SetGroupColor($ga, '#30A46C')
+    Check 'group color: set' ($ga.Color -eq '#30A46C' -and $ga.ColorBrush.Color.G -eq 0xA4 -and $ga.TintBrush.Color.A -lt 255)
+    $vmG.SetGroupColor($gb, '#abc')
+    Check 'group color: a value that is not #RRGGBB becomes no color' ($null -eq $gb.Color)
+    # 一覧の背景: 表示中のグループの色を、ごく薄く(約 6%)。色が無ければ白。任意の色も使える
+    function Bg { $c = $vmG.ViewBackground.Color; '{0},{1},{2}' -f $c.R, $c.G, $c.B }
+    $vmG.SelectedGroup = $ga
+    Check 'view background: the shown group color, very pale (#30A46C -> 243,250,246)' ((Bg) -eq '243,250,246')
+    function Hd { $c = $vmG.ViewHeaderBackground.Color; '{0},{1},{2},{3}' -f $c.A, $c.R, $c.G, $c.B }
+    Check 'column header: a little darker than the list (#30A46C 24% -> 205,233,220)' ((Hd) -eq '255,205,233,220')
+    $vmG.SelectedGroup = $gb
+    Check 'view background: a group without a color is white' ((Bg) -eq '255,255,255')
+    Check 'column header: transparent for a group without a color' ($vmG.ViewHeaderBackground.Color.A -eq 0)
+    $vmG.SetGroupColor($gb, '#000000')
+    Check 'view background: even black stays readable (6% only)' (((Bg) -eq '240,240,240') -or ((Bg) -eq '239,239,239'))
+    $vmG.SetGroupColor($gb, $null)
+    Check 'view background: clearing the color of the shown group returns to white' ((Bg) -eq '255,255,255')
+    $stG = $vmG.ToState()
+    Check 'group state: order, color and the default mark are saved' (($stG.Groups[0].Name -eq 'G-B') -and ($stG.Groups[2].Color -eq '#30A46C') -and $stG.Groups[1].IsDefault -and -not $stG.Groups[0].IsDefault)
+    $vmG2 = [Activator]::CreateInstance($MVM, [object[]]@($stG))
+    $d2 = $vmG2.Groups | Where-Object { $_.IsDefault }
+    Check 'group state: restored (order, color, default group)' (((@($vmG2.Groups | ForEach-Object { $_.Name }) -join ',') -eq "G-B,$($def.Name),G-A") -and ($vmG2.Groups[2].Color -eq '#30A46C') -and (@($d2).Count -eq 1) -and ($d2.Name -eq $def.Name))
+    New-Item -ItemType Directory "$d\import" -Force | Out-Null
+    $vmG2.ImportFolder("$d\import")
+    Check 'default group: an imported Explorer folder goes into the default group even after reordering' (($vmG2.SelectedGroup.IsDefault) -and (@($vmG2.SelectedGroup.Tabs | Where-Object { $_.Path -eq "$d\import" }).Count -eq 1))
+    Check 'default group: cannot be deleted even when it is not first' ($vmG2.DeleteGroup($d2) -eq $false)
+    # 古い状態(デフォルトの印が無い)は、先頭がデフォルト
+    $old = [System.Text.Json.JsonSerializer]::Deserialize('{"Groups":[{"Name":"x","TabPaths":[]},{"Name":"y","TabPaths":[]}]}', $AS)
+    $vmO = [Activator]::CreateInstance($MVM, [object[]]@($old))
+    Check 'default group: without a saved mark, the first group is the default' ($vmO.Groups[0].IsDefault -and -not $vmO.Groups[1].IsDefault)
 }
 finally {
     Remove-TestDir $d

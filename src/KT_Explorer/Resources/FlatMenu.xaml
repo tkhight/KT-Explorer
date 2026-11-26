@@ -171,6 +171,27 @@
         </ControlTemplate.Triggers>
     </ControlTemplate>
 
+    <!-- 色の見本(格子で選ぶ)。Tag が selected のものは、青い枠で示す -->
+    <Style x:Key="KtSwatch" TargetType="Button">
+        <Setter Property="Width" Value="24"/>
+        <Setter Property="Height" Value="20"/>
+        <Setter Property="Margin" Value="3"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Ring" CornerRadius="6" BorderThickness="2" BorderBrush="Transparent" Padding="1">
+                        <Border CornerRadius="4" Background="{TemplateBinding Background}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Ring" Property="BorderBrush" Value="#FF9A9A9A"/></Trigger>
+                        <Trigger Property="Tag" Value="selected"><Setter TargetName="Ring" Property="BorderBrush" Value="#FF0B5CAD"/></Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- すべてのメニューの項目に、役割(メニューバーの見出し・項目 / サブメニューの項目・見出し)に合った見た目を当てる -->
     <Style TargetType="MenuItem">
         <Setter Property="Foreground" Value="{StaticResource KtMenuText}"/>

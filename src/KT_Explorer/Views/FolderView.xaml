@@ -1,6 +1,7 @@
 <UserControl x:Class="KT_Explorer.Views.FolderView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:KT_Explorer.Views"
              PreviewMouseDown="OnActivate" GotKeyboardFocus="OnActivate">
     <UserControl.Resources>
         <!-- アイコン・一覧の表示で使う、名前の通常表示と、直接編集の入力欄(詳細の名前の列と同じ動き。Tag="NameText" は、ゆっくり2回クリックでの名前の変更の目印) -->
@@ -20,9 +21,20 @@
             </Style.Triggers>
         </Style>
 
+        <local:FirstBrushConverter x:Key="FirstBrush"/>
+
         <!-- 一覧の列見出し: 立体的なボタンをやめ、フラットに(下に細い線)。ホバーで淡い水色。列幅の変更(右端のつまみ)は、そのまま使える -->
         <Style x:Key="KtColumnHeader" TargetType="GridViewColumnHeader">
-            <Setter Property="Background" Value="#FFFFFFFF"/>
+            <!-- 表示中のグループに色があれば、一覧の背景より少し濃い色。無ければ透明(一覧の背景が見える) -->
+            <!-- ペインは、参照元のグループの色を優先する -->
+            <Setter Property="Background">
+                <Setter.Value>
+                    <MultiBinding Converter="{StaticResource FirstBrush}" FallbackValue="Transparent">
+                        <Binding Path="DataContext.SourceViewHeaderBackground" RelativeSource="{RelativeSource AncestorType=UserControl}"/>
+                        <Binding Path="DataContext.ViewHeaderBackground" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                    </MultiBinding>
+                </Setter.Value>
+            </Setter>
             <Setter Property="Foreground" Value="#FF444444"/>
             <Setter Property="HorizontalContentAlignment" Value="Left"/>
             <Setter Property="Padding" Value="8,0"/>
@@ -101,6 +113,7 @@
         </Grid.RowDefinitions>
 
         <!-- 文字を打つと、その文字で始まる名前の項目へ移動する(TextSearch。続けて打つと絞られ、少し間を置くとリセット) -->
+        <!-- 背景は、表示中のグループ(ペインは参照元のグループ)の色を、ごく薄くしたもの。色が無ければ白 -->
         <ListView x:Name="FileList" ItemsSource="{Binding Items}" SelectionMode="Extended" AllowDrop="True"
                   IsTextSearchEnabled="True" TextSearch.TextPath="Name"
                   MouseDoubleClick="FileList_MouseDoubleClick" KeyDown="FileList_KeyDown"
@@ -113,6 +126,12 @@
                   GridViewColumnHeader.Click="ColumnHeader_Click"
                   SelectionChanged="FileList_SelectionChanged"
                   DragOver="FileList_DragOver" Drop="FileList_Drop">
+            <ListView.Background>
+                <MultiBinding Converter="{StaticResource FirstBrush}" FallbackValue="White">
+                    <Binding Path="DataContext.SourceViewBackground" RelativeSource="{RelativeSource AncestorType=UserControl}"/>
+                    <Binding Path="DataContext.ViewBackground" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                </MultiBinding>
+            </ListView.Background>
             <ListView.View>
                 <GridView ColumnHeaderContainerStyle="{StaticResource KtColumnHeader}">
                     <GridViewColumn Header="名前" Width="280">

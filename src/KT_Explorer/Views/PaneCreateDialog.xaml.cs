@@ -1,6 +1,8 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
+using KT_Explorer.Models;
 using KT_Explorer.Services;
 
 namespace KT_Explorer.Views;
@@ -8,15 +10,33 @@ namespace KT_Explorer.Views;
 /// <summary>タブの候補1つ分(チェックの状態を持つ)。</summary>
 public sealed partial class PaneChoice : ObservableObject
 {
-    public PaneChoice(string label, string path, bool isChecked)
+    /// <param name="title">タブの名前。groupName・groupColor: そのタブのグループ(名札と行の色にする)。</param>
+    public PaneChoice(string title, string path, string groupName, string? groupColor)
     {
-        Label = label;
+        Title = title;
         Path = path;
-        _isChecked = isChecked;
+        GroupName = groupName;
+        Display = $"{title}  —  {path}";
+        Label = $"{groupName} / {Display}";
+        // 行の背景: グループの色(列見出しと同じ濃さ)。色の無いグループは透明
+        RowBrush = TabColors.Normalize(groupColor) == null ? Brushes.Transparent : TabColors.Pale(groupColor, TabColors.HeaderTint);
+        TagBrush = TabColors.Brush(groupColor ?? TabColors.NoColorTag);
+        TagTextBrush = TabColors.TextOn(groupColor);
     }
 
-    public string Label { get; }
+    public string Title { get; }
     public string Path { get; }
+    public string GroupName { get; }
+
+    /// <summary>行に出す文字(グループ名は名札で示すので、含めない)。</summary>
+    public string Display { get; }
+
+    /// <summary>グループ名を含む全体の文字(画面の読み上げ・自動操作用の名前)。</summary>
+    public string Label { get; }
+
+    public Brush RowBrush { get; }
+    public Brush TagBrush { get; }
+    public Brush TagTextBrush { get; }
 
     [ObservableProperty] private bool _isChecked;
 
@@ -40,17 +60,19 @@ public partial class PaneCreateDialog : Window
     /// <summary>結果(作成するペインのフォルダ。2〜3 件)。</summary>
     public List<string> Result { get; private set; } = new();
 
-    /// <summary>既存タブから選ぶ。candidates: (表示名, パス)。preChecked: 最初からチェックを付けるパス。キャンセルなら null。</summary>
-    public static List<string>? PickTabs(Window owner, IReadOnlyList<(string Label, string Path)> candidates, string? preChecked)
+    /// <summary>「既存タブから選択」で、チェックしたタブの、候補の中の番号。</summary>
+    private List<int> _resultIndexes = new();
+
+    /// <summary>既存タブから選ぶ。candidates: 候補のタブ。最初は何もチェックしない(同じフォルダのタブが複数あると、意図しないものまで選ばれるため)。戻り値は、選んだ候補の番号(キャンセルなら null)。</summary>
+    public static List<int>? PickTabs(Window owner, IReadOnlyList<PaneChoice> candidates)
     {
         var dlg = new PaneCreateDialog { Owner = owner, _tabMode = true, Title = "指定ペイン: 既存タブから選択" };
         dlg.HeaderText.Text = $"ペインにするタブにチェックを付けてください({PaneRequest.Min} つか {PaneRequest.Max} つ)。";
-        foreach (var (label, path) in candidates)
-            dlg._choices.Add(new PaneChoice(label, path, string.Equals(path, preChecked, StringComparison.OrdinalIgnoreCase)));
+        dlg._choices.AddRange(candidates);
         dlg.TabList.ItemsSource = dlg._choices;
         dlg.TabList.Visibility = Visibility.Visible;
         dlg.Recompute();
-        return dlg.ShowDialog() == true ? dlg.Result : null;
+        return dlg.ShowDialog() == true ? dlg._resultIndexes : null;
     }
 
     /// <summary>フォルダを 2 つか 3 つ指定する。キャンセルなら null。</summary>
@@ -100,6 +122,7 @@ public partial class PaneCreateDialog : Window
             int n = _choices.Count(c => c.IsChecked);
             foreach (var c in _choices) c.CanCheck = c.IsChecked || n < PaneRequest.Max; // 3 つ選んだら、残りは外すまでチェックできない
             Result = _choices.Where(c => c.IsChecked).Select(c => c.Path).ToList();
+            _resultIndexes = Enumerable.Range(0, _choices.Count).Where(i => _choices[i].IsChecked).ToList();
             CreateButton.IsEnabled = PaneRequest.IsValidCount(n);
             CountText.Text = $"選択: {n} 個({PaneRequest.Min}〜{PaneRequest.Max} 個で作成できます)";
         }

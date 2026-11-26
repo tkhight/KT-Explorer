@@ -99,7 +99,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
-                        <Border x:Name="Bd" Background="Transparent" CornerRadius="5" Padding="6,2">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="5" Padding="2,1">
                             <ContentPresenter VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -303,6 +303,7 @@
                         Click="AddGroup_Click"><TextBlock Style="{StaticResource KtIcon}" Text="&#xE710;"/></Button>
                 <ListBox x:Name="GroupBar" ItemsSource="{Binding Groups}" SelectedItem="{Binding SelectedGroup}" ItemContainerStyle="{StaticResource KtGroupItem}"
                          BorderThickness="0" Background="Transparent"
+                         PreviewMouseLeftButtonDown="GroupBar_PreviewMouseLeftButtonDown" PreviewMouseMove="GroupBar_PreviewMouseMove"
                          ScrollViewer.VerticalScrollBarVisibility="Disabled"
                          ScrollViewer.HorizontalScrollBarVisibility="Auto"
                          PreviewMouseWheel="GroupBar_PreviewMouseWheel">
@@ -311,16 +312,12 @@
                     </ListBox.ItemsPanel>
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding Display}" Padding="6,1" FontWeight="SemiBold" AllowDrop="True" Background="Transparent"
-                                       ToolTip="タブをドロップするとこのグループへ移動"
-                                       DragOver="Group_DragOver" Drop="Group_Drop">
-                                <TextBlock.ContextMenu>
-                                    <ContextMenu>
-                                        <MenuItem Header="名前を変更" Click="RenameGroup_Click"/>
-                                        <MenuItem Header="グループを削除" Click="DeleteGroup_Click"/>
-                                    </ContextMenu>
-                                </TextBlock.ContextMenu>
-                            </TextBlock>
+                            <!-- 色: 下に太い線 + 薄い背景(フォルダタブの色と同じ表し方) -->
+                            <Border Padding="8,2" BorderThickness="0,0,0,3" BorderBrush="{Binding ColorBrush}" Background="{Binding TintBrush}"
+                                    AllowDrop="True" ToolTip="ドラッグで並べ替え。タブをドロップすると、このグループへ移動"
+                                    DragOver="Group_DragOver" Drop="Group_Drop" ContextMenuOpening="GroupItem_ContextMenuOpening">
+                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                            </Border>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
