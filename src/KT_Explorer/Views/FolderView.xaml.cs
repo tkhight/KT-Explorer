@@ -183,6 +183,8 @@ public partial class FolderView : UserControl
     private void ApplyViewMode()
     {
         var mode = Vm?.ViewMode ?? ViewMode.Details;
+        EndMarquee();
+        HeaderStrip.Visibility = mode is ViewMode.Icons or ViewMode.List ? Visibility.Collapsed : Visibility.Visible;
         switch (mode)
         {
             case ViewMode.Icons:
@@ -857,6 +859,9 @@ public partial class FolderView : UserControl
         _dragArmed = item != null;
         _dragOrigin = e.GetPosition(null);
         _collapseItem = null;
+
+        // 余白・下の空き・名前以外の列で押した → ドラッグは範囲選択(ファイルのドラッグにはしない)
+        if (ArmMarquee(e, item)) { _dragArmed = false; return; }
 
         // すでに1つだけ選択されている項目の名前をクリックした → ゆっくり2回クリックでの名前の変更の候補
         bool onName = (e.OriginalSource as FrameworkElement)?.Tag as string == "NameText";
