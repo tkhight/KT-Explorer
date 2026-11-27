@@ -27,6 +27,34 @@ try {
 
     Check 'the old "設定 ▾" button is gone' (-not (@(Find-All 'Button') | Where-Object { $_.Current.Name -like '設定*' }))
 
+    # ── 同じ名前のタブの親フォルダ名: 既定はオンで表示され、「ツール」メニューでオフ/オンできる
+    function Tab-Texts([string]$text) {
+        $A = $global:Kt.A
+        @(Find-All 'ListItem' | Where-Object { $_.Current.Name -like '*FolderTab*' } | Where-Object {
+            $_.FindFirst('Descendants', (New-Object Windows.Automation.PropertyCondition($A::NameProperty, $text))) }).Count
+    }
+    New-Item -ItemType Directory "$d\PA\images", "$d\PB\images" | Out-Null
+    Move-To "$d\PA\images"
+    Set-Foreground; Send-Keys '^t' 500; Move-To "$d\PB\images"
+    [void](Wait-Until { (Tab-Texts 'PA') -eq 1 } 3000 150)
+    Check 'two tabs named "images" show their parent folders (PA, PB)' (((Tab-Texts 'PA') -eq 1) -and ((Tab-Texts 'PB') -eq 1))
+    function Toggle-Hint {
+        Open-Menu 'ツール(T)'
+        $m = Find-AppMenuItem '同じ名前のタブに親フォルダ名を表示'
+        if (-not $m) { Stop-Test 'the parent-name item was not found in the Tools menu' }
+        $state = Toggle-State '同じ名前のタブに親フォルダ名を表示'
+        $m.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep -Milliseconds 700
+        Close-Menus
+        $state
+    }
+    $state = Toggle-Hint
+    [void](Wait-Until { (Tab-Texts 'PA') -eq 0 } 3000 150)
+    Check "Tools menu: the item was on ($state), turning it off hides the parent names" (($state -eq 'On') -and ((Tab-Texts 'PA') -eq 0) -and ((Tab-Texts 'PB') -eq 0))
+    $state = Toggle-Hint
+    [void](Wait-Until { (Tab-Texts 'PA') -eq 1 } 3000 150)
+    Check "Tools menu: turning it on again shows them ($state -> On)" (($state -eq 'Off') -and ((Tab-Texts 'PA') -eq 1))
+    Move-To $d
+
     # ── 表示メニュー: ツリー連動 / プレビュー / フォルダーを先頭に
     Open-Menu '表示(V)'
     foreach ($n in 'ツリーをタブに連動', 'プレビューを表示', 'フォルダーを先頭にまとめる') {

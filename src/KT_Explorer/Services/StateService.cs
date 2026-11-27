@@ -95,6 +95,9 @@ public sealed class AppState
     /// <summary>フォルダタブを、1 段で横にスクロールさせず、幅に収まらない分を次の段へ折り返して、すべて見えるように表示する。</summary>
     public bool MultiRowTabs { get; set; }
 
+    /// <summary>同じ名前のフォルダタブに、親フォルダの名前を添える。</summary>
+    public bool ShowParentNames { get; set; } = true;
+
     /// <summary>一覧のアイコンに、シェルのオーバーレイ(OneDrive・SVN などの状態)を重ねる。</summary>
     public bool ShowOverlayIcons { get; set; } = true;
 

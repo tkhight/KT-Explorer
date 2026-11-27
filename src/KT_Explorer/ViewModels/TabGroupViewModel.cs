@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using KT_Explorer.Models;
@@ -21,6 +23,43 @@ public partial class TabGroupViewModel : ObservableObject
     {
         _name = name;
         IsDefault = isDefault;
+        Tabs.CollectionChanged += OnTabsChanged;
+    }
+
+    // ───────── 同じ名前のタブに添える、親フォルダの名前 ─────────
+
+    /// <summary>同じ名前のフォルダタブに、親フォルダの名前を添える(「ツール」メニューの設定)。</summary>
+    [ObservableProperty] private bool _showParentNames;
+
+    partial void OnShowParentNamesChanged(bool value) => RefreshTitleHints();
+
+    private void OnTabsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.Action != NotifyCollectionChangedAction.Move)
+        {
+            foreach (var tab in e.OldItems?.OfType<FolderTabViewModel>() ?? Enumerable.Empty<FolderTabViewModel>())
+            {
+                tab.PropertyChanged -= OnTabPropertyChanged;
+                tab.TitleHint = "";
+            }
+            foreach (var tab in e.NewItems?.OfType<FolderTabViewModel>() ?? Enumerable.Empty<FolderTabViewModel>())
+                tab.PropertyChanged += OnTabPropertyChanged;
+        }
+        RefreshTitleHints();
+    }
+
+    // 同じ名前の別の場所へ移ったときはタイトルが変わらないので、パスの変化を見る
+    private void OnTabPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(FolderTabViewModel.Path)) RefreshTitleHints();
+    }
+
+    /// <summary>このグループのフォルダタブの添え字を作り直す(ペインタブは対象外)。</summary>
+    private void RefreshTitleHints()
+    {
+        var folders = Tabs.OfType<FolderTabViewModel>().ToList();
+        var hints = ShowParentNames ? TabTitles.ParentHints(folders.Select(f => f.Path).ToList()) : null;
+        for (int i = 0; i < folders.Count; i++) folders[i].TitleHint = hints?[i] ?? "";
     }
 
     /// <summary>デフォルトグループ(外部から開いたフォルダの取り込み先。削除不可)。並べ替えで位置が変わっても、このグループのまま。</summary>

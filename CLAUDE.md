@@ -18,7 +18,7 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 
 | 目的 | 実行 |
 |---|---|
-| タブ・ツリーのロジック(開き直し・複製・名前変更/削除への追従・ツリー更新)。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_tabs.ps1'` |
+| タブ・ツリーのロジック(開き直し・複製・名前変更/削除への追従・ツリー更新・同じ名前のタブに添える親フォルダ名)。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_tabs.ps1'` |
 | ツリーの新規作成・名前の変更(その場で入力)の画面テスト | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_tree_rename.ps1'` |
 | 一覧の名前の変更(その場で入力)の画面テスト | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_list_rename.ps1'` |
 | 先頭文字入力、閉じたタブの開き直し(`Ctrl+Shift+T`)の画面テスト | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_typeahead_tabs.ps1'` |
@@ -65,7 +65,7 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 | ピン留め(別のフォルダへ移ると新しいタブで開く・内部の移動は動く)とタブの色(パレット・複製・開き直し・状態の保存と復元・古い状態の読み込み)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_pin.ps1'` |
 | パスのコピーの画面テスト(長いパスで、パンくず・パス欄・タブの右クリックからコピーできる)。クリップボードを書き換える | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_copy_path.ps1'` |
 | ピン留めとタブの色の画面テスト(タブの右クリックから留める・外す、移動で新しいタブ、色の線が画面に出る)。実際のマウスを使う | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_pin_color.ps1'` |
-| 旧「設定」の項目を振り分けた「表示」「ツール」メニューの画面テスト(項目の有無、オン/オフの切り替え、「設定」ボタンが無いこと)。自動起動(レジストリ)は押さない | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_settings.ps1'` |
+| 旧「設定」の項目を振り分けた「表示」「ツール」メニューの画面テスト(項目の有無、オン/オフの切り替え、同じ名前のタブの親フォルダ名の表示と切り替え、「設定」ボタンが無いこと)。自動起動(レジストリ)は押さない | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_settings.ps1'` |
 | 中断したテストの後片付け(`%TEMP%\kt_test_*` を消す) | `& 'E:\KT_Applications\KT_Explorer\tools\test\cleanup.ps1'` |
 
 - 実行前に、上のビルドを行う。結果は `OK` / `NG` の行と、最後の `RESULT: ok=… ng=…`。
