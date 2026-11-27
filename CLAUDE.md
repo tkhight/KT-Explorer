@@ -42,8 +42,8 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 | 検索(絞込と同じ条件 `type:` `ext:` `size:` など、ファイルの中身 `content:` / `中身:`)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_search.ps1'` |
 | 詳細表示の追加の列(作成日時・属性・画像のサイズ・再生時間)と列の選択のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_columns.ps1'` |
 | 一覧の範囲選択の画面テスト(左右の余白・名前以外の列からのドラッグ、下の方の行でのずれ、`Ctrl` で追加、解除、自動スクロール、名前からのドラッグはファイルの移動、アイコン表示)。マウスを実際に動かす | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_marquee.ps1'` |
-| 一覧とツリーの右クリックメニューの 1 文字キーの画面テスト(D=削除、M=名前の変更、C/P=コピー・貼り付け、W→F=新規フォルダー、ツリー、日本語入力がオンでも効く)。テスト用の 1 ファイルがごみ箱に入る。クリップボードを書き換える | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_context_keys.ps1'` |
-| メニューバー「ファイル」のロジック(WinMerge の引数の組み立て・見つけ方)。画面は出ない。WinMerge は起動しない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_menu_file.ps1'` |
+| 一覧とツリーの右クリックメニューの 1 文字キーの画面テスト(D=削除、M=名前の変更、C/P=コピー・貼り付け、W→F=新規フォルダー、ツリー、日本語入力がオンでも効く、WinMerge の比較の項目の有無)。WinMerge は起動しない。テスト用の 1 ファイルがごみ箱に入る。クリップボードを書き換える | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_context_keys.ps1'` |
+| メニューバー「ファイル」のロジック(WinMerge の引数の組み立て・見つけ方・右クリックで比較する対象の選び方)。画面は出ない。WinMerge は起動しない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_menu_file.ps1'` |
 | メニューバー「ファイル」の画面テスト(項目の有無、新規作成でフォルダー・テキストが作られる、プロパティの画面が出る)。ターミナル・WinMerge・終了は押さない | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_file.ps1'` |
 | マウスジェスチャ「右ボタン+ホイール」(上=左のタブ・下=右のタブ。Ctrl つきは前・次のタブグループ)と、ロッカー(右ボタンを押したまま左クリック=タブを閉じる)の判定のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_gesture.ps1'` |
 | 同じジェスチャとロッカーの画面テスト(実際のマウス入力)。**StrokesPlus などのマウスジェスチャの常駐ツールが、KT_Explorer を除外していないと、合成した右ボタンが横取りされて失敗する**(ツールで KT_Explorer を除外するか、無効にして実行する。除外していれば、有効なままで通る: 2026-11-26 に確認、13 件 OK・約 45 秒) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_gesture_wheel.ps1'` |
@@ -51,7 +51,7 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 | 指定ペインの作成ダイアログの画面テスト(既存タブにチェックを付けて作成、フォルダを 2〜3 個指定して作成、キャンセル) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_pane_create.ps1'` |
 | メニューバー「編集」の画面テスト(元に戻す・やり直し・切り取り・コピー・貼り付け・削除・全て選択。ファイルへの操作と、入力欄の文字への操作)。クリップボードを書き換える | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_menu_edit.ps1'` |
 | アプリのアイコン(app.ico の大きさの種類、exe のアイコン、トレイのアイコンの読み込み)のロジック。画面は出ない | `& 'E:\KT_Applications\KT_Explorer\tools\test\logic_icon.ps1'` |
-| グループタブの画面テスト(件数が付かない・ドラッグで並べ替え・クリックだけでは並ばない・右クリックの「グループの色」の格子で色を選ぶと色の線が付き、一覧と列見出しの背景がごく薄いその色になる・「その他の色…」の画面を開いてキャンセル・「色なし」で戻る)。2 ペインの名札と色も確認。実際のマウスを使う。ロジック(並べ替え・色・デフォルトグループ)は `logic_tabs.ps1` に含む | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_group_tabs.ps1'` |
+| グループタブの画面テスト(件数が付かない・ドラッグで並べ替え・クリックだけでは並ばない・全周を囲む形であること、右クリックの「グループの色」の格子で色を選ぶと枠と背景がその色になり、一覧と列見出しの背景がごく薄いその色になる・「その他の色…」の画面を開いてキャンセル・「色なし」で戻る)。2 ペインの名札と色も確認。実際のマウスを使う。ロジック(並べ替え・色・デフォルトグループ)は `logic_tabs.ps1` に含む | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_group_tabs.ps1'` |
 | コピー・貼り付けの対象と、ツリーの Ctrl+クリックの画面テスト(タブ A でコピー → タブ B をクリックした直後に Ctrl+V が、タブ B に貼り付く / ペイン A でコピー → ペイン B のヘッダーをクリックして Ctrl+V が、ペイン B に貼り付く / ツリーのフォルダの Ctrl+クリックで新しいタブ)。クリップボードを書き換える。マウスを実際に動かす | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_paste_target.ps1'` |
 | メニューのフラットなデザインの画面テスト(メニューバーのホバー・開いている見出しの色、開いたメニューのホバー・使えない項目の灰色・チェックの青いマークを、画素で確かめる)。マウスを実際に動かす。メニューの見た目は、`src/KT_Explorer/Resources/FlatMenu.xaml`(アプリ全体のリソース) | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_flat_menu.ps1'` |
 | 統一したフラットなデザインの画面テスト(枠なし・ホバーの水色・プレビューのオンの色・選択中のグループタブとフォルダタブの色・一覧の列見出しのホバー・入力欄の枠と入力中の青い線・ペインタブの図柄を、画素で確かめる。ペインのボタンでペインタブができる)。ボタンの `AutomationId` は `Panes2Button` `Panes3Button` `SpecifyPaneButton` `PreviewToggle` `AddGroupButton` など。マウスを実際に動かす | `& 'E:\KT_Applications\KT_Explorer\tools\test\ui_flat_style.ps1'` |

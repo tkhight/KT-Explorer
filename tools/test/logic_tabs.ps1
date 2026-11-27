@@ -196,7 +196,9 @@ try {
     $vmG.ReorderGroup($ga, $ga)
     Check 'group order: dropping onto itself does nothing' ((Names) -eq "G-B,$($def.Name),G-A")
     $vmG.SetGroupColor($ga, '#30A46C')
-    Check 'group color: set' ($ga.Color -eq '#30A46C' -and $ga.ColorBrush.Color.G -eq 0xA4 -and $ga.TintBrush.Color.A -lt 255)
+    function Rgb($b) { '{0},{1},{2}' -f $b.Color.R, $b.Color.G, $b.Color.B }
+    Check 'group color: set (outline = the color, selected fill = 24% of it)' (($ga.Color -eq '#30A46C') -and ((Rgb $ga.OutlineBrush) -eq '48,164,108') -and ((Rgb $ga.SelectedOutlineBrush) -eq '48,164,108') -and ((Rgb $ga.SelectedFillBrush) -eq '205,233,220'))
+    Check 'group without a color: gray outline, blue outline and light blue fill when selected' (((Rgb $gb.OutlineBrush) -eq '195,201,209') -and ((Rgb $gb.SelectedOutlineBrush) -eq '59,130,214') -and ((Rgb $gb.SelectedFillBrush) -eq '220,235,250'))
     $vmG.SetGroupColor($gb, '#abc')
     Check 'group color: a value that is not #RRGGBB becomes no color' ($null -eq $gb.Color)
     # 一覧の背景: 表示中のグループの色を、ごく薄く(約 6%)。色が無ければ白。任意の色も使える

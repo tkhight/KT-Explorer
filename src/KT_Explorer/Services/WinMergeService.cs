@@ -38,6 +38,19 @@ public static class WinMergeService
         return args;
     }
 
+    /// <summary>
+    /// 一覧の右クリックで比較する 2 つ。このペイン(一覧)で 2 つ選んでいれば、その 2 つ。1 つで、右隣のペインでも 1 つ選んでいれば、
+    /// その 2 つ(このペインの方が左)。比較できないとき(数が違う、ファイルとフォルダーの組)は null。
+    /// </summary>
+    public static IReadOnlyList<string>? ContextTargets(IReadOnlyList<string> selected, IReadOnlyList<string>? nextPaneSelected)
+    {
+        List<string> targets;
+        if (selected.Count == 2) targets = selected.ToList();
+        else if (selected.Count == 1 && nextPaneSelected is { Count: 1 }) targets = new List<string> { selected[0], nextPaneSelected[0] };
+        else return null;
+        return BuildArguments(targets) == null ? null : targets;
+    }
+
     /// <summary>WinMerge を起動する。起動できれば true。</summary>
     public static bool Launch(IReadOnlyList<string> arguments, out string? error)
     {

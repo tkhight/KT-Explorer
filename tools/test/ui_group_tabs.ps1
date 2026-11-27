@@ -1,5 +1,5 @@
 # グループタブの画面テスト: 件数が付かないこと、ドラッグで並べ替えられること(実際のマウス)、
-# 右クリックの「グループの色」で色の線が付き「色なし」で消えること(画素)。
+# 全周を囲む形であること、右クリックの「グループの色」で枠と背景がその色になり「色なし」で戻ること(画素)。
 # 事前に: dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 # 使い方: & 'E:\KT_Applications\KT_Explorer\tools\test\ui_group_tabs.ps1'
 # 操作するのは %TEMP%\kt_test_ui_group_tabs の中だけ。KT_Explorer が起動中なら、閉じてからテストする(ユーザーの指示)。
@@ -81,20 +81,41 @@ try {
     Check "3) a plain click does not reorder ($(Group-Names))" ((Group-Names) -eq $order)
     Check '3) and it selects that group' ($second.GetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern).Current.IsSelected)
 
+    # ── 3b) 全周を囲む形: 選択していないグループにも、上下左右に灰色(#C3C9D1)の枠がある
+    function Edge-Colors($item) {
+        $rc = $item.Current.BoundingRectangle
+        $bmp = New-Object System.Drawing.Bitmap([int]$rc.Width, [int]$rc.Height)
+        $g = [System.Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen([int]$rc.X, [int]$rc.Y, 0, 0, $bmp.Size); $g.Dispose()
+        $mx = [int]($bmp.Width / 2); $my = [int]($bmp.Height / 2)
+        $edges = @(
+            @(0..3 | ForEach-Object { $bmp.GetPixel($mx, $_) }),
+            @(0..3 | ForEach-Object { $bmp.GetPixel($mx, $bmp.Height - 1 - $_) }),
+            @(0..3 | ForEach-Object { $bmp.GetPixel($_, $my) }),
+            @(0..3 | ForEach-Object { $bmp.GetPixel($bmp.Width - 1 - $_, $my) }))
+        $bmp.Dispose(); $edges
+    }
+    $unselected = (Get-Groups)[0].Item
+    if ($unselected.GetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern).Current.IsSelected) { $unselected = (Get-Groups)[2].Item }
+    $framed = @(Edge-Colors $unselected | Where-Object { @($_ | Where-Object { [Math]::Abs($_.R - 195) -le 14 -and [Math]::Abs($_.G - 201) -le 14 -and [Math]::Abs($_.B - 209) -le 14 }).Count -gt 0 }).Count
+    Check "3b) an unselected group tab is framed on all four sides (sides with the frame color: $framed)" ($framed -eq 4)
+
     # ── 4) 色: 右クリック → グループの色 → 赤。色なしで消える
     $target = (Get-Groups)[0].Item
-    Check '4) no red line before choosing a color' (-not (Has-Color $target 0xE5 0x48 0x4D))
+    Check '4) no red frame before choosing a color' (-not (Has-Color $target 0xE5 0x48 0x4D))
     Right-Click $target
     Check '4) the group menu has rename / color / delete' (([bool](Find-AppMenuItem '名前を変更')) -and ([bool](Find-AppMenuItem 'グループの色')) -and ([bool](Find-AppMenuItem 'グループを削除')))
     (Find-AppMenuItem 'グループの色').GetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern).Expand(); Start-Sleep -Milliseconds 700
     Invoke-Item '赤'
     [void](Wait-Until { Has-Color (Get-Groups)[0].Item 0xE5 0x48 0x4D } 2500 200)
-    Check '4) after choosing 赤, the group tab shows a red line' (Has-Color (Get-Groups)[0].Item 0xE5 0x48 0x4D)
+    Check '4) after choosing 赤, the group tab shows a red frame' (Has-Color (Get-Groups)[0].Item 0xE5 0x48 0x4D)
+    Click-Element (Get-Groups)[0].Item
+    Check '4) the selected red group is filled with pale red' (Has-Color (Get-Groups)[0].Item 249 211 212)
+    Click-Element (Get-Groups)[1].Item
     Right-Click (Get-Groups)[0].Item
     (Find-AppMenuItem 'グループの色').GetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern).Expand(); Start-Sleep -Milliseconds 700
     Invoke-Item '色なし'
     [void](Wait-Until { -not (Has-Color (Get-Groups)[0].Item 0xE5 0x48 0x4D) } 2500 200)
-    Check '4) after choosing 色なし, the red line is gone' (-not (Has-Color (Get-Groups)[0].Item 0xE5 0x48 0x4D))
+    Check '4) after choosing 色なし, the red frame is gone' (-not (Has-Color (Get-Groups)[0].Item 0xE5 0x48 0x4D))
 
     # ── 5) 一覧の背景が、表示中のグループの色を、ごく薄くしたものになる(緑 #30A46C → 243,250,246)
     Click-Element (Get-Groups)[0].Item

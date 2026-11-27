@@ -382,6 +382,12 @@ public partial class FolderView : UserControl
         return i < 0 || tab.Panes.Count < 2 ? null : tab.Panes[(i + 1) % tab.Panes.Count];
     }
 
+    private static void CompareWithWinMerge(IReadOnlyList<string> paths)
+    {
+        if (!WinMergeService.Launch(WinMergeService.BuildArguments(paths)!, out var error))
+            MessageBox.Show(error, "KT_Explorer", MessageBoxButton.OK, MessageBoxImage.Warning);
+    }
+
     /// <summary>選択項目を、別のペインが表示しているフォルダへコピー/移動する。</summary>
     private async void TransferToPane(FolderTabViewModel? target, bool move)
     {
@@ -699,6 +705,14 @@ public partial class FolderView : UserControl
             // フォルダを1つ選んでいるときは、そのフォルダの中へ貼り付ける
             Add("貼り付け(_P)", () => Paste(single is { IsDirectory: true } ? single.FullPath : null), "Ctrl+V", canPaste);
             AddPaneTransfer(menu, vm, Add);
+            // WinMerge: 2 つ選んでいればその 2 つ。1 つで、右隣のペインでも 1 つ選んでいれば、その 2 つ
+            var compare = WinMergeService.ContextTargets(sel.Select(s => s.FullPath).ToList(),
+                NextPane()?.Selection.Select(s => s.FullPath).ToList());
+            if (compare != null)
+            {
+                menu.Items.Add(new Separator());
+                Add(sel.Count == 2 ? "WinMergeで比較(_G)" : "反対のペインの選択と比較(_G)", () => CompareWithWinMerge(compare));
+            }
             menu.Items.Add(new Separator());
             Add("名前の変更(_M)", RenameSelected, "F2", single != null);
             Add("削除(_D)", () => DeleteSelection(permanent: false), "Del");

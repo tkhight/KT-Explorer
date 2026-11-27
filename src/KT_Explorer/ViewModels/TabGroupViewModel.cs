@@ -12,8 +12,9 @@ public partial class TabGroupViewModel : ObservableObject
 
     /// <summary>グループの色(<see cref="TabColors.Palette"/> の #RRGGBB)。色なしは null。</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ColorBrush))]
-    [NotifyPropertyChangedFor(nameof(TintBrush))]
+    [NotifyPropertyChangedFor(nameof(OutlineBrush))]
+    [NotifyPropertyChangedFor(nameof(SelectedOutlineBrush))]
+    [NotifyPropertyChangedFor(nameof(SelectedFillBrush))]
     private string? _color;
 
     public TabGroupViewModel(string name, bool isDefault = false)
@@ -30,9 +31,14 @@ public partial class TabGroupViewModel : ObservableObject
     /// <summary>このグループで最後に選択していたタブ(グループ切替時に復元)。</summary>
     public TabBase? LastSelected { get; set; }
 
-    /// <summary>グループの下の線の色(色なしは透明)。</summary>
-    public Brush ColorBrush => TabColors.Brush(Color);
+    // グループタブは、全周を囲む形(下の線で色を示すフォルダタブと、見分けられるように)
 
-    /// <summary>グループの背景の薄い色(色なしは透明)。</summary>
-    public Brush TintBrush => TabColors.Brush(Color, 60);
+    /// <summary>選択していないときの枠の色(色なしは灰色)。</summary>
+    public Brush OutlineBrush => TabColors.Brush(Color ?? "#C3C9D1");
+
+    /// <summary>選択中の枠の色(色なしは青)。</summary>
+    public Brush SelectedOutlineBrush => TabColors.Brush(Color ?? "#3B82D6");
+
+    /// <summary>選択中の背景(グループの色を薄くしたもの。色なしは薄い青)。</summary>
+    public Brush SelectedFillBrush => Color == null ? TabColors.Brush("#DCEBFA") : TabColors.Pale(Color, TabColors.HeaderTint);
 }
