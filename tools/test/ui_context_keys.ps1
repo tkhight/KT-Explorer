@@ -104,6 +104,37 @@ try {
     $e = Get-InlineEdit
     Check '6) M in the tree menu starts renaming the folder' ($e -and (Get-Text $e) -eq 'kt_test_ui_context_keys')
     Press 0x1B
+
+    # ── 7) WinMerge の比較の項目(外部のアプリが起動するので、押さない。出る・出ないだけを見る)
+    Move-To $d
+    # その名前の文字を、左から順に(ペインが 2 つあると、2 つ見つかる)
+    function Name-Texts([string]$name) {
+        $tree = $global:Kt.Win.Current.BoundingRectangle.X + 250
+        @(Find-All 'Text' | Where-Object { $_.Current.Name -eq $name -and $_.Current.BoundingRectangle.X -gt $tree -and $_.Current.BoundingRectangle.Y -gt ($global:Kt.Win.Current.BoundingRectangle.Y + 150) } | Sort-Object { $_.Current.BoundingRectangle.X })
+    }
+    function Center($el) { $r = $el.Current.BoundingRectangle; @([int]($r.X + [Math]::Min(20, $r.Width / 2)), [int]($r.Y + $r.Height / 2)) }
+    function Ctrl-Click($el) {
+        $p = Center $el
+        [KtWin]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
+        try { Click-Point $p[0] $p[1] } finally { [KtWin]::keybd_event(0x11, 0, 2, [UIntPtr]::Zero) }
+    }
+    $p = Center (Name-Text 'a.txt'); Click-Point $p[0] $p[1]
+    Right-Click-Name 'a.txt'
+    Check '7) one selected, no panes: no WinMerge item' (-not (Find-AppMenuItem 'WinMergeで比較(G)') -and -not (Find-AppMenuItem '反対のペインの選択と比較(G)'))
+    Press 0x1B
+    Ctrl-Click (Name-Text 'b.txt')
+    Right-Click-Name 'b.txt'
+    Check '7) two selected: "WinMergeで比較(G)" is offered' ([bool](Find-AppMenuItem 'WinMergeで比較(G)'))
+    Press 0x1B
+
+    (Find-ById 'Panes2Button').GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke()
+    [void](Wait-Until { (Name-Texts 'a.txt').Count -eq 2 } 4000 200)
+    if ((Name-Texts 'a.txt').Count -ne 2) { Stop-Test 'two panes did not appear' }
+    $p = Center (Name-Texts 'a.txt')[0]; Click-Point $p[0] $p[1]
+    $p = Center (Name-Texts 'b.txt')[1]; Click-Point $p[0] $p[1]
+    $p = Center (Name-Texts 'b.txt')[1]; Right-Click $p[0] $p[1]
+    Check '7) one selected in each pane: "反対のペインの選択と比較(G)" is offered' ([bool](Find-AppMenuItem '反対のペインの選択と比較(G)'))
+    Press 0x1B
 }
 finally {
     Stop-KtApp
