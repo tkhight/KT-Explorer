@@ -9,6 +9,9 @@ public abstract partial class TabBase : ObservableObject, IDisposable
 {
     [ObservableProperty] private string _title = "";
 
+    /// <summary>同じ名前のタブがあるときに、名前の後ろに添える親フォルダの名前(添えないときは "")。</summary>
+    [ObservableProperty] private string _titleHint = "";
+
     /// <summary>ピン留め。ピン留めされたフォルダタブは、そこから別のフォルダへ移動すると、移動先を新しいタブで開く(ペインタブは対象外)。</summary>
     [ObservableProperty] private bool _isPinned;
 

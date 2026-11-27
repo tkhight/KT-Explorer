@@ -553,6 +553,19 @@
                                         </Grid>
                                         <TextBlock Text="{Binding Title}" MaxWidth="200" TextTrimming="CharacterEllipsis"
                                                    Margin="2,0" VerticalAlignment="Center"/>
+                                        <!-- 同じ名前のタブがあるときの、親フォルダの名前(灰色の小さい文字) -->
+                                        <TextBlock Text="{Binding TitleHint}" MaxWidth="140" TextTrimming="CharacterEllipsis"
+                                                   Margin="3,1,2,0" FontSize="11" Foreground="#FF77808C" VerticalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding TitleHint}" Value="">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>

@@ -36,6 +36,14 @@ public partial class MainViewModel : ObservableObject
     /// <summary>フォルダタブを、複数段に折り返して表示する(オフなら、1 段で、あふれた分は横にスクロール)。</summary>
     [ObservableProperty] private bool _multiRowTabs;
 
+    /// <summary>同じ名前のフォルダタブに、親フォルダの名前を添える。</summary>
+    [ObservableProperty] private bool _showParentNames = true;
+
+    partial void OnShowParentNamesChanged(bool value)
+    {
+        foreach (var g in Groups) g.ShowParentNames = value;
+    }
+
     /// <summary>一覧のアイコンに、シェルのオーバーレイ(OneDrive・SVN などの状態)を重ねる。</summary>
     [ObservableProperty] private bool _showOverlayIcons = true;
 
@@ -228,6 +236,11 @@ public partial class MainViewModel : ObservableObject
         ShowPreview = state.ShowPreview;
         ShowOverlayIcons = state.ShowOverlayIcons;
         MultiRowTabs = state.MultiRowTabs;
+        ShowParentNames = state.ShowParentNames;
+        Groups.CollectionChanged += (_, e) =>
+        {
+            foreach (var g in e.NewItems?.OfType<TabGroupViewModel>() ?? Enumerable.Empty<TabGroupViewModel>()) g.ShowParentNames = ShowParentNames;
+        };
         foreach (var fs in state.Favorites)
         {
             var fav = FavoriteFromState(fs);
@@ -795,6 +808,7 @@ public partial class MainViewModel : ObservableObject
             ShowPreview = ShowPreview,
             ShowOverlayIcons = ShowOverlayIcons,
             MultiRowTabs = MultiRowTabs,
+            ShowParentNames = ShowParentNames,
             SelectedGroupIndex = Groups.IndexOf(_selectedGroup),
         };
         foreach (var f in Favorites) state.Favorites.Add(FavoriteToState(f));

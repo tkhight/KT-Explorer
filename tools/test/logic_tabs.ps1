@@ -188,6 +188,42 @@ try {
     $vmG.AddGroup('G-A'); $ga = $vmG.SelectedGroup
     $vmG.AddGroup('G-B'); $gb = $vmG.SelectedGroup
     function Names { @($vmG.Groups | ForEach-Object { $_.Name }) -join ',' }
+
+    # ── 同じ名前のタブに添える親フォルダ名
+    $TT = $asm.GetType('KT_Explorer.Models.TabTitles')
+    function Hints([string[]]$paths) {
+        $list = [System.Collections.Generic.List[string]]::new(); foreach ($p in $paths) { $list.Add($p) }
+        @($TT.GetMethod('ParentHints').Invoke($null, [object[]]@(, $list))) -join '|'
+    }
+    Check 'hint: different parents' ((Hints 'C:\w\ProjectA\images', 'C:\w\ProjectB\images') -eq 'ProjectA|ProjectB')
+    Check 'hint: same parent name -> the level that differs' ((Hints 'C:\ProjectA\src\images', 'C:\ProjectB\src\images') -eq 'ProjectA|ProjectB')
+    Check 'hint: only for duplicated names' ((Hints 'C:\a\images', 'C:\a\docs', 'C:\b\IMAGES') -eq 'a||b')
+    Check 'hint: the same folder twice gets nothing' ((Hints 'C:\a\images', 'C:\a\images\') -eq '|')
+    Check 'hint: the same folder twice plus another place' ((Hints 'C:\a\images', 'C:\a\images', 'C:\b\images') -eq 'a|a|b')
+    Check 'hint: directly under a drive shows the drive' ((Hints 'C:\images', 'D:\images') -eq 'C:|D:')
+    Check 'hint: three tabs, each from its first differing level' ((Hints 'C:\A\src\x', 'C:\B\src\x', 'C:\C\lib\x') -eq 'A|B|lib')
+
+    $h = Join-Path $d 'hint'
+    New-Item -ItemType Directory "$h\PA\images", "$h\PB\images", "$h\other" -Force | Out-Null
+    $vmH = [Activator]::CreateInstance($MVM, [object[]]@([Activator]::CreateInstance($asm.GetType('KT_Explorer.Services.AppState'))))
+    $vmH.OpenInNewTab("$h\PA\images"); $t1 = $vmH.SelectedTab
+    Check 'hint: on by default, nothing while the name is unique' ($vmH.ShowParentNames -and $t1.TitleHint -eq '')
+    $vmH.OpenInNewTab("$h\PB\images"); $t2 = $vmH.SelectedTab
+    Check 'hint: a second tab with the same name gives both a hint' (($t1.TitleHint -eq 'PA') -and ($t2.TitleHint -eq 'PB'))
+    $t2.NavigateTo("$h\other")
+    Check 'hint: gone when the names differ again' (($t1.TitleHint -eq '') -and ($t2.TitleHint -eq ''))
+    $t2.NavigateTo("$h\PB\images")
+    Check 'hint: back after navigating to the same name' (($t1.TitleHint -eq 'PA') -and ($t2.TitleHint -eq 'PB'))
+    $vmH.ShowParentNames = $false
+    Check 'hint: off removes them, and is saved' (($t1.TitleHint -eq '') -and ($t2.TitleHint -eq '') -and (-not $vmH.ToState().ShowParentNames))
+    $vmH.ShowParentNames = $true
+    Check 'hint: on again brings them back' (($t1.TitleHint -eq 'PA') -and ($t2.TitleHint -eq 'PB'))
+    $src = $vmH.SelectedGroup; $vmH.AddGroup('H2'); $other = $vmH.SelectedGroup
+    $vmH.MoveTabToGroup($t2, $other)
+    Check 'hint: only within one group (moving a tab away clears both)' (($t1.TitleHint -eq '') -and ($t2.TitleHint -eq ''))
+    $st = $vmH.ToState(); $st.ShowParentNames = $false
+    $vmH2 = [Activator]::CreateInstance($MVM, [object[]]@($st))
+    Check 'hint: the off setting is restored' (-not $vmH2.ShowParentNames)
     Check 'group order: added in order' ((Names) -eq "$($def.Name),G-A,G-B")
     $vmG.ReorderGroup($gb, $def)
     Check 'group order: drag B onto the first -> B comes first' ((Names) -eq "G-B,$($def.Name),G-A")

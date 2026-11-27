@@ -628,7 +628,7 @@ public partial class MainWindow : Window
             "アイコンに、OneDrive の同期状態・SVN の状態・ショートカットの矢印などを重ねます(エクスプローラーと同じ)。重いときは、オフにしてください"));
     }
 
-    /// <summary>「ツール」メニュー: マウスジェスチャ / 開いた Explorer を取り込む / 閉じるボタンでトレイに常駐 / フォルダーのサイズを自動計算 / Windows 起動時に自動起動。</summary>
+    /// <summary>「ツール」メニュー: マウスジェスチャ / 同じ名前のタブに親フォルダ名を表示 / 開いた Explorer を取り込む / 閉じるボタンでトレイに常駐 / フォルダーのサイズを自動計算 / Windows 起動時に自動起動。</summary>
     private void ToolsMenu_SubmenuOpened(object sender, RoutedEventArgs e)
     {
         if (!IsOwnOpen(sender, e)) return;
@@ -636,6 +636,8 @@ public partial class MainWindow : Window
         menu.Items.Clear();
 
         menu.Items.Add(SettingCheck("マウスジェスチャ(右ドラッグ)", nameof(MainViewModel.EnableGestures), "左=戻る / 右=進む / 上=一つ上の階層へ / 右ボタン+ホイール: 上=左のタブ・下=右のタブ / Ctrl も押すと、前・次のタブグループ / 右ボタンを押したまま左クリック: いまのタブを閉じる"));
+        menu.Items.Add(SettingCheck("同じ名前のタブに親フォルダ名を表示", nameof(MainViewModel.ShowParentNames),
+            "同じグループに、同じ名前で場所の違うフォルダタブがあるとき、名前の後ろに親フォルダの名前を添えます"));
         menu.Items.Add(SettingCheck("開いた Explorer を取り込む", nameof(MainViewModel.CaptureExplorer),
             "デスクトップ等から開いた Explorer をデフォルトグループのタブへ取り込みます"));
         menu.Items.Add(SettingCheck("閉じるボタンでトレイに常駐", nameof(MainViewModel.CloseToTray),
