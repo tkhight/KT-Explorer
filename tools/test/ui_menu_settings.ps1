@@ -78,6 +78,26 @@ try {
     $after = Toggle-State 'フォルダーのサイズを自動計算'
     Check "Tools menu: 'auto folder size' toggles ($before -> $after)" (($before -ne $after) -and $before -and $after)
     Close-Menus
+
+    # ── ヘルプ → バージョン情報: 版番号の入った小窓が出て、閉じられる
+    Open-Menu 'ヘルプ(H)'
+    # 「使い方」は、ブラウザ(外部のアプリ)が開くので、押さない(項目の有無だけを見る)
+    $usage = Find-AppMenuItem '使い方(H)'
+    Check 'Help menu has the usage item' ($usage -and $usage.Current.IsEnabled)
+    $about = Find-AppMenuItem 'バージョン情報(A)'
+    if (-not $about) { Stop-Test 'About item not found' }
+    $about.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke()
+    $shown = Wait-Until { [bool](Find-AppMenuItem 'バージョン情報') } 4000 150
+    Check 'Help > About opens the version dialog' $shown
+    if ($shown) {
+        $A = $global:Kt.A
+        $dlg = Find-AppMenuItem 'バージョン情報'
+        # 小窓の文章は、環境によって Text ではなく Pane として見えるので、種類で絞らずに名前を集める
+        $texts = @($dlg.FindAll('Descendants', [Windows.Automation.Condition]::TrueCondition) | ForEach-Object { $_.Current.Name }) -join ' '
+        Check "About shows the version number and the license" (($texts -match '\d+\.\d+\.\d+') -and ($texts -match 'MIT License'))
+        $dlg.GetCurrentPattern([Windows.Automation.WindowPattern]::Pattern).Close()
+        [void](Wait-Until { -not (Find-AppMenuItem 'バージョン情報') } 3000 150)
+    }
 }
 finally {
     Stop-KtApp
