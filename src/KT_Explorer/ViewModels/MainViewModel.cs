@@ -16,7 +16,7 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty] private bool _syncTreeWithTab = true;
     [ObservableProperty] private bool _enableGestures = true;
-    [ObservableProperty] private bool _captureExplorer = true;
+    [ObservableProperty] private bool _captureExplorer;
     [ObservableProperty] private bool _closeToTray = true;
 
     /// <summary>プレビューウィンドウを表示する。</summary>
@@ -351,6 +351,12 @@ public partial class MainViewModel : ObservableObject
         void AddRoot(string name, string path)
         {
             if (Directory.Exists(path)) TreeRoots.Add(new TreeNodeViewModel(name, path, OnTreeNodeSelected));
+        }
+        // 説明用の画面の撮影では、実際のドライブや個人のフォルダを写さないように、指定のフォルダだけを根にする
+        if (Environment.GetEnvironmentVariable("KT_EXPLORER_TREE_ROOT") is { Length: > 0 } only)
+        {
+            AddRoot(only.TrimEnd('\\'), only);
+            return;
         }
         string profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         AddRoot("デスクトップ", Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory));

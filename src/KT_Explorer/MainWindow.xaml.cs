@@ -215,6 +215,16 @@ public partial class MainWindow : Window
 
     private void MenuExit_Click(object sender, RoutedEventArgs e) => ExitApp();
 
+    private void MenuAbout_Click(object sender, RoutedEventArgs e)
+    {
+        // 版番号は、プロジェクトファイルの <Version>(配布用の zip の名前と同じ)
+        var version = typeof(MainWindow).Assembly.GetName().Version?.ToString(3);
+        MessageBox.Show(this,
+            $"KT_Explorer  バージョン {version}\n\nCopyright (c) 2026 tkhight\nMIT License(無保証)\n\n"
+            + "使用しているもの: .NET、CommunityToolkit.Mvvm(どちらも MIT License)",
+            "バージョン情報");
+    }
+
     /// <summary>
     /// WinMerge で比較する対象。選択が 2 つなら、その 2 つ。選択が 2 つでなく、ペインが 2 つ以上あれば、操作中のペインと、その右隣(右端なら左端)のペインのフォルダ。
     /// それ以外は、何も渡さず WinMerge だけを起動する。

@@ -189,6 +189,12 @@ try {
     $vmG.AddGroup('G-B'); $gb = $vmG.SelectedGroup
     function Names { @($vmG.Groups | ForEach-Object { $_.Name }) -join ',' }
 
+    # ── 開いた Explorer の取り込み: 初めて使うときはオフ。保存した設定は、そのまま
+    $AST = $asm.GetType('KT_Explorer.Services.AppState')
+    $fresh = [Activator]::CreateInstance($AST)
+    $on = [Activator]::CreateInstance($AST); $on.CaptureExplorer = $true
+    Check 'explorer capture: off by default, a saved "on" is kept' ((-not $fresh.CaptureExplorer) -and (-not [Activator]::CreateInstance($MVM, [object[]]@($fresh)).CaptureExplorer) -and [Activator]::CreateInstance($MVM, [object[]]@($on)).ToState().CaptureExplorer)
+
     # ── 同じ名前のタブに添える親フォルダ名
     $TT = $asm.GetType('KT_Explorer.Models.TabTitles')
     function Hints([string[]]$paths) {

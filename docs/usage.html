@@ -28,10 +28,16 @@
   table.keys td:first-child, table.keys td:nth-child(3) { width:9%; text-align:center; }
   kbd { display:inline-block; background:var(--key); border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:0 6px; font:12.5px/1.7 Consolas,monospace; white-space:nowrap; }
   code { background:var(--panel); border-radius:4px; padding:1px 5px; font-family:Consolas,monospace; font-size:13px; }
+  figure { margin:12px 0 18px; }
+  figure img { display:block; max-width:100%; height:auto; border:1px solid var(--line); border-radius:8px; background:#fff; }
+  figcaption { color:var(--sub); font-size:13px; margin-top:6px; }
+  ol.legend { list-style:none; counter-reset:n; display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:4px 16px; padding:0; font-size:14px; }
+  ol.legend li { counter-increment:n; display:flex; gap:8px; align-items:flex-start; }
+  ol.legend li::before { content:counter(n); flex:none; width:20px; height:20px; margin-top:2px; border-radius:50%; background:#e64a19; color:#fff; font:700 12px/20px "Segoe UI",sans-serif; text-align:center; }
   .note { background:var(--accent-bg); border-left:4px solid var(--accent); padding:8px 14px; margin:12px 0; }
   ul { padding-left:22px; margin:8px 0; }
   @media (max-width:760px) { .layout { display:block; padding:0 16px; } nav { position:static; width:auto; max-height:none; padding-bottom:0; } nav a { display:inline-block; } table { display:block; overflow-x:auto; } }
-  @media print { nav { display:none; } body { font-size:12px; } h2 { break-after:avoid; } tr { break-inside:avoid; } }
+  @media print { figure { break-inside:avoid; } nav { display:none; } body { font-size:12px; } h2 { break-after:avoid; } tr { break-inside:avoid; } }
 </style>
 </head>
 <body>
@@ -57,6 +63,19 @@
 <p class="lead">タブ・タブグループ・ペイン表示を持つ、Windows 用のファイルブラウザです。</p>
 
 <h2 id="screen">画面の構成</h2>
+<figure>
+  <img src="images/overview.png" alt="KT_Explorer の画面全体と、各部の番号">
+  <figcaption>画面の各部</figcaption>
+  <ol class="legend">
+    <li>メニューバー</li>
+    <li>ペインのボタン(2ペイン・3ペイン・指定ペイン)</li>
+    <li>パス欄(右に絞込欄と検索欄)</li>
+    <li>グループバー(タブグループ)</li>
+    <li>ツリー</li>
+    <li>タブバー(フォルダタブ)</li>
+    <li>一覧</li>
+  </ol>
+</figure>
 <table>
   <tr><th>場所</th><th>内容</th></tr>
   <tr><td>メニューバー(上端)</td><td>ファイル / 編集 / 表示 / お気に入り / 履歴 / ツール / ヘルプ。右端はペインのボタン(2ペイン・3ペイン・指定ペイン)</td></tr>
@@ -79,6 +98,14 @@
 </table>
 
 <h2 id="select">選択とドラッグ</h2>
+<figure>
+  <img src="images/marquee.png" alt="左の余白からドラッグして枠を描き、複数の行が選ばれている" style="max-width:620px">
+  <figcaption>余白からのドラッグで範囲選択</figcaption>
+  <ol class="legend">
+    <li>ここ(左の余白)から押したままドラッグする</li>
+    <li>枠に重なった行が選ばれる</li>
+  </ol>
+</figure>
 <div class="note">一覧では、<strong>アイコンと名前</strong>をドラッグするとファイルの移動・コピー、<strong>それ以外</strong>の場所をドラッグすると範囲選択になります。</div>
 <h3>範囲選択</h3>
 <table>
@@ -116,6 +143,10 @@
 </ul>
 
 <h2 id="context">右クリックメニュー</h2>
+<figure>
+  <img src="images/context-menu.png" alt="ファイルの右クリックメニュー。各項目の後ろにキーが出ている" style="max-width:246px">
+  <figcaption>見出しの( )の文字を押すと、その項目を実行する</figcaption>
+</figure>
 <p>一覧とツリーのメニューは、開いたあと <strong>1 文字のキー</strong>で実行できます(例: 右クリック → <kbd>D</kbd> で削除)。<kbd>Shift</kbd>+<kbd>F10</kbd> やメニューキーで開いた場合も同じです。</p>
 <table class="keys">
   <tr><th>キー</th><th>項目</th><th>キー</th><th>項目</th></tr>
@@ -135,6 +166,15 @@
 </ul>
 
 <h2 id="tab">タブ</h2>
+<figure>
+  <img src="images/tabs.png" alt="グループタブとフォルダタブ">
+  <figcaption>グループタブ(丸い形)とフォルダタブ</figcaption>
+  <ol class="legend">
+    <li>タブグループ。枠の色がグループの色</li>
+    <li>同じ名前のタブには、親フォルダの名前が灰色で付く</li>
+    <li>ピン留めしたタブ(ピンの印)。下の線はタブの色</li>
+  </ol>
+</figure>
 <table>
   <tr><th>したいこと</th><th>操作</th></tr>
   <tr><td>新しいタブ</td><td><kbd>Ctrl</kbd>+<kbd>T</kbd>、「＋」、ツリーを <kbd>Ctrl</kbd>+クリック</td></tr>
@@ -157,6 +197,10 @@
 </ul>
 
 <h2 id="pane">ペイン</h2>
+<figure>
+  <img src="images/panes.png" alt="2 つのフォルダを左右に並べたペインタブ">
+  <figcaption>ペインタブ。各ペインの上に、参照元のグループの名札とパスが出る</figcaption>
+</figure>
 <p>2〜3 個のフォルダを横に並べます。現在のタブの右隣に「ペインタブ」ができます。ペインは一時的なもので、終了すると残りません。</p>
 <table>
   <tr><th>作り方</th><th>内容</th></tr>
@@ -182,6 +226,13 @@
 </table>
 
 <h2 id="find">絞り込みと検索</h2>
+<figure>
+  <img src="images/filter.png" alt="絞込欄に条件を入れて、一覧が絞られている">
+  <figcaption>絞込欄に条件を入れた例</figcaption>
+  <ol class="legend">
+    <li><code>size:&gt;50KB</code> で、50KB より大きいファイルだけになる</li>
+  </ol>
+</figure>
 <ul>
   <li><strong>絞込</strong>(<kbd>Ctrl</kbd>+<kbd>F</kbd>): 表示中の一覧を絞ります。<kbd>Esc</kbd> で解除。</li>
   <li><strong>検索</strong>: 検索欄に入力して <kbd>Enter</kbd>。サブフォルダも探します。<kbd>Esc</kbd> で中断・解除。</li>
@@ -224,11 +275,12 @@
   <tr><td>編集</td><td>元に戻す、やり直し、切り取り、コピー、貼り付け、削除、全て選択</td></tr>
   <tr><td>表示</td><td>表示の形式、並べ替え、プレビュー、ツリーをタブに連動、フォルダーを先頭にまとめる、タブを複数段で表示、オーバーレイアイコンを表示</td></tr>
   <tr><td>ツール</td><td>マウスジェスチャ、同じ名前のタブに親フォルダ名を表示、開いた Explorer を取り込む、閉じるボタンでトレイに常駐、フォルダーのサイズを自動計算、Windows 起動時に自動起動</td></tr>
+  <tr><td>ヘルプ</td><td>バージョン情報</td></tr>
 </table>
 
 <h2 id="etc">取り込み・常駐・制約</h2>
 <ul>
-  <li><strong>Explorer の取り込み</strong>: 外部から開いたエクスプローラーを、デフォルトグループのタブにして閉じます(「PC」「ごみ箱」や複数タブのウィンドウは対象外)。</li>
+  <li><strong>Explorer の取り込み</strong>(「ツール」でオンにします。最初はオフ): 外部から開いたエクスプローラーを、デフォルトグループのタブにして閉じます(「PC」「ごみ箱」や複数タブのウィンドウは対象外)。</li>
   <li><strong>常駐</strong>: 閉じるボタンでトレイに隠れます。完全に終了するには「ファイル」→「アプリケーションの終了」。</li>
   <li><strong>仮想デスクトップ</strong>: 切り替えにウィンドウが追従します(最大 0.4 秒ほどの遅れ)。</li>
   <li><strong>保存先</strong>: <code>%AppData%\KT_Explorer\state.json</code>(タブ、グループ、お気に入り、表示の設定、履歴など)。</li>

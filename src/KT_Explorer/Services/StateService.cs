@@ -64,8 +64,9 @@ public sealed class AppState
     /// <summary>右ボタンドラッグのマウスジェスチャ(左=戻る / 右=進む / 上=一つ上)。</summary>
     public bool EnableGestures { get; set; } = true;
 
-    /// <summary>外部から開いた Explorer を KT_Explorer のデフォルトグループへ取り込む。</summary>
-    public bool CaptureExplorer { get; set; } = true;
+    /// <summary>外部から開いた Explorer を KT_Explorer のデフォルトグループへ取り込む。
+    /// 初めて使う人が、エクスプローラーが勝手に閉じたと驚かないように、既定はオフ。</summary>
+    public bool CaptureExplorer { get; set; }
 
     /// <summary>閉じるボタンで終了せず、タスクトレイへ常駐する。</summary>
     public bool CloseToTray { get; set; } = true;
@@ -123,8 +124,12 @@ public static class StateService
 {
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
 
+    /// <summary>状態の保存先。環境変数 KT_EXPLORER_STATE_DIR があれば、そのフォルダ(説明用の画面の撮影などで、普段の設定を使わないため)。</summary>
     public static string StatePath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "KT_Explorer", "state.json");
+        Environment.GetEnvironmentVariable("KT_EXPLORER_STATE_DIR") is { Length: > 0 } dir
+            ? dir
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "KT_Explorer"),
+        "state.json");
 
     public static AppState Load()
     {

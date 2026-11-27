@@ -124,6 +124,14 @@ dotnet build src/KT_Explorer/KT_Explorer.csproj -o "$TEMP/kt_build_check"
 
 終わったら、3つの結果(マージコミット、push の範囲、削除したブランチ、履歴の更新内容と、未確認の点)を、短く報告する。コミットは、ユーザーが「コミットして」と言ったときだけ行う(マージ・push の指示に、コミットは含まれない)。
 
+## 使い方の画面の撮り直し
+
+`& 'E:\KT_Applications\KT_Explorer\tools\docs\capture.ps1'`(先に確認用のビルドが必要)。`docs/images` の図を撮り直す。架空のフォルダと専用の状態(環境変数 `KT_EXPLORER_STATE_DIR` `KT_EXPLORER_TREE_ROOT`)で起動するので、普段の設定は使わない。実際のマウスを使う。**撮った画像は公開されるので、写り込みがないか必ず目で確認する。**
+
+## 配布用の zip(他の人への配布)
+
+版番号は `src/KT_Explorer/KT_Explorer.csproj` の `<Version>`。`& 'E:\KT_Applications\KT_Explorer\tools\release\publish.ps1'` で、`dist\KT_Explorer-<版番号>-win-x64.zip`(.NET 同梱の exe、ライセンス、使い方)ができる(`dist/` は git に入れない)。GitHub の Releases への掲載とタグは、ユーザーの指示があるときだけ行う。
+
 ## 既知の事情
 
 - アイコン・一覧の表示では、項目の中身(名前の入力欄など)が、画面要素(UI Automation)の一覧に出ない。また、見えている範囲の項目だけが出る(全部で数十件を超えても、件数は数十)。そのため、画面テストでは、入力欄の中身やフォーカスを確かめられない。名前の変更を試すときは、Enter ではなく、フォーカスを受け取れない場所(ラベル「絞込:」)のクリックで確定する。
