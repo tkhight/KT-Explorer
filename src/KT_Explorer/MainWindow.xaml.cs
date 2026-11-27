@@ -215,6 +215,21 @@ public partial class MainWindow : Window
 
     private void MenuExit_Click(object sender, RoutedEventArgs e) => ExitApp();
 
+    /// <summary>exe の隣の「使い方.html」を、既定のブラウザで開く。</summary>
+    private void MenuUsage_Click(object sender, RoutedEventArgs e)
+    {
+        var page = System.IO.Path.Combine(AppContext.BaseDirectory, "使い方.html");
+        try
+        {
+            if (!System.IO.File.Exists(page)) throw new System.IO.FileNotFoundException($"ファイルがありません。\n{page}");
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(page) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"使い方を開けませんでした。\n{ex.Message}", "KT_Explorer", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
     private void MenuAbout_Click(object sender, RoutedEventArgs e)
     {
         // 版番号は、プロジェクトファイルの <Version>(配布用の zip の名前と同じ)

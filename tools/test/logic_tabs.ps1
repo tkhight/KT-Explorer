@@ -189,6 +189,12 @@ try {
     $vmG.AddGroup('G-B'); $gb = $vmG.SelectedGroup
     function Names { @($vmG.Groups | ForEach-Object { $_.Name }) -join ',' }
 
+    # ── 使い方(ヘルプから開く): exe の隣に、ページと、そこで使う画像がそろっている
+    $build = Split-Path $global:Kt.Dll
+    $page = Join-Path $build '使い方.html'
+    $refs = if (Test-Path -LiteralPath $page) { @([regex]::Matches((Get-Content -LiteralPath $page -Raw), 'src="(images/[^"]+)"') | ForEach-Object { $_.Groups[1].Value }) } else { @() }
+    Check "usage page: next to the exe, with every image it refers to ($($refs.Count) images)" (($refs.Count -ge 6) -and -not ($refs | Where-Object { -not (Test-Path -LiteralPath (Join-Path $build $_)) }))
+
     # ── 開いた Explorer の取り込み: 初めて使うときはオフ。保存した設定は、そのまま
     $AST = $asm.GetType('KT_Explorer.Services.AppState')
     $fresh = [Activator]::CreateInstance($AST)

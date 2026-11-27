@@ -81,6 +81,9 @@ try {
 
     # ── ヘルプ → バージョン情報: 版番号の入った小窓が出て、閉じられる
     Open-Menu 'ヘルプ(H)'
+    # 「使い方」は、ブラウザ(外部のアプリ)が開くので、押さない(項目の有無だけを見る)
+    $usage = Find-AppMenuItem '使い方(H)'
+    Check 'Help menu has the usage item' ($usage -and $usage.Current.IsEnabled)
     $about = Find-AppMenuItem 'バージョン情報(A)'
     if (-not $about) { Stop-Test 'About item not found' }
     $about.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke()

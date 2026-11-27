@@ -222,6 +222,7 @@
             <MenuItem x:Name="MenuHistory" Header="履歴(_R)" SubmenuOpened="HistoryMenu_SubmenuOpened"><MenuItem Header="…"/></MenuItem>
             <MenuItem x:Name="MenuTools" Header="ツール(_T)" SubmenuOpened="ToolsMenu_SubmenuOpened"><MenuItem Header="…"/></MenuItem>
             <MenuItem x:Name="MenuHelp" Header="ヘルプ(_H)">
+                <MenuItem Header="使い方(_H)" Click="MenuUsage_Click"/>
                 <MenuItem Header="バージョン情報(_A)" Click="MenuAbout_Click"/>
             </MenuItem>
         </Menu>

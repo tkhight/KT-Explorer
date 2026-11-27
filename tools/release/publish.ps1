@@ -19,10 +19,9 @@ dotnet publish $project -c Release -r win-x64 --self-contained true -o $stage `
     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=none
 if ($LASTEXITCODE -ne 0) { throw 'publish failed' }
 
-# 同梱する文書: このアプリのライセンス、使い方、同梱しているもの(.NET、CommunityToolkit.Mvvm)のライセンス
+# 同梱する文書(使い方.html と images は、プロジェクトの設定で、exe の隣に出る): このアプリのライセンス、同梱しているもの(.NET、CommunityToolkit.Mvvm)のライセンス
 Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination (Join-Path $stage 'LICENSE.txt')
-Copy-Item -LiteralPath (Join-Path $root 'docs\usage.html') -Destination (Join-Path $stage '使い方.html')
-Copy-Item -LiteralPath (Join-Path $root 'docs\images') -Destination (Join-Path $stage 'images') -Recurse
+if (-not (Test-Path -LiteralPath (Join-Path $stage '使い方.html'))) { throw 'the usage page was not published next to the exe' }
 $third = New-Item -ItemType Directory (Join-Path $stage 'third-party')
 $dotnetDir = Split-Path (Get-Command dotnet).Source
 $toolkit = Join-Path $env:USERPROFILE '.nuget\packages\communitytoolkit.mvvm'
